@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { FeedResponse, PostWithRelations } from '@/lib/types'
+import { MossIcon } from '@/lib/components/MossIcon'
 
 function formatTimeAgo(dateString: string): string {
   const date = new Date(dateString)
@@ -32,11 +33,70 @@ function getMediaTypeLabel(mediaType: string): string {
   return mediaType.toLowerCase()
 }
 
+// 12-pointed circular star icon
+function StarIcon({ color, size = 16 }: { color: string; size?: number }) {
+  // Create 12 points evenly distributed around a circle
+  // For a 12-pointed star, we alternate between outer and inner radius
+  const points: string[] = []
+  const centerX = 12
+  const centerY = 12
+  const outerRadius = 10
+  const innerRadius = 6
+
+  for (let i = 0; i < 12; i++) {
+    // Outer point
+    const outerAngle = (i * 2 * Math.PI) / 12 - Math.PI / 2 // Start from top
+    const outerX = centerX + outerRadius * Math.cos(outerAngle)
+    const outerY = centerY + outerRadius * Math.sin(outerAngle)
+    points.push(`${outerX},${outerY}`)
+
+    // Inner point (halfway between outer points)
+    const innerAngle = ((i + 0.5) * 2 * Math.PI) / 12 - Math.PI / 2
+    const innerX = centerX + innerRadius * Math.cos(innerAngle)
+    const innerY = centerY + innerRadius * Math.sin(innerAngle)
+    points.push(`${innerX},${innerY}`)
+  }
+
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      style={{ color }}
+    >
+      <polygon points={points.join(' ')} fill="currentColor" />
+    </svg>
+  )
+}
+
+// Wavy divider component
+function WavyDivider() {
+  return (
+    <svg
+      width="60"
+      height="6"
+      viewBox="0 0 60 6"
+      fill="none"
+      className="text-white/30"
+    >
+      <path
+        d="M0 3 Q4 0, 8 3 T16 3 Q20 0, 24 3 T32 3 Q36 0, 40 3 T48 3 Q52 0, 56 3 T60 3"
+        stroke="currentColor"
+        strokeWidth="0.8"
+        fill="none"
+      />
+    </svg>
+  )
+}
+
 export default function FeedPage() {
   const [posts, setPosts] = useState<PostWithRelations[]>([])
   const [loading, setLoading] = useState(true)
   const [nextCursor, setNextCursor] = useState<string | undefined>()
   const [hasMore, setHasMore] = useState(false)
+  const [shareHovered, setShareHovered] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -70,8 +130,10 @@ export default function FeedPage() {
 
       setNextCursor(data.nextCursor)
       setHasMore(!!data.nextCursor)
+      setError(null) // Clear any previous errors on success
     } catch (error) {
       console.error('Error loading feed:', error)
+      setError('Failed to load feed. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -87,7 +149,7 @@ export default function FeedPage() {
   if (loading && posts.length === 0) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-gray-400">Loading...</div>
+        <div className="text-stone-500">Loading...</div>
       </div>
     )
   }
@@ -95,134 +157,154 @@ export default function FeedPage() {
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Header */}
-      <div className="sticky top-0 bg-black/80 backdrop-blur-sm border-b border-gray-800 z-10">
+      <div className="sticky top-0 bg-black/90 backdrop-blur-sm z-10 mb-8">
         <div className="max-w-4xl mx-auto px-4 md:px-8 py-4 flex items-center justify-between">
           {/* Logo */}
           <Link href="/feed" className="flex items-center gap-2">
-            <span className="text-green-500 text-xl">*</span>
-            <span className="text-green-500 text-lg font-bold">moss</span>
+            <MossIcon color="#2d5016" size={24} />
+            <span
+              className="text-2xl font-bold lowercase"
+              style={{
+                color: '#2d5016',
+                fontFamily: 'monospace',
+                letterSpacing: '0.1em',
+                textRendering: 'geometricPrecision',
+              }}
+            >
+              moss
+            </span>
           </Link>
 
           {/* Share Button */}
           <Link
             href="/share"
-            className="flex items-center gap-2 text-green-500 hover:text-green-400 transition-colors"
+            className="flex items-center gap-2 transition-colors"
+            style={{ color: shareHovered ? '#8fb084' : '#7a9b6f' }}
+            onMouseEnter={() => setShareHovered(true)}
+            onMouseLeave={() => setShareHovered(false)}
           >
-            <span className="text-lg">★</span>
-            <span className="text-sm font-medium">share</span>
+            <StarIcon color={shareHovered ? '#8fb084' : '#7a9b6f'} size={18} />
+            <span className="text-2xl font-bold">share</span>
           </Link>
         </div>
       </div>
 
       {/* Feed Content */}
-      <div className="max-w-4xl mx-auto px-4 md:px-8 py-8">
-        {posts.length === 0 ? (
+      <div className="max-w-2xl mx-auto px-6 md:px-8 pb-20">
+        {error && (
+          <div className="mb-6 p-4 bg-red-900/20 border border-red-800 rounded text-red-400 text-sm">
+            <p>{error}</p>
+            <button
+              onClick={() => {
+                setError(null)
+                loadFeed()
+              }}
+              className="mt-2 text-red-300 hover:text-red-200 underline"
+            >
+              Try again
+            </button>
+          </div>
+        )}
+        {posts.length === 0 && !loading ? (
           <div className="text-center py-16">
-            <p className="text-gray-400 text-lg mb-4">No posts yet</p>
+            <p className="text-stone-500 text-lg mb-4">No posts yet</p>
             <Link
               href="/share"
-              className="text-green-500 hover:text-green-400 transition-colors"
+              className="text-[#7a9b6f] hover:text-[#8fb084] transition-colors"
             >
               Share something →
             </Link>
           </div>
         ) : (
           <>
-            <div className="space-y-0">
+            <div>
               {posts.map((post, index) => (
                 <div key={post.id}>
                   {/* Post Content */}
-                  <div className="py-6 flex gap-4">
-                    {/* Left: User info and content */}
-                    <div className="flex-1">
-                      {/* User info */}
-                      <div className="flex items-center gap-2 mb-3">
-                        <div
-                          className="w-6 h-6 rounded-full"
-                          style={{ backgroundColor: post.user.avatar_color }}
-                        />
-                        <span className="text-sm text-gray-300">
+                  <div>
+                    {/* Header Row - Avatar + Metadata + Diamond */}
+                    <div className="flex items-center gap-3 mb-3">
+                      <div
+                        className="md:w-8 md:h-8 w-6 h-6 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: post.user.avatar_color }}
+                      />
+                      <div className="flex items-baseline gap-2 flex-1">
+                        <span className="md:text-sm text-xs text-stone-200 font-bold lowercase">
                           {post.user.username}
                         </span>
-                        <span className="text-gray-600">·</span>
-                        <span className="text-sm text-gray-500 capitalize">
+                        <span className="text-stone-700">·</span>
+                        <span className="md:text-sm text-xs text-stone-500">
                           {getMediaTypeLabel(post.media_item.media_type)}
                         </span>
-                        <span className="text-gray-600">·</span>
-                        <span className="text-sm text-gray-500">
+                        <span className="text-stone-700">·</span>
+                        <span className="md:text-sm text-xs text-stone-600">
                           {formatTimeAgo(post.created_at)}
                         </span>
+                        {/* Diamond icon - positioned at end with ml-auto */}
+                        <button className="ml-auto text-stone-600 hover:text-[#7a9b6f] transition-colors duration-200 flex-shrink-0">
+                          <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M12 2L22 12L12 22L2 12L12 2Z" />
+                          </svg>
+                        </button>
                       </div>
-
-                      {/* Title */}
-                      <h2 className="text-xl font-bold mb-1">
-                        {post.media_item.title}
-                      </h2>
-
-                      {/* Creator */}
-                      {post.media_item.creator && (
-                        <p className="text-gray-400 text-sm mb-2">
-                          by {post.media_item.creator}
-                        </p>
-                      )}
-
-                      {/* Note */}
-                      {post.note && (
-                        <p className="text-gray-500 text-sm mb-3">
-                          {post.note}
-                        </p>
-                      )}
                     </div>
 
-                    {/* Right: Thumbnail and icon */}
-                    <div className="flex items-start gap-2">
-                      {post.media_item.cover_url && (
-                        <div
-                          className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0"
-                          style={{
-                            border: `2px solid ${post.user.avatar_color}40`,
-                          }}
-                        >
-                          <img
-                            src={post.media_item.cover_url}
-                            alt={post.media_item.title}
-                            className="w-full h-full object-cover"
-                          />
+                    {/* Content Row - Text + Thumbnail */}
+                    <div className="flex gap-4 md:pl-11 pl-9">
+                      {/* Left: Text content */}
+                      <div className="flex-1">
+                        {/* Title and Creator */}
+                        <div className="md:text-base text-sm text-stone-200 leading-relaxed mb-1 font-medium">
+                          <span className="font-bold">{post.media_item.title}</span>
+                          {post.media_item.creator && (
+                            <span className="text-stone-500 ml-1">
+                              by {post.media_item.creator}
+                            </span>
+                          )}
                         </div>
-                      )}
-                      {/* Diamond icon placeholder */}
-                      <button className="text-gray-600 hover:text-gray-400 transition-colors mt-1">
-                        <svg
-                          width="16"
-                          height="16"
-                          viewBox="0 0 16 16"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.5"
-                        >
-                          <path d="M8 2L12 6L8 14L4 6L8 2Z" />
-                        </svg>
-                      </button>
+
+                        {/* Note */}
+                        {post.note && (
+                          <p className="md:text-sm text-xs text-stone-400 leading-relaxed line-clamp-3 mt-1 font-medium">
+                            {post.note}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Right: Thumbnail - always visible */}
+                      <div className="relative flex-shrink-0 mt-0.5">
+                        {/* Shadow layer */}
+                        <div
+                          className="absolute md:w-12 md:h-12 w-10 h-10 rounded-lg -bottom-1.5 -left-1.5 border border-stone-900"
+                          style={{ backgroundColor: post.user.avatar_color }}
+                        />
+                        {/* Main thumbnail */}
+                        <div className="relative md:w-12 md:h-12 w-10 h-10 rounded-lg border border-white/80 shadow-[0_0_12px_rgba(255,255,255,0.1)] bg-stone-900 overflow-hidden">
+                          {post.media_item.cover_url ? (
+                            <img
+                              src={post.media_item.cover_url}
+                              alt={post.media_item.title}
+                              className="w-full h-full object-cover opacity-90"
+                            />
+                          ) : null}
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Divider - wavy line */}
+                  {/* Wavy Divider - between posts (not before first) */}
                   {index < posts.length - 1 && (
-                    <div className="border-t border-gray-800">
-                      <svg
-                        width="100%"
-                        height="4"
-                        viewBox="0 0 100 4"
-                        preserveAspectRatio="none"
-                        className="text-gray-800"
-                      >
-                        <path
-                          d="M0,2 Q25,0 50,2 T100,2"
-                          stroke="currentColor"
-                          strokeWidth="1"
-                          fill="none"
-                        />
-                      </svg>
+                    <div className="mt-6 mb-6">
+                      <WavyDivider />
                     </div>
                   )}
                 </div>
@@ -235,7 +317,7 @@ export default function FeedPage() {
                 <button
                   onClick={handleLoadMore}
                   disabled={loading}
-                  className="text-green-500 hover:text-green-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="text-[#7a9b6f] hover:text-[#8fb084] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? 'Loading...' : 'Load more →'}
                 </button>

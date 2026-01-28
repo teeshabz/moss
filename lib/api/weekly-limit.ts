@@ -1,5 +1,6 @@
 import { startOfWeek, endOfWeek } from 'date-fns'
 import { toZonedTime, fromZonedTime } from 'date-fns-tz'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 /**
  * Calculate the start and end of the current week in America/New_York timezone
@@ -35,7 +36,7 @@ export function getCurrentWeekBounds(): { start: Date; end: Date } {
  */
 export async function countWeeklyPosts(
   userId: string,
-  supabase: any
+  supabase: SupabaseClient
 ): Promise<number> {
   const { start, end } = getCurrentWeekBounds()
   
@@ -59,7 +60,7 @@ export async function countWeeklyPosts(
  */
 export async function canCreatePost(
   userId: string,
-  supabase: any
+  supabase: SupabaseClient
 ): Promise<boolean> {
   const count = await countWeeklyPosts(userId, supabase)
   return count < 3

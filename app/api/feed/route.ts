@@ -1,6 +1,17 @@
 import { createServerComponentClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
-import type { FeedResponse, PostWithRelations } from '@/lib/types'
+import type { FeedResponse, PostWithRelations, User, MediaItem } from '@/lib/types'
+
+// Type for raw post result from Supabase query with relations
+interface RawPostResult {
+  id: string
+  user_id: string
+  media_item_id: string
+  note: string | null
+  created_at: string
+  user: User | User[]
+  media_item: MediaItem | MediaItem[]
+}
 
 /**
  * GET /api/feed
@@ -99,7 +110,7 @@ export async function GET(request: NextRequest) {
     const items = hasNextPage ? posts.slice(0, limit) : posts
 
     // Transform to PostWithRelations format
-    const transformedItems: PostWithRelations[] = items.map((post: any) => ({
+    const transformedItems: PostWithRelations[] = items.map((post: RawPostResult) => ({
       id: post.id,
       user_id: post.user_id,
       media_item_id: post.media_item_id,

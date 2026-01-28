@@ -4,6 +4,15 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { UserMeResponse } from '@/lib/types'
+import { MossIcon } from '@/lib/components/MossIcon'
+import {
+  BookIcon,
+  NewspaperIcon,
+  FilmIcon,
+  MusicIcon,
+  DiscIcon,
+  PodcastIcon,
+} from '@/lib/components/MediaIcons'
 
 interface MediaType {
   label: string
@@ -17,102 +26,107 @@ const mediaTypes: MediaType[] = [
   {
     label: 'book',
     value: 'book',
-    color: '#C98B6A',
-    hoverColor: '#E5A882',
+    color: '#c17a6f',
+    hoverColor: '#c17a6f',
     icon: 'book',
   },
   {
     label: 'article',
     value: 'article',
-    color: '#D4A574',
-    hoverColor: '#E8B88A',
-    icon: 'square',
+    color: '#8b5a3c',
+    hoverColor: '#8b5a3c',
+    icon: 'article',
   },
   {
     label: 'movie',
     value: 'movie',
-    color: '#A8C5D0',
-    hoverColor: '#C4E0ED',
-    icon: 'film',
+    color: '#5a7a8c',
+    hoverColor: '#5a7a8c',
+    icon: 'movie',
   },
   {
     label: 'song',
     value: 'song',
-    color: '#E5B8A8',
-    hoverColor: '#F5D4C4',
+    color: '#b88b9d',
+    hoverColor: '#b88b9d',
     icon: 'song',
   },
   {
     label: 'album',
     value: 'album',
-    color: '#C5A8D0',
-    hoverColor: '#D9B8E8',
+    color: '#7d5a8f',
+    hoverColor: '#7d5a8f',
     icon: 'album',
   },
   {
     label: 'podcast',
     value: 'podcast',
-    color: '#E8A87C',
-    hoverColor: '#F8C89C',
+    color: '#e07a5f',
+    hoverColor: '#e07a5f',
     icon: 'podcast',
   },
 ]
 
-// Icon components
+// 12-pointed circular star icon
+function StarIcon({ color, size = 16 }: { color: string; size?: number }) {
+  // Create 12 points evenly distributed around a circle
+  // For a 12-pointed star, we alternate between outer and inner radius
+  const points: string[] = []
+  const centerX = 12
+  const centerY = 12
+  const outerRadius = 10
+  const innerRadius = 6
+
+  for (let i = 0; i < 12; i++) {
+    // Outer point
+    const outerAngle = (i * 2 * Math.PI) / 12 - Math.PI / 2 // Start from top
+    const outerX = centerX + outerRadius * Math.cos(outerAngle)
+    const outerY = centerY + outerRadius * Math.sin(outerAngle)
+    points.push(`${outerX},${outerY}`)
+
+    // Inner point (halfway between outer points)
+    const innerAngle = ((i + 0.5) * 2 * Math.PI) / 12 - Math.PI / 2
+    const innerX = centerX + innerRadius * Math.cos(innerAngle)
+    const innerY = centerY + innerRadius * Math.sin(innerAngle)
+    points.push(`${innerX},${innerY}`)
+  }
+
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      style={{ color }}
+    >
+      <polygon points={points.join(' ')} fill="currentColor" />
+    </svg>
+  )
+}
+
+// Icon component wrapper - renders appropriate icon based on type
 function MediaIcon({ type, color }: { type: string; color: string }) {
+  const iconProps = {
+    size: 32,
+    className: '',
+    style: { color } as React.CSSProperties,
+  }
+
   switch (type) {
-    case 'square':
-      // Square icon for article
-      return (
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 20 20"
-          fill="none"
-          style={{ color }}
-        >
-          <rect
-            x="2"
-            y="2"
-            width="16"
-            height="16"
-            stroke="currentColor"
-            strokeWidth="2"
-            fill="currentColor"
-          />
-        </svg>
-      )
-    case 'film':
-      // Film reel icon for movie
-      return (
-        <svg
-          width="24"
-          height="16"
-          viewBox="0 0 24 16"
-          fill="none"
-          style={{ color }}
-        >
-          <rect
-            x="2"
-            y="4"
-            width="20"
-            height="8"
-            rx="1"
-            fill="currentColor"
-          />
-          <circle cx="6" cy="8" r="1.5" fill="#9CA3AF" />
-          <circle cx="18" cy="8" r="1.5" fill="#9CA3AF" />
-          <rect x="4" y="6" width="16" height="4" fill="#4B5563" />
-        </svg>
-      )
+    case 'book':
+      return <BookIcon {...iconProps} />
+    case 'article':
+      return <NewspaperIcon {...iconProps} />
+    case 'movie':
+      return <FilmIcon {...iconProps} />
+    case 'song':
+      return <MusicIcon {...iconProps} />
+    case 'album':
+      return <DiscIcon {...iconProps} />
+    case 'podcast':
+      return <PodcastIcon {...iconProps} />
     default:
-      // Simple geometric shapes for others
-      return (
-        <div
-          className="w-4 h-4 rounded"
-          style={{ backgroundColor: color }}
-        />
-      )
+      return null
   }
 }
 
@@ -180,8 +194,18 @@ export default function SharePage() {
 
       <div className="absolute top-8 right-8 md:top-16 md:right-16">
         <div className="flex items-center gap-2">
-          <span className="text-green-500 text-xl">*</span>
-          <span className="text-green-500 text-lg font-bold">moss</span>
+          <MossIcon color="#2d5016" size={24} />
+          <span
+            className="text-2xl font-bold lowercase"
+            style={{
+              color: '#2d5016',
+              fontFamily: 'monospace',
+              letterSpacing: '0.1em',
+              textRendering: 'geometricPrecision',
+            }}
+          >
+            moss
+          </span>
         </div>
       </div>
 
@@ -189,19 +213,15 @@ export default function SharePage() {
       <div className="absolute top-8 left-1/2 transform -translate-x-1/2 md:top-16 text-center">
         <div className="flex justify-center gap-1 mb-2">
           {[0, 1, 2].map((index) => (
-            <span
-              key={index}
-              className={`text-lg ${
-                index < filledStars
-                  ? 'text-green-500'
-                  : 'text-green-500/30'
-              }`}
-            >
-              ★
+            <span key={index}>
+              <StarIcon
+                color={index < filledStars ? '#8FA68E' : '#8FA68E4D'}
+                size={28}
+              />
             </span>
           ))}
         </div>
-        <p className="text-gray-400 text-xs uppercase tracking-wider">
+        <p className="text-gray-500 text-[10px] uppercase tracking-wider">
           SHARED THIS WEEK
         </p>
       </div>
@@ -218,28 +238,26 @@ export default function SharePage() {
                 onMouseEnter={() => setHoveredType(type.value)}
                 onMouseLeave={() => setHoveredType(null)}
                 className="relative flex items-center justify-center group transition-all"
-                style={{
-                  color: isHovered ? type.hoverColor : type.color,
-                }}
               >
-                {/* Icon container - always reserves space to keep text aligned */}
-                <div className="w-6 flex-shrink-0">
-                  {/* Icon - appears on hover */}
-                  <div
-                    className={`transition-all duration-200 ${
-                      isHovered
-                        ? 'opacity-100 translate-x-0'
-                        : 'opacity-0 -translate-x-4'
-                    }`}
-                  >
-                    <MediaIcon type={type.icon} color={type.color} />
-                  </div>
+                {/* Icon - only visible on hover */}
+                <div
+                  className={`flex-shrink-0 mr-6 transition-all duration-200 ${
+                    isHovered
+                      ? 'opacity-100 translate-x-0'
+                      : 'opacity-0 -translate-x-4'
+                  }`}
+                >
+                  <MediaIcon
+                    type={type.icon}
+                    color={type.color}
+                  />
                 </div>
-                {/* Media Type Text - always starts at same position */}
+                {/* Media Type Text - becomes more faded on hover */}
                 <span
-                  className="text-3xl md:text-4xl font-bold transition-colors duration-200"
+                  className="text-3xl md:text-4xl font-bold transition-all duration-200"
                   style={{
-                    color: isHovered ? type.hoverColor : type.color,
+                    color: type.color,
+                    opacity: isHovered ? 0.5 : 1,
                   }}
                 >
                   {type.label}

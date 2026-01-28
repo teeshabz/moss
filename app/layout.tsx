@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { ErrorBoundaryWrapper } from "@/lib/components/ErrorBoundaryWrapper";
 
 export const metadata: Metadata = {
   title: "Moss",
@@ -13,7 +14,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <ErrorBoundaryWrapper>{children}</ErrorBoundaryWrapper>
+      </body>
     </html>
   );
 }

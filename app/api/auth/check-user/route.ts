@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 
 /**
@@ -17,16 +17,7 @@ export async function POST(request: Request) {
     }
 
     // Use service role key to access auth.users table
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      }
-    )
+    const supabaseAdmin = createAdminClient()
 
     // Query auth.users table via Admin API
     // Note: Admin API doesn't have getUserByEmail, so we list and filter

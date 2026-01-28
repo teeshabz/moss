@@ -4,6 +4,7 @@ import { useState, FormEvent } from 'react'
 import { createClientComponentClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { MossIcon } from '@/lib/components/MossIcon'
 
 export default function SignupPage() {
   const [username, setUsername] = useState('')
@@ -122,8 +123,18 @@ export default function SignupPage() {
       {/* Logo - top left */}
       <div className="absolute top-8 left-8 md:top-16 md:left-16">
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-green-500 text-2xl">*</span>
-          <h1 className="text-2xl md:text-3xl font-bold text-green-500">MOSS</h1>
+          <MossIcon color="#2d5016" size={24} />
+          <h1
+            className="text-2xl font-bold lowercase"
+            style={{
+              color: '#2d5016',
+              fontFamily: 'monospace',
+              letterSpacing: '0.1em',
+              textRendering: 'geometricPrecision',
+            }}
+          >
+            moss
+          </h1>
         </div>
       </div>
 
