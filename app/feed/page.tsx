@@ -3,8 +3,27 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import type { FeedResponse, PostWithRelations } from '@/lib/types'
+import type {
+  FeedResponse,
+  PostWithRelations,
+  SavedIdsResponse,
+  UserMeResponse,
+} from '@/lib/types'
 import { MossIcon } from '@/lib/components/MossIcon'
+import {
+  BookIcon,
+  BookIconOutline,
+  NewspaperIcon,
+  NewspaperIconOutline,
+  FilmIcon,
+  FilmIconOutline,
+  MusicIcon,
+  MusicIconOutline,
+  DiscIcon,
+  DiscIconOutline,
+  PodcastIcon,
+  PodcastIconOutline,
+} from '@/lib/components/MediaIcons'
 
 function formatTimeAgo(dateString: string): string {
   const date = new Date(dateString)
@@ -31,6 +50,62 @@ function formatTimeAgo(dateString: string): string {
 
 function getMediaTypeLabel(mediaType: string): string {
   return mediaType.toLowerCase()
+}
+
+function MediaTypeOutlineIcon({
+  mediaType,
+  size = 14,
+  className,
+}: {
+  mediaType: string
+  size?: number
+  className?: string
+}) {
+  const style = { color: 'currentColor' }
+  switch (mediaType.toUpperCase()) {
+    case 'BOOK':
+      return <BookIconOutline size={size} className={className} style={style} />
+    case 'ARTICLE':
+      return <NewspaperIconOutline size={size} className={className} style={style} />
+    case 'MOVIE':
+      return <FilmIconOutline size={size} className={className} style={style} />
+    case 'SONG':
+      return <MusicIconOutline size={size} className={className} style={style} />
+    case 'ALBUM':
+      return <DiscIconOutline size={size} className={className} style={style} />
+    case 'PODCAST':
+      return <PodcastIconOutline size={size} className={className} style={style} />
+    default:
+      return <MusicIconOutline size={size} className={className} style={style} />
+  }
+}
+
+function MediaTypeFilledIcon({
+  mediaType,
+  size = 14,
+  className,
+}: {
+  mediaType: string
+  size?: number
+  className?: string
+}) {
+  const style = { color: 'currentColor' }
+  switch (mediaType.toUpperCase()) {
+    case 'BOOK':
+      return <BookIcon size={size} className={className} style={style} />
+    case 'ARTICLE':
+      return <NewspaperIcon size={size} className={className} style={style} />
+    case 'MOVIE':
+      return <FilmIcon size={size} className={className} style={style} />
+    case 'SONG':
+      return <MusicIcon size={size} className={className} style={style} />
+    case 'ALBUM':
+      return <DiscIcon size={size} className={className} style={style} />
+    case 'PODCAST':
+      return <PodcastIcon size={size} className={className} style={style} />
+    default:
+      return <MusicIcon size={size} className={className} style={style} />
+  }
 }
 
 // 12-pointed circular star icon
@@ -97,10 +172,42 @@ export default function FeedPage() {
   const [hasMore, setHasMore] = useState(false)
   const [shareHovered, setShareHovered] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [currentUser, setCurrentUser] = useState<UserMeResponse | null>(null)
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
+  const [savingIds, setSavingIds] = useState<Set<string>>(new Set())
   const router = useRouter()
 
   useEffect(() => {
     loadFeed()
+  }, [])
+
+  useEffect(() => {
+    async function loadUser() {
+      try {
+        const res = await fetch('/api/users/me')
+        if (res.ok) {
+          const data: UserMeResponse = await res.json()
+          setCurrentUser(data)
+        }
+      } catch {
+        // ignore
+      }
+    }
+    loadUser()
+  }, [])
+
+  useEffect(() => {
+    async function loadSavedIds() {
+      try {
+        const res = await fetch('/api/users/me/saved-ids')
+        if (!res.ok) return
+        const data: SavedIdsResponse = await res.json()
+        setSavedIds(new Set(data.postIds))
+      } catch {
+        // ignore
+      }
+    }
+    loadSavedIds()
   }, [])
 
   async function loadFeed(cursor?: string) {
@@ -143,6 +250,45 @@ export default function FeedPage() {
     if (nextCursor && !loading) {
       setLoading(true)
       loadFeed(nextCursor)
+    }
+  }
+
+  const toggleSave = async (postId: string) => {
+    const wasSaved = savedIds.has(postId)
+    setSavingIds((prev) => {
+      const next = new Set(prev)
+      next.add(postId)
+      return next
+    })
+    setSavedIds((prev) => {
+      const next = new Set(prev)
+      if (wasSaved) next.delete(postId)
+      else next.add(postId)
+      return next
+    })
+
+    try {
+      const res = await fetch(`/api/posts/${postId}/save`, {
+        method: wasSaved ? 'DELETE' : 'POST',
+      })
+      if (!res.ok) {
+        throw new Error('Failed to update save')
+      }
+    } catch (error) {
+      console.error('Error toggling save:', error)
+      setSavedIds((prev) => {
+        const next = new Set(prev)
+        if (wasSaved) next.add(postId)
+        else next.delete(postId)
+        return next
+      })
+      setError('Failed to update save. Please try again.')
+    } finally {
+      setSavingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(postId)
+        return next
+      })
     }
   }
 
@@ -229,9 +375,12 @@ export default function FeedPage() {
                         style={{ backgroundColor: post.user.avatar_color }}
                       />
                       <div className="flex items-baseline gap-2 flex-1">
-                        <span className="md:text-sm text-xs text-stone-200 font-bold lowercase">
+                        <Link
+                          href={`/profile/${encodeURIComponent(post.user.username)}`}
+                          className="md:text-sm text-xs text-stone-200 font-bold lowercase hover:text-[#7a9b6f] transition-colors"
+                        >
                           {post.user.username}
-                        </span>
+                        </Link>
                         <span className="text-stone-700">·</span>
                         <span className="md:text-sm text-xs text-stone-500">
                           {getMediaTypeLabel(post.media_item.media_type)}
@@ -240,21 +389,32 @@ export default function FeedPage() {
                         <span className="md:text-sm text-xs text-stone-600">
                           {formatTimeAgo(post.created_at)}
                         </span>
-                        {/* Diamond icon - positioned at end with ml-auto */}
-                        <button className="ml-auto text-stone-600 hover:text-[#7a9b6f] transition-colors duration-200 flex-shrink-0">
-                          <svg
-                            width="14"
-                            height="14"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
+                        {/* Media type icon (empty outline; filled when saved) */}
+                        {currentUser?.user?.id !== post.user.id && (
+                          <button
+                            onClick={() => toggleSave(post.id)}
+                            disabled={savingIds.has(post.id)}
+                            aria-pressed={savedIds.has(post.id)}
+                            aria-label={savedIds.has(post.id) ? 'Unsave post' : 'Save post'}
+                            className={`ml-auto transition-colors duration-200 flex-shrink-0 ${
+                              savedIds.has(post.id)
+                                ? 'text-[#7a9b6f]'
+                                : 'text-stone-600 hover:text-[#7a9b6f]'
+                            } ${savingIds.has(post.id) ? 'opacity-60 cursor-not-allowed' : ''}`}
                           >
-                            <path d="M12 2L22 12L12 22L2 12L12 2Z" />
-                          </svg>
-                        </button>
+                            {savedIds.has(post.id) ? (
+                              <MediaTypeFilledIcon
+                                mediaType={post.media_item.media_type}
+                                size={14}
+                              />
+                            ) : (
+                              <MediaTypeOutlineIcon
+                                mediaType={post.media_item.media_type}
+                                size={14}
+                              />
+                            )}
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -326,6 +486,18 @@ export default function FeedPage() {
           </>
         )}
       </div>
+
+      {/* Footer - Username (links to profile) */}
+      {currentUser?.user?.username && (
+        <div className="fixed bottom-8 left-8 md:bottom-16 md:left-16">
+          <Link
+            href={`/profile/${encodeURIComponent(currentUser.user.username)}`}
+            className="text-stone-500 text-sm hover:text-[#7a9b6f] transition-colors"
+          >
+            {currentUser.user.username}
+          </Link>
+        </div>
+      )}
     </div>
   )
 }

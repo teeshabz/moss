@@ -52,12 +52,34 @@ CREATE INDEX IF NOT EXISTS idx_posts_user_created ON posts(user_id, created_at D
 CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_media_items_source ON media_items(source, source_id) WHERE source IS NOT NULL;
 
+-- Create saves table for post saves
+CREATE TABLE IF NOT EXISTS saves (
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  post_id TEXT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  PRIMARY KEY (user_id, post_id)
+);
+
+-- Index for listing saved posts per user
+CREATE INDEX IF NOT EXISTS idx_saves_user_created ON saves(user_id, created_at DESC);
+
 -- Enable Row Level Security (RLS) - we'll configure policies later
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE media_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE saves ENABLE ROW LEVEL SECURITY;
 
 -- Basic RLS policies (allow all for now, we'll refine later)
 CREATE POLICY "Users are viewable by everyone" ON users FOR SELECT USING (true);
 CREATE POLICY "Media items are viewable by everyone" ON media_items FOR SELECT USING (true);
 CREATE POLICY "Posts are viewable by everyone" ON posts FOR SELECT USING (true);
+
+-- Saves RLS: users can manage their own saves
+CREATE POLICY "Users can view their saves" ON saves
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their saves" ON saves
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their saves" ON saves
+  FOR DELETE USING (auth.uid() = user_id);

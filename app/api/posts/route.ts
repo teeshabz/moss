@@ -57,7 +57,7 @@ export async function POST(request: Request) {
     if (weeklyCount >= 3) {
       return NextResponse.json(
         {
-          error: 'Weekly limit reached. You can share up to 3 items per week.',
+          error: "you've already posted 3 times this week. come back next week!",
           code: 'weekly_limit_exceeded',
         },
         { status: 409 }

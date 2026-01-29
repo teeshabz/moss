@@ -87,7 +87,7 @@ export function FilmIcon({ size = 32, className, style }: IconProps) {
   )
 }
 
-// Song Icon - solid angular music note
+// Song Icon - filled triangle
 export function MusicIcon({ size = 32, className, style }: IconProps) {
   return (
     <svg
@@ -98,15 +98,7 @@ export function MusicIcon({ size = 32, className, style }: IconProps) {
       className={className}
       style={style}
     >
-      {/* Note head (rectangular) */}
-      <rect x="12" y="18" width="8" height="6" rx="1" fill="currentColor" />
-      {/* Stem (rectangular) */}
-      <rect x="18" y="8" width="2.5" height="10" fill="currentColor" />
-      {/* Flag (angular) */}
-      <path
-        d="M20.5 8 L20.5 12 L26 10 L26 8 Z"
-        fill="currentColor"
-      />
+      <polygon points="16,8 24,26 8,26" fill="currentColor" />
     </svg>
   )
 }
@@ -150,6 +142,58 @@ export function PodcastIcon({ size = 32, className, style }: IconProps) {
     >
       {/* Vertical rectangle */}
       <rect x="12" y="6" width="8" height="20" rx="1" fill="currentColor" />
+    </svg>
+  )
+}
+
+// Outline icons for feed (empty / unsaved state). Stroke only, same shapes as filled.
+const outlineStroke = 1.5
+
+export function BookIconOutline({ size = 32, className, style }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" className={className} style={style}>
+      <rect x="8" y="6" width="16" height="20" rx="1" stroke="currentColor" strokeWidth={outlineStroke} />
+    </svg>
+  )
+}
+
+export function NewspaperIconOutline({ size = 32, className, style }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" className={className} style={style}>
+      <rect x="6" y="6" width="20" height="20" rx="1" stroke="currentColor" strokeWidth={outlineStroke} />
+    </svg>
+  )
+}
+
+export function FilmIconOutline({ size = 32, className, style }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" className={className} style={style}>
+      <rect x="6" y="10" width="20" height="12" rx="1" stroke="currentColor" strokeWidth={outlineStroke} />
+    </svg>
+  )
+}
+
+export function MusicIconOutline({ size = 32, className, style }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" className={className} style={style}>
+      <polygon points="16,8 24,26 8,26" stroke="currentColor" strokeWidth={outlineStroke} strokeLinejoin="round" fill="none" />
+    </svg>
+  )
+}
+
+export function DiscIconOutline({ size = 32, className, style }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" className={className} style={style}>
+      <circle cx="16" cy="16" r="12" stroke="currentColor" strokeWidth={outlineStroke} />
+      <circle cx="16" cy="16" r="3" stroke="currentColor" strokeWidth={outlineStroke} />
+    </svg>
+  )
+}
+
+export function PodcastIconOutline({ size = 32, className, style }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" className={className} style={style}>
+      <rect x="12" y="6" width="8" height="20" rx="1" stroke="currentColor" strokeWidth={outlineStroke} />
     </svg>
   )
 }

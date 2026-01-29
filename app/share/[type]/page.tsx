@@ -92,6 +92,114 @@ const mediaTypeConfig: Record<
       },
     ],
   },
+  movie: {
+    color: '#5a7a8c',
+    label: 'movie',
+    fields: [
+      {
+        label: 'MOVIE TITLE',
+        name: 'title',
+        placeholder: 'Enter movie title...',
+        required: true,
+        type: 'text',
+      },
+      {
+        label: 'DIRECTOR',
+        name: 'director',
+        placeholder: 'Who directed it?',
+        required: true,
+        type: 'text',
+      },
+      {
+        label: 'NOTE',
+        name: 'note',
+        placeholder: 'Your thoughts...',
+        required: false,
+        type: 'text',
+      },
+    ],
+  },
+  song: {
+    color: '#b88b9d',
+    label: 'song',
+    fields: [
+      {
+        label: 'SONG TITLE',
+        name: 'title',
+        placeholder: 'Enter song title...',
+        required: true,
+        type: 'text',
+      },
+      {
+        label: 'ARTIST',
+        name: 'artist',
+        placeholder: 'Who performed it?',
+        required: true,
+        type: 'text',
+      },
+      {
+        label: 'NOTE',
+        name: 'note',
+        placeholder: 'Your thoughts...',
+        required: false,
+        type: 'text',
+      },
+    ],
+  },
+  album: {
+    color: '#7d5a8f',
+    label: 'album',
+    fields: [
+      {
+        label: 'ALBUM NAME',
+        name: 'title',
+        placeholder: 'Enter album name...',
+        required: true,
+        type: 'text',
+      },
+      {
+        label: 'ARTIST',
+        name: 'artist',
+        placeholder: 'Who created it?',
+        required: true,
+        type: 'text',
+      },
+      {
+        label: 'NOTE',
+        name: 'note',
+        placeholder: 'Your thoughts...',
+        required: false,
+        type: 'text',
+      },
+    ],
+  },
+  podcast: {
+    color: '#e07a5f',
+    label: 'podcast',
+    fields: [
+      {
+        label: 'TITLE',
+        name: 'title',
+        placeholder: 'Enter podcast title...',
+        required: true,
+        type: 'text',
+      },
+      {
+        label: 'HOST',
+        name: 'host',
+        placeholder: 'Who hosts it?',
+        required: true,
+        type: 'text',
+      },
+      {
+        label: 'NOTE',
+        name: 'note',
+        placeholder: 'Your thoughts...',
+        required: false,
+        type: 'text',
+      },
+    ],
+  },
 }
 
 // Icon component - uses new icon components
@@ -164,15 +272,9 @@ export default function ShareTypePage() {
   ) => {
     const { name, value } = e.target
     
-    // Enforce 60 character limit for note field
-    if (name === 'note') {
-      if (value.length > 60) {
-        // Don't allow typing beyond 60 characters
-        return
-      }
-      // Show message when exactly at 60 characters
-      setNoteLimitReached(value.length === 60)
-    }
+    // Enforce 60 character limit for all fields
+    if (value.length > 60) return
+    if (name === 'note') setNoteLimitReached(value.length === 60)
     
     setFormData((prev) => ({ ...prev, [name]: value }))
     // Clear error for this field when user starts typing
@@ -262,7 +364,7 @@ export default function ShareTypePage() {
 
       if (!response.ok) {
         if (response.status === 409) {
-          setSubmitError(data.error || 'Weekly limit reached')
+          setSubmitError(data.error || "you've already posted 3 times this week. come back next week!")
         } else if (response.status === 400) {
           setSubmitError(data.error || 'Validation error')
         } else {
@@ -325,11 +427,10 @@ export default function ShareTypePage() {
       </div>
 
       {/* Form */}
-      <div className="flex-1 flex flex-col items-start justify-center px-8 md:px-16 py-24 mt-24 md:mt-32">
+      <div className="flex-1 flex flex-col items-start justify-center px-8 md:px-16 py-24 mt-12 md:mt-16">
         <form onSubmit={handleSubmit} className="w-full max-w-2xl space-y-8">
           {config.fields.map((field) => {
             const isNoteField = field.name === 'note'
-            const noteLength = formData.note?.length || 0
 
             return (
               <div key={field.name} className="w-full">
@@ -342,9 +443,7 @@ export default function ShareTypePage() {
                     {field.label}
                   </label>
                   {isNoteField ? (
-                    <span className="text-xs text-stone-500">
-                      {noteLength}/60
-                    </span>
+                    <span className="text-xs text-stone-500">optional</span>
                   ) : null}
                 </div>
                 {field.type === 'textarea' ? (
@@ -383,6 +482,7 @@ export default function ShareTypePage() {
                     onChange={handleInputChange}
                     placeholder={field.placeholder}
                     required={field.required}
+                    maxLength={60}
                     className={`w-full border-2 rounded-lg px-4 py-3 text-stone-200 placeholder-stone-500 focus:outline-none transition-all text-lg md:text-xl font-medium ${
                       errors[field.name]
                         ? 'border-red-500'

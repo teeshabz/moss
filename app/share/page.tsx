@@ -268,9 +268,14 @@ export default function SharePage() {
         </div>
       </div>
 
-      {/* Footer - Username */}
+      {/* Footer - Username (links to profile) */}
       <div className="absolute bottom-8 left-8 md:bottom-16 md:left-16">
-        <p className="text-gray-400 text-sm">{user.user.username}</p>
+        <Link
+          href={`/profile/${encodeURIComponent(user.user.username)}`}
+          className="text-gray-400 text-sm hover:text-[#7a9b6f] transition-colors"
+        >
+          {user.user.username}
+        </Link>
       </div>
     </div>
   )

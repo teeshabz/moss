@@ -49,6 +49,24 @@ export interface FeedResponse {
   nextCursor?: string
 }
 
+export interface SavedIdsResponse {
+  postIds: string[]
+}
+
+export interface ProfileUser {
+  id: string
+  username: string
+  avatar_color: string
+  created_at: string
+}
+
+export interface ProfileResponse {
+  user: ProfileUser
+  postCount: number
+  items: PostWithRelations[]
+  nextCursor?: string
+}
+
 export interface CreatePostRequest {
   media: {
     mediaType: MediaType
