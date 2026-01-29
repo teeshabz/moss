@@ -40,12 +40,14 @@ function MediaTypeFilledIcon({
   mediaType,
   size = 14,
   className,
+  color,
 }: {
   mediaType: string
   size?: number
   className?: string
+  color?: string
 }) {
-  const style = { color: 'currentColor' }
+  const style = { color: color ?? 'currentColor' }
   switch (mediaType.toUpperCase()) {
     case 'BOOK':
       return <BookIcon size={size} className={className} style={style} />
@@ -83,6 +85,34 @@ function StarIcon({ color, size = 16 }: { color: string; size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ color }}>
       <polygon points={points.join(' ')} fill="currentColor" />
+    </svg>
+  )
+}
+
+function PlusIcon({
+  saved,
+  size = 14,
+  className,
+}: {
+  saved: boolean
+  size?: number
+  className?: string
+}) {
+  const strokeWidth = saved ? 2.5 : 1.5
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
     </svg>
   )
 }
@@ -291,21 +321,25 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* Header: back + share */}
+      {/* Header: back + logo */}
       <div className="sticky top-0 bg-black/90 backdrop-blur-sm z-10 border-b border-stone-800">
         <div className="max-w-4xl mx-auto px-4 md:px-8 py-4 flex items-center justify-between">
           <Link href="/feed" className="text-white text-2xl hover:text-gray-300">
             ←
           </Link>
-          <Link
-            href="/share"
-            className="flex items-center gap-2 transition-colors"
-            style={{ color: shareHovered ? '#8fb084' : '#7a9b6f' }}
-            onMouseEnter={() => setShareHovered(true)}
-            onMouseLeave={() => setShareHovered(false)}
-          >
-            <StarIcon color={shareHovered ? '#8fb084' : '#7a9b6f'} size={18} />
-            <span className="text-2xl font-bold">share</span>
+          <Link href="/feed" className="flex items-center gap-2">
+            <MossIcon color="#2d5016" size={24} />
+            <span
+              className="text-2xl font-bold lowercase"
+              style={{
+                color: '#2d5016',
+                fontFamily: 'monospace',
+                letterSpacing: '0.1em',
+                textRendering: 'geometricPrecision',
+              }}
+            >
+              moss
+            </span>
           </Link>
           <div className="w-8" />
         </div>
@@ -315,7 +349,7 @@ export default function ProfilePage() {
         {/* Profile header: avatar, username, settings */}
         <div className="flex items-center gap-4 mb-8">
           <div
-            className="w-20 h-20 md:w-24 md:h-24 rounded-full flex-shrink-0"
+            className="w-16 h-16 md:w-20 md:h-20 rounded-full flex-shrink-0"
             style={{ backgroundColor: user.avatar_color }}
           />
           <div className="flex-1 min-w-0">
@@ -324,11 +358,15 @@ export default function ProfilePage() {
             </h1>
           </div>
           <Link
-            href="#"
-            className="flex-shrink-0 text-[#7a9b6f] hover:text-[#8fb084] transition-colors"
-            aria-label="Settings"
+            href="/share"
+            className="flex items-center gap-2 transition-colors"
+            style={{ color: shareHovered ? '#8fb084' : '#7a9b6f' }}
+            onMouseEnter={() => setShareHovered(true)}
+            onMouseLeave={() => setShareHovered(false)}
+            aria-label="Share"
           >
-            <MossIcon color="currentColor" size={24} />
+            <StarIcon color={shareHovered ? '#8fb084' : '#7a9b6f'} size={18} />
+            <span className="text-2xl font-bold">share</span>
           </Link>
         </div>
 
@@ -378,24 +416,24 @@ export default function ProfilePage() {
                 <p className="text-stone-500">No shared items yet</p>
               </div>
             ) : (
-              <div className="space-y-6">
-                {items.map((post: PostWithRelations) => (
-                  <div key={post.id} className="flex gap-4">
-                    <div
-                      className="w-8 h-8 rounded-full flex-shrink-0 mt-0.5"
-                      style={{ backgroundColor: post.user.avatar_color }}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm text-stone-200 font-bold lowercase">
+              <div>
+                {items.map((post: PostWithRelations, index) => (
+                  <div key={post.id}>
+                    <div className="flex items-center gap-3 mb-3">
+                      <div
+                        className="md:w-8 md:h-8 w-6 h-6 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: post.user.avatar_color }}
+                      />
+                      <div className="flex items-baseline gap-2 flex-1 flex-wrap">
+                        <span className="md:text-sm text-xs text-stone-200 font-bold lowercase">
                           {post.user.username}
                         </span>
-                        <span className="text-stone-600">·</span>
-                        <span className="text-sm text-stone-500">
+                        <span className="text-stone-700">·</span>
+                        <span className="md:text-sm text-xs text-stone-500">
                           {getMediaTypeLabel(post.media_item.media_type)}
                         </span>
-                        <span className="text-stone-600">·</span>
-                        <span className="text-sm text-stone-600">
+                        <span className="text-stone-700">·</span>
+                        <span className="md:text-sm text-xs text-stone-600">
                           {formatTimeAgo(post.created_at)}
                         </span>
                         {isOwnProfile && (
@@ -420,41 +458,38 @@ export default function ProfilePage() {
                           </button>
                         )}
                       </div>
-                      <div className="flex gap-3 mt-1">
-                        <div className="flex-1 min-w-0">
-                          <div className="text-base text-stone-200 font-medium">
-                            <span className="font-bold">
-                              {post.media_item.title}
+                    </div>
+                    <div className="flex gap-4 md:pl-11 pl-9">
+                      <div className="flex-1 min-w-0">
+                        <div className="md:text-base text-sm text-stone-200 leading-relaxed mb-1 font-medium">
+                          <span className="font-bold">
+                            {post.media_item.title}
+                          </span>
+                          {post.media_item.creator && (
+                            <span className="text-stone-500 ml-1">
+                              by {post.media_item.creator}
                             </span>
-                            {post.media_item.creator && (
-                              <span className="text-stone-500 ml-1">
-                                by {post.media_item.creator}
-                              </span>
-                            )}
-                          </div>
-                          {post.note && (
-                            <p className="text-sm text-stone-400 mt-0.5 line-clamp-2">
-                              {post.note}
-                            </p>
                           )}
                         </div>
-                        <div className="relative flex-shrink-0">
-                          <div
-                            className="absolute w-10 h-10 rounded-lg -bottom-1 -left-1 border border-stone-900"
-                            style={{ backgroundColor: post.user.avatar_color }}
-                          />
-                          <div className="relative w-10 h-10 rounded-lg border border-white/80 bg-stone-900 overflow-hidden">
-                            {post.media_item.cover_url ? (
-                              <img
-                                src={post.media_item.cover_url}
-                                alt={post.media_item.title}
-                                className="w-full h-full object-cover opacity-90"
-                              />
-                            ) : null}
-                          </div>
-                        </div>
+                        {post.note && (
+                          <p className="md:text-sm text-xs text-stone-400 leading-relaxed line-clamp-3 mt-1 font-medium">
+                            {post.note}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex-shrink-0 mt-0.5 flex items-center justify-center">
+                        <MediaTypeFilledIcon
+                          mediaType={post.media_item.media_type}
+                          color={post.user.avatar_color}
+                          size={48}
+                        />
                       </div>
                     </div>
+                    {index < items.length - 1 && (
+                      <div className="mt-6 mb-6 pl-9 md:pl-11">
+                        <div className="h-px bg-stone-800" />
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -495,24 +530,24 @@ export default function ProfilePage() {
                 <p className="text-stone-500">No saved items yet</p>
               </div>
             ) : (
-              <div className="space-y-6">
-                {savedItems.map((post) => (
-                  <div key={post.id} className="flex gap-4">
-                    <div
-                      className="w-8 h-8 rounded-full flex-shrink-0 mt-0.5"
-                      style={{ backgroundColor: post.user.avatar_color }}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm text-stone-200 font-bold lowercase">
+              <div>
+                {savedItems.map((post, index) => (
+                  <div key={post.id}>
+                    <div className="flex items-center gap-3 mb-3">
+                      <div
+                        className="md:w-8 md:h-8 w-6 h-6 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: post.user.avatar_color }}
+                      />
+                      <div className="flex items-baseline gap-2 flex-1 flex-wrap">
+                        <span className="md:text-sm text-xs text-stone-200 font-bold lowercase">
                           {post.user.username}
                         </span>
-                        <span className="text-stone-600">·</span>
-                        <span className="text-sm text-stone-500">
+                        <span className="text-stone-700">·</span>
+                        <span className="md:text-sm text-xs text-stone-500">
                           {getMediaTypeLabel(post.media_item.media_type)}
                         </span>
-                        <span className="text-stone-600">·</span>
-                        <span className="text-sm text-stone-600">
+                        <span className="text-stone-700">·</span>
+                        <span className="md:text-sm text-xs text-stone-600">
                           {formatTimeAgo(post.created_at)}
                         </span>
                         <button
@@ -525,47 +560,41 @@ export default function ProfilePage() {
                           }`}
                           aria-label="Unsave post"
                         >
-                          <MediaTypeFilledIcon
-                            mediaType={post.media_item.media_type}
-                            size={14}
-                          />
+                          <PlusIcon saved={true} size={14} />
                         </button>
                       </div>
-                      <div className="flex gap-3 mt-1">
-                        <div className="flex-1 min-w-0">
-                          <div className="text-base text-stone-200 font-medium">
-                            <span className="font-bold">
-                              {post.media_item.title}
+                    </div>
+                    <div className="flex gap-4 md:pl-11 pl-9">
+                      <div className="flex-1 min-w-0">
+                        <div className="md:text-base text-sm text-stone-200 leading-relaxed mb-1 font-medium">
+                          <span className="font-bold">
+                            {post.media_item.title}
+                          </span>
+                          {post.media_item.creator && (
+                            <span className="text-stone-500 ml-1">
+                              by {post.media_item.creator}
                             </span>
-                            {post.media_item.creator && (
-                              <span className="text-stone-500 ml-1">
-                                by {post.media_item.creator}
-                              </span>
-                            )}
-                          </div>
-                          {post.note && (
-                            <p className="text-sm text-stone-400 mt-0.5 line-clamp-2">
-                              {post.note}
-                            </p>
                           )}
                         </div>
-                        <div className="relative flex-shrink-0">
-                          <div
-                            className="absolute w-10 h-10 rounded-lg -bottom-1 -left-1 border border-stone-900"
-                            style={{ backgroundColor: post.user.avatar_color }}
-                          />
-                          <div className="relative w-10 h-10 rounded-lg border border-white/80 bg-stone-900 overflow-hidden">
-                            {post.media_item.cover_url ? (
-                              <img
-                                src={post.media_item.cover_url}
-                                alt={post.media_item.title}
-                                className="w-full h-full object-cover opacity-90"
-                              />
-                            ) : null}
-                          </div>
-                        </div>
+                        {post.note && (
+                          <p className="md:text-sm text-xs text-stone-400 leading-relaxed line-clamp-3 mt-1 font-medium">
+                            {post.note}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex-shrink-0 mt-0.5 flex items-center justify-center">
+                        <MediaTypeFilledIcon
+                          mediaType={post.media_item.media_type}
+                          color={post.user.avatar_color}
+                          size={48}
+                        />
                       </div>
                     </div>
+                    {index < savedItems.length - 1 && (
+                      <div className="mt-6 mb-6 pl-9 md:pl-11">
+                        <div className="h-px bg-stone-800" />
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

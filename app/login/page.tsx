@@ -69,10 +69,29 @@ export default function LoginPage() {
   if (emailSent) {
     return (
       <div className="min-h-screen bg-black text-white flex flex-col">
-        <div className="flex-1 flex items-center justify-start pl-8 md:pl-16 pt-16">
+        {/* Logo - top left */}
+        <div className="absolute top-8 left-8 md:top-16 md:left-16">
+          <div className="flex items-center gap-2">
+            <MossIcon color="#2d5016" size={24} />
+            <h1
+              className="text-2xl font-bold lowercase"
+              style={{
+                color: '#2d5016',
+                fontFamily: 'monospace',
+                letterSpacing: '0.1em',
+                textRendering: 'geometricPrecision',
+              }}
+            >
+              moss
+            </h1>
+          </div>
+        </div>
+        <div className="flex-1 flex items-start justify-start pl-8 md:pl-16 pt-24 md:pt-32">
           <div>
-            <h1 className="text-4xl md:text-5xl font-bold mb-2">link has been sent!</h1>
-            <p className="text-gray-400 text-lg md:text-xl ml-4">check your email</p>
+            <h1 className="text-4xl md:text-5xl font-bold mb-2">
+              link has been sent!
+            </h1>
+            <p className="text-gray-400 text-lg md:text-xl">check your email</p>
           </div>
         </div>
       </div>

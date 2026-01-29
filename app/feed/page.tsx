@@ -12,17 +12,11 @@ import type {
 import { MossIcon } from '@/lib/components/MossIcon'
 import {
   BookIcon,
-  BookIconOutline,
   NewspaperIcon,
-  NewspaperIconOutline,
   FilmIcon,
-  FilmIconOutline,
   MusicIcon,
-  MusicIconOutline,
   DiscIcon,
-  DiscIconOutline,
   PodcastIcon,
-  PodcastIconOutline,
 } from '@/lib/components/MediaIcons'
 
 function formatTimeAgo(dateString: string): string {
@@ -52,44 +46,18 @@ function getMediaTypeLabel(mediaType: string): string {
   return mediaType.toLowerCase()
 }
 
-function MediaTypeOutlineIcon({
-  mediaType,
-  size = 14,
-  className,
-}: {
-  mediaType: string
-  size?: number
-  className?: string
-}) {
-  const style = { color: 'currentColor' }
-  switch (mediaType.toUpperCase()) {
-    case 'BOOK':
-      return <BookIconOutline size={size} className={className} style={style} />
-    case 'ARTICLE':
-      return <NewspaperIconOutline size={size} className={className} style={style} />
-    case 'MOVIE':
-      return <FilmIconOutline size={size} className={className} style={style} />
-    case 'SONG':
-      return <MusicIconOutline size={size} className={className} style={style} />
-    case 'ALBUM':
-      return <DiscIconOutline size={size} className={className} style={style} />
-    case 'PODCAST':
-      return <PodcastIconOutline size={size} className={className} style={style} />
-    default:
-      return <MusicIconOutline size={size} className={className} style={style} />
-  }
-}
-
 function MediaTypeFilledIcon({
   mediaType,
   size = 14,
   className,
+  color,
 }: {
   mediaType: string
   size?: number
   className?: string
+  color?: string
 }) {
-  const style = { color: 'currentColor' }
+  const style = { color: color ?? 'currentColor' }
   switch (mediaType.toUpperCase()) {
     case 'BOOK':
       return <BookIcon size={size} className={className} style={style} />
@@ -145,22 +113,30 @@ function StarIcon({ color, size = 16 }: { color: string; size?: number }) {
   )
 }
 
-// Wavy divider component
-function WavyDivider() {
+function PlusIcon({
+  saved,
+  size = 14,
+  className,
+}: {
+  saved: boolean
+  size?: number
+  className?: string
+}) {
+  const strokeWidth = saved ? 2.5 : 1.5
   return (
     <svg
-      width="60"
-      height="6"
-      viewBox="0 0 60 6"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
       fill="none"
-      className="text-white/30"
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
     >
-      <path
-        d="M0 3 Q4 0, 8 3 T16 3 Q20 0, 24 3 T32 3 Q36 0, 40 3 T48 3 Q52 0, 56 3 T60 3"
-        stroke="currentColor"
-        strokeWidth="0.8"
-        fill="none"
-      />
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
     </svg>
   )
 }
@@ -389,7 +365,7 @@ export default function FeedPage() {
                         <span className="md:text-sm text-xs text-stone-600">
                           {formatTimeAgo(post.created_at)}
                         </span>
-                        {/* Media type icon (empty outline; filled when saved) */}
+                        {/* Plus icon (thin when unsaved, bold when saved) */}
                         {currentUser?.user?.id !== post.user.id && (
                           <button
                             onClick={() => toggleSave(post.id)}
@@ -402,17 +378,7 @@ export default function FeedPage() {
                                 : 'text-stone-600 hover:text-[#7a9b6f]'
                             } ${savingIds.has(post.id) ? 'opacity-60 cursor-not-allowed' : ''}`}
                           >
-                            {savedIds.has(post.id) ? (
-                              <MediaTypeFilledIcon
-                                mediaType={post.media_item.media_type}
-                                size={14}
-                              />
-                            ) : (
-                              <MediaTypeOutlineIcon
-                                mediaType={post.media_item.media_type}
-                                size={14}
-                              />
-                            )}
+                            <PlusIcon saved={savedIds.has(post.id)} size={14} />
                           </button>
                         )}
                       </div>
@@ -440,31 +406,21 @@ export default function FeedPage() {
                         )}
                       </div>
 
-                      {/* Right: Thumbnail - always visible */}
-                      <div className="relative flex-shrink-0 mt-0.5">
-                        {/* Shadow layer */}
-                        <div
-                          className="absolute md:w-12 md:h-12 w-10 h-10 rounded-lg -bottom-1.5 -left-1.5 border border-stone-900"
-                          style={{ backgroundColor: post.user.avatar_color }}
+                      {/* Right: Large media-type icon (sharer's profile color) */}
+                      <div className="flex-shrink-0 mt-0.5 flex items-center justify-center">
+                        <MediaTypeFilledIcon
+                          mediaType={post.media_item.media_type}
+                          color={post.user.avatar_color}
+                          size={48}
                         />
-                        {/* Main thumbnail */}
-                        <div className="relative md:w-12 md:h-12 w-10 h-10 rounded-lg border border-white/80 shadow-[0_0_12px_rgba(255,255,255,0.1)] bg-stone-900 overflow-hidden">
-                          {post.media_item.cover_url ? (
-                            <img
-                              src={post.media_item.cover_url}
-                              alt={post.media_item.title}
-                              className="w-full h-full object-cover opacity-90"
-                            />
-                          ) : null}
-                        </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Wavy Divider - between posts (not before first) */}
+                  {/* Thin divider - between posts (not before first) */}
                   {index < posts.length - 1 && (
-                    <div className="mt-6 mb-6">
-                      <WavyDivider />
+                    <div className="mt-6 mb-6 pl-9 md:pl-11">
+                      <div className="h-px bg-stone-800" />
                     </div>
                   )}
                 </div>
