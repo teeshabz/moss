@@ -1,4 +1,3 @@
-import { unstable_cache } from 'next/cache'
 import { mapRawPostToPostWithRelations } from '@/lib/api/posts'
 import { createServerComponentClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
@@ -34,82 +33,78 @@ export async function GET(request: NextRequest) {
       50
     )
 
-    const response = await unstable_cache(
-      async () => {
-        const supabase = await createServerComponentClient()
-        let query = supabase
-          .from('posts')
-          .select(`
-            id,
-            user_id,
-            media_item_id,
-            note,
-            created_at,
-            user:users!posts_user_id_fkey (
-              id,
-              email,
-              username,
-              avatar_color,
-              created_at
-            ),
-            media_item:media_items!posts_media_item_id_fkey (
-              id,
-              media_type,
-              title,
-              creator,
-              external_url,
-              cover_url,
-              source,
-              source_id,
-              metadata,
-              created_at
-            )
-          `)
-          .order('created_at', { ascending: false })
-          .order('id', { ascending: false })
-          .limit(limit + 1)
-
-        if (cursor) {
-          const [createdAt, id] = cursor.split(',')
-          if (createdAt && id) {
-            query = query.or(
-              `created_at.lt.${createdAt},and(created_at.eq.${createdAt},id.lt.${id})`
-            )
-          }
-        }
-
-        const { data: posts, error } = await query
-
-        if (error) {
-          console.error('Error fetching feed:', error)
-          throw new Error('Failed to fetch feed')
-        }
-
-        if (!posts) {
-          return { items: [] } as FeedResponse
-        }
-
-        const hasNextPage = posts.length > limit
-        const items = hasNextPage ? posts.slice(0, limit) : posts
-
-        const transformedItems = items.map((post: RawPostResult) =>
-          mapRawPostToPostWithRelations(post)
+    let query = supabase
+      .from('posts')
+      .select(`
+        id,
+        user_id,
+        media_item_id,
+        note,
+        created_at,
+        user:users!posts_user_id_fkey (
+          id,
+          email,
+          username,
+          avatar_color,
+          created_at
+        ),
+        media_item:media_items!posts_media_item_id_fkey (
+          id,
+          media_type,
+          title,
+          creator,
+          external_url,
+          cover_url,
+          source,
+          source_id,
+          metadata,
+          created_at
         )
+      `)
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
+      .limit(limit + 1)
 
-        let nextCursor: string | undefined
-        if (hasNextPage && items.length > 0) {
-          const lastItem = items[items.length - 1]
-          nextCursor = `${lastItem.created_at},${lastItem.id}`
-        }
+    if (cursor) {
+      const [createdAt, id] = cursor.split(',')
+      if (createdAt && id) {
+        query = query.or(
+          `created_at.lt.${createdAt},and(created_at.eq.${createdAt},id.lt.${id})`
+        )
+      }
+    }
 
-        return {
-          items: transformedItems,
-          ...(nextCursor && { nextCursor }),
-        } as FeedResponse
-      },
-      ['feed', authUser.id, cursor ?? '', String(limit)],
-      { revalidate: 60 }
+    const { data: posts, error } = await query
+
+    if (error) {
+      console.error('Error fetching feed:', error)
+      return NextResponse.json(
+        { error: 'Failed to fetch feed' },
+        { status: 500 }
+      )
+    }
+
+    if (!posts) {
+      return NextResponse.json<FeedResponse>({ items: [] })
+    }
+
+    const hasNextPage = posts.length > limit
+    const items = hasNextPage ? posts.slice(0, limit) : posts
+
+    const transformedItems = items.map((post: RawPostResult) =>
+      mapRawPostToPostWithRelations(post)
     )
+
+    let nextCursor: string | undefined
+    if (hasNextPage && items.length > 0) {
+      const lastItem = items[items.length - 1]
+      nextCursor = `${lastItem.created_at},${lastItem.id}`
+    }
+
+    const response: FeedResponse = {
+      items: transformedItems,
+      ...(nextCursor && { nextCursor }),
+    }
 
     return NextResponse.json(response)
   } catch (error) {

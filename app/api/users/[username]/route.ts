@@ -1,4 +1,3 @@
-import { unstable_cache } from 'next/cache'
 import { mapRawPostToPostWithRelations } from '@/lib/api/posts'
 import { createServerComponentClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -44,114 +43,109 @@ export async function GET(
       50
     )
 
-    const result = await unstable_cache(
-      async () => {
-        const supabase = await createServerComponentClient()
-        const supabaseAdmin = createAdminClient()
+    const supabaseAdmin = createAdminClient()
 
-        const { data: profileUser, error: userLookupError } = await supabase
-          .from('users')
-          .select('id, username, avatar_color, created_at')
-          .ilike('username', username.trim())
-          .single()
+    const { data: profileUser, error: userLookupError } = await supabase
+      .from('users')
+      .select('id, username, avatar_color, created_at')
+      .ilike('username', username.trim())
+      .single()
 
-        if (userLookupError || !profileUser) {
-          return { notFound: true } as const
-        }
-
-        const { count, error: countError } = await supabaseAdmin
-          .from('posts')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', profileUser.id)
-
-        if (countError) {
-          console.error('Error counting posts:', countError)
-          throw new Error('Failed to load profile')
-        }
-
-        const postCount = count ?? 0
-
-        let query = supabaseAdmin
-          .from('posts')
-          .select(`
-            id,
-            user_id,
-            media_item_id,
-            note,
-            created_at,
-            user:users!posts_user_id_fkey (
-              id,
-              email,
-              username,
-              avatar_color,
-              created_at
-            ),
-            media_item:media_items!posts_media_item_id_fkey (
-              id,
-              media_type,
-              title,
-              creator,
-              external_url,
-              cover_url,
-              source,
-              source_id,
-              metadata,
-              created_at
-            )
-          `)
-          .eq('user_id', profileUser.id)
-          .order('created_at', { ascending: false })
-          .order('id', { ascending: false })
-          .limit(limit + 1)
-
-        if (cursor) {
-          const [createdAt, id] = cursor.split(',')
-          if (createdAt && id) {
-            query = query.or(
-              `created_at.lt.${createdAt},and(created_at.eq.${createdAt},id.lt.${id})`
-            )
-          }
-        }
-
-        const { data: posts, error: postsError } = await query
-
-        if (postsError) {
-          console.error('Error fetching profile posts:', postsError)
-          throw new Error('Failed to load posts')
-        }
-
-        const hasNextPage = posts ? posts.length > limit : false
-        const items = hasNextPage && posts ? posts.slice(0, limit) : posts ?? []
-
-        const transformedItems = (items as RawPostResult[]).map(mapRawPostToPostWithRelations)
-
-        let nextCursor: string | undefined
-        if (hasNextPage && items.length > 0) {
-          const lastItem = items[items.length - 1] as RawPostResult
-          nextCursor = `${lastItem.created_at},${lastItem.id}`
-        }
-
-        return {
-          user: {
-            id: profileUser.id,
-            username: profileUser.username,
-            avatar_color: profileUser.avatar_color ?? '',
-            created_at: profileUser.created_at,
-          },
-          postCount,
-          items: transformedItems,
-          ...(nextCursor && { nextCursor }),
-        } satisfies ProfileResponse
-      },
-      ['profile', username.trim(), cursor ?? '', String(limit)],
-      { revalidate: 60 }
-    )
-
-    if ('notFound' in result && result.notFound) {
+    if (userLookupError || !profileUser) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
       )
+    }
+
+    const { count, error: countError } = await supabaseAdmin
+      .from('posts')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', profileUser.id)
+
+    if (countError) {
+      console.error('Error counting posts:', countError)
+      return NextResponse.json(
+        { error: 'Failed to load profile' },
+        { status: 500 }
+      )
+    }
+
+    const postCount = count ?? 0
+
+    let query = supabaseAdmin
+      .from('posts')
+      .select(`
+        id,
+        user_id,
+        media_item_id,
+        note,
+        created_at,
+        user:users!posts_user_id_fkey (
+          id,
+          email,
+          username,
+          avatar_color,
+          created_at
+        ),
+        media_item:media_items!posts_media_item_id_fkey (
+          id,
+          media_type,
+          title,
+          creator,
+          external_url,
+          cover_url,
+          source,
+          source_id,
+          metadata,
+          created_at
+        )
+      `)
+      .eq('user_id', profileUser.id)
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
+      .limit(limit + 1)
+
+    if (cursor) {
+      const [createdAt, id] = cursor.split(',')
+      if (createdAt && id) {
+        query = query.or(
+          `created_at.lt.${createdAt},and(created_at.eq.${createdAt},id.lt.${id})`
+        )
+      }
+    }
+
+    const { data: posts, error: postsError } = await query
+
+    if (postsError) {
+      console.error('Error fetching profile posts:', postsError)
+      return NextResponse.json(
+        { error: 'Failed to load posts' },
+        { status: 500 }
+      )
+    }
+
+    const hasNextPage = posts ? posts.length > limit : false
+    const items = hasNextPage && posts ? posts.slice(0, limit) : posts ?? []
+
+    const transformedItems = (items as RawPostResult[]).map(mapRawPostToPostWithRelations)
+
+    let nextCursor: string | undefined
+    if (hasNextPage && items.length > 0) {
+      const lastItem = items[items.length - 1] as RawPostResult
+      nextCursor = `${lastItem.created_at},${lastItem.id}`
+    }
+
+    const result: ProfileResponse = {
+      user: {
+        id: profileUser.id,
+        username: profileUser.username,
+        avatar_color: profileUser.avatar_color ?? '',
+        created_at: profileUser.created_at,
+      },
+      postCount,
+      items: transformedItems,
+      ...(nextCursor && { nextCursor }),
     }
 
     return NextResponse.json(result)

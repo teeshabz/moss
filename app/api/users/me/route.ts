@@ -1,4 +1,3 @@
-import { unstable_cache } from 'next/cache'
 import { createServerComponentClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
@@ -25,36 +24,25 @@ export async function GET() {
       )
     }
 
-    const result = await unstable_cache(
-      async () => {
-        const supabase = await createServerComponentClient()
-        const { data: dbUser, error: dbError } = await supabase
-          .from('users')
-          .select('id, email, username, avatar_color, created_at')
-          .eq('id', authUser.id)
-          .single()
+    const { data: dbUser, error: dbError } = await supabase
+      .from('users')
+      .select('id, email, username, avatar_color, created_at')
+      .eq('id', authUser.id)
+      .single()
 
-        if (dbError || !dbUser) {
-          return { notFound: true } as const
-        }
-
-        const supabaseAdmin = createAdminClient()
-        const weeklyPostCount = await countWeeklyPosts(authUser.id, supabaseAdmin)
-
-        return {
-          user: dbUser,
-          weeklyPostCount,
-        } satisfies UserMeResponse
-      },
-      ['user-me', authUser.id],
-      { revalidate: 60 }
-    )
-
-    if ('notFound' in result && result.notFound) {
+    if (dbError || !dbUser) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
       )
+    }
+
+    const supabaseAdmin = createAdminClient()
+    const weeklyPostCount = await countWeeklyPosts(authUser.id, supabaseAdmin)
+
+    const result: UserMeResponse = {
+      user: dbUser,
+      weeklyPostCount,
     }
 
     return NextResponse.json(result)
