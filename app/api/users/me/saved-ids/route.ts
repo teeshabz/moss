@@ -2,6 +2,8 @@ import { createServerComponentClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/users/me/saved-ids
  * Returns all post IDs saved by the current user.

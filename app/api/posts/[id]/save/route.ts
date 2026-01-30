@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server'
  * DELETE /api/posts/[id]/save
  * Unsave a post for the current user.
  */
+export const dynamic = 'force-dynamic'
 
 export async function POST(
   _request: NextRequest,

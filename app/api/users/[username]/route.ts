@@ -4,6 +4,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 import type { ProfileResponse, RawPostResult } from '@/lib/types'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/users/[username]
  * Returns user profile (no email) + post count + cursor-paginated posts

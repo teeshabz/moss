@@ -3,6 +3,8 @@ import { createServerComponentClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 import type { FeedResponse, RawPostResult } from '@/lib/types'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/feed
  * Returns paginated feed of posts

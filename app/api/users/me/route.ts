@@ -4,6 +4,8 @@ import { NextResponse } from 'next/server'
 import { countWeeklyPosts } from '@/lib/api/weekly-limit'
 import type { UserMeResponse } from '@/lib/types'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/users/me
  * Returns current authenticated user and their weekly post count

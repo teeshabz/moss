@@ -5,6 +5,8 @@ import { countWeeklyPosts } from '@/lib/api/weekly-limit'
 import { validateMediaData, findOrCreateMediaItem } from '@/lib/api/media'
 import type { CreatePostRequest } from '@/lib/types'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * POST /api/posts
  * Create a new post

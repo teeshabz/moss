@@ -3,6 +3,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { generateAvatarColor } from '@/lib/utils'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * Create user in public.users table
  * Called when email confirmation is disabled and user is immediately authenticated

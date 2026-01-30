@@ -8,6 +8,8 @@ interface SaveRow {
   created_at: string
 }
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/users/me/saved
  * Returns paginated list of posts the current user has saved.

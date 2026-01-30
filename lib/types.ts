@@ -85,6 +85,8 @@ export interface CreatePostRequest {
     creator: string
     externalUrl?: string
     coverUrl?: string
+    source?: string
+    sourceId?: string
   }
   note?: string
 }

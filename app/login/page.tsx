@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, FormEvent } from 'react'
+import { Suspense, useState, FormEvent } from 'react'
 import { createClientComponentClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { MossIcon } from '@/lib/components/MossIcon'
 
-export default function LoginPage() {
+function LoginPageContent() {
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -160,5 +160,40 @@ export default function LoginPage() {
         <div className="text-gray-500 text-xs mt-2">BETA</div>
       </div>
     </div>
+  )
+}
+
+function LoginPageFallback() {
+  return (
+    <div className="min-h-screen bg-black text-white flex flex-col">
+      <div className="absolute top-8 left-8 md:top-16 md:left-16">
+        <div className="flex items-center gap-2 mb-2">
+          <MossIcon color="#2d5016" size={24} />
+          <h1
+            className="text-2xl font-bold lowercase"
+            style={{
+              color: '#2d5016',
+              fontFamily: 'monospace',
+              letterSpacing: '0.1em',
+              textRendering: 'geometricPrecision',
+            }}
+          >
+            moss
+          </h1>
+        </div>
+        <p className="text-gray-400 text-sm md:text-base">share what moves you</p>
+      </div>
+      <div className="flex-1 flex items-center justify-start pl-8 md:pl-16">
+        <p className="text-gray-500 text-lg">Loading...</p>
+      </div>
+    </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginPageFallback />}>
+      <LoginPageContent />
+    </Suspense>
   )
 }
