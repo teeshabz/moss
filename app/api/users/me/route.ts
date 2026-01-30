@@ -1,3 +1,4 @@
+import { unstable_cache } from 'next/cache'
 import { createServerComponentClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
@@ -24,31 +25,39 @@ export async function GET() {
       )
     }
 
-    // Get user from public.users table
-    const { data: dbUser, error: dbError } = await supabase
-      .from('users')
-      .select('id, email, username, avatar_color, created_at')
-      .eq('id', authUser.id)
-      .single()
+    const result = await unstable_cache(
+      async () => {
+        const supabase = await createServerComponentClient()
+        const { data: dbUser, error: dbError } = await supabase
+          .from('users')
+          .select('id, email, username, avatar_color, created_at')
+          .eq('id', authUser.id)
+          .single()
 
-    if (dbError || !dbUser) {
+        if (dbError || !dbUser) {
+          return { notFound: true } as const
+        }
+
+        const supabaseAdmin = createAdminClient()
+        const weeklyPostCount = await countWeeklyPosts(authUser.id, supabaseAdmin)
+
+        return {
+          user: dbUser,
+          weeklyPostCount,
+        } satisfies UserMeResponse
+      },
+      ['user-me', authUser.id],
+      { revalidate: 60 }
+    )
+
+    if ('notFound' in result && result.notFound) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
       )
     }
 
-    // Use service role key to count weekly posts
-    const supabaseAdmin = createAdminClient()
-
-    const weeklyPostCount = await countWeeklyPosts(authUser.id, supabaseAdmin)
-
-    const response: UserMeResponse = {
-      user: dbUser,
-      weeklyPostCount,
-    }
-
-    return NextResponse.json(response)
+    return NextResponse.json(result)
   } catch (error) {
     console.error('Error in /api/users/me:', error)
     return NextResponse.json(
