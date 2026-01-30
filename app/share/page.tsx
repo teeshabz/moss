@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { UserMeResponse } from '@/lib/types'
 import { MossIcon } from '@/lib/components/MossIcon'
+import { StarIcon } from '@/lib/components/PostHelpers'
 import {
   BookIcon,
   NewspaperIcon,
@@ -66,43 +67,6 @@ const mediaTypes: MediaType[] = [
     icon: 'podcast',
   },
 ]
-
-// 12-pointed circular star icon
-function StarIcon({ color, size = 16 }: { color: string; size?: number }) {
-  // Create 12 points evenly distributed around a circle
-  // For a 12-pointed star, we alternate between outer and inner radius
-  const points: string[] = []
-  const centerX = 12
-  const centerY = 12
-  const outerRadius = 10
-  const innerRadius = 6
-
-  for (let i = 0; i < 12; i++) {
-    // Outer point
-    const outerAngle = (i * 2 * Math.PI) / 12 - Math.PI / 2 // Start from top
-    const outerX = centerX + outerRadius * Math.cos(outerAngle)
-    const outerY = centerY + outerRadius * Math.sin(outerAngle)
-    points.push(`${outerX},${outerY}`)
-
-    // Inner point (halfway between outer points)
-    const innerAngle = ((i + 0.5) * 2 * Math.PI) / 12 - Math.PI / 2
-    const innerX = centerX + innerRadius * Math.cos(innerAngle)
-    const innerY = centerY + innerRadius * Math.sin(innerAngle)
-    points.push(`${innerX},${innerY}`)
-  }
-
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      style={{ color }}
-    >
-      <polygon points={points.join(' ')} fill="currentColor" />
-    </svg>
-  )
-}
 
 // Icon component wrapper - renders appropriate icon based on type
 function MediaIcon({ type, color }: { type: string; color: string }) {

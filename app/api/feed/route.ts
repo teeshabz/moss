@@ -1,18 +1,8 @@
 import { unstable_cache } from 'next/cache'
+import { mapRawPostToPostWithRelations } from '@/lib/api/posts'
 import { createServerComponentClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
-import type { FeedResponse, PostWithRelations, User, MediaItem } from '@/lib/types'
-
-// Type for raw post result from Supabase query with relations
-interface RawPostResult {
-  id: string
-  user_id: string
-  media_item_id: string
-  note: string | null
-  created_at: string
-  user: User | User[]
-  media_item: MediaItem | MediaItem[]
-}
+import type { FeedResponse, RawPostResult } from '@/lib/types'
 
 /**
  * GET /api/feed
@@ -102,17 +92,9 @@ export async function GET(request: NextRequest) {
         const hasNextPage = posts.length > limit
         const items = hasNextPage ? posts.slice(0, limit) : posts
 
-        const transformedItems: PostWithRelations[] = items.map((post: RawPostResult) => ({
-          id: post.id,
-          user_id: post.user_id,
-          media_item_id: post.media_item_id,
-          note: post.note,
-          created_at: post.created_at,
-          user: Array.isArray(post.user) ? post.user[0] : post.user,
-          media_item: Array.isArray(post.media_item)
-            ? post.media_item[0]
-            : post.media_item,
-        }))
+        const transformedItems = items.map((post: RawPostResult) =>
+          mapRawPostToPostWithRelations(post)
+        )
 
         let nextCursor: string | undefined
         if (hasNextPage && items.length > 0) {

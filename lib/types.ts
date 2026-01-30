@@ -38,6 +38,17 @@ export interface PostWithRelations extends Post {
   media_item: MediaItem
 }
 
+/** Raw PostgREST result when selecting post with user and media_item relations (arrays from join) */
+export interface RawPostResult {
+  id: string
+  user_id: string
+  media_item_id: string
+  note: string | null
+  created_at: string
+  user: User | User[]
+  media_item: MediaItem | MediaItem[]
+}
+
 // API Response types
 export interface UserMeResponse {
   user: User
