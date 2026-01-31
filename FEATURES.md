@@ -2,7 +2,7 @@
 
 ## High-Level Purpose
 
-**Moss** is a social app where users share what they're reading, watching, and listening to. The goal is to "share what moves you"—recommendations as simple posts: a media item (book, article, movie, song, album, or podcast) plus an optional short note. There are no passwords: sign-up and login use email magic links. Sharing is intentionally limited (e.g. 3 posts per week) to keep the feed focused and thoughtful. Users can save others' posts for later and view their own profile (shared items and saved items) with the same layout and divider style as the main feed.
+**Moss** is a social app where users share what they're reading, watching, and listening to. The goal is to "share what moves you"—recommendations as simple posts: a media item (book, article, movie, song, album, or podcast) plus an optional short note. There are no passwords: sign-up and login use email magic links. Sharing is intentionally limited (5 posts per week) to keep the feed focused and thoughtful. Users can save others' posts for later and view their own profile (shared items and saved items) with the same layout and divider style as the main feed.
 
 ---
 
@@ -68,18 +68,19 @@
 
 ### 4. Share Flow (Media Type Selection + Per-Type Forms)
 
-**Purpose:** Let users create a new post by choosing a media type (book, article, movie, song, album, podcast) and filling a small form (title, creator, optional note; article also has required URL). Enforce a weekly post limit (e.g. 3 per week in America/New_York) and deduplicate media items where appropriate.
+**Purpose:** Let users create a new post by choosing a media type (book, article, movie, song, album, podcast) and filling a small form (title, creator, optional note; article also has required URL). Enforce a weekly post limit (5 per week in America/New_York) and deduplicate media items where appropriate.
 
 **How it works today:**
 
 - **Share hub (`/share`):**
-  - Client fetches `GET /api/users/me` to get current user and `weeklyPostCount`. Renders "SHARED THIS WEEK" with up to 3 stars filled by count, and a list of media types (book, article, movie, song, album, podcast). Each type links to `/share/[type]` (e.g. `/share/book`). Icons and styling match the design (hover states, media-type colors).
+  - Client fetches `GET /api/users/me` to get current user and `weeklyPostCount`. Renders "SHARED THIS WEEK" with up to 5 stars filled by count, and a list of media types (book, article, movie, song, album, podcast). Each type links to `/share/[type]` (e.g. `/share/book`). Icons and styling match the design (hover states, media-type colors).
 - **Share form (`/share/[type]`):**
-  - One dynamic page for all types. Config drives labels, placeholders, and field types (text, textarea, url). Common fields: title (required), creator-style field (author/director/artist/host, required), note (optional, 60 chars, textarea with counter). Article also has required URL. Form submits to `POST /api/posts` with body `{ media: { mediaType, title, creator, externalUrl? }, note? }`.
-- **API:** `POST /api/posts`. Requires auth. Validates body; ensures weekly post count in America/New_York is below the limit (e.g. 3). Looks up or creates `media_items` (deduplication by type+title+creator for manual entries; by source+source_id for integrations). Inserts `posts` with `user_id`, `media_item_id`, `note`. Returns 201 with the new post or 409 if limit reached.
-- **Weekly limit:** Implemented in `lib/api/weekly-limit.ts`. Week is Monday–Sunday in America/New_York; counts posts in that window; `canCreatePost` (or equivalent) is used in the create-post route to return 409 when count >= 3.
+  - One dynamic page for all types. Config drives labels, placeholders, and field types (text, textarea, url). Common fields: title (required), creator-style field (author/director/artist/host, required), note (optional, 60 chars, textarea with counter). Article also has required URL. For **book** only: a "Search for a book" input calls `GET /api/search/books?q=...` (debounced); results are deduplicated by title+author; user can pick one to autopopulate title/author and submit with `source: 'google_books'`, `sourceId`, and optional `coverUrl` so the same book aligns across users. Manual entry (no search) remains available. Form submits to `POST /api/posts` with body `{ media: { mediaType, title, creator, externalUrl?, source?, sourceId?, coverUrl? }, note? }`.
+- **API:** `POST /api/posts`. Requires auth. Validates body; ensures weekly post count in America/New_York is below the limit (5). Looks up or creates `media_items` (deduplication by type+title+creator for manual entries; by source+source_id for integrations). Inserts `posts` with `user_id`, `media_item_id`, `note`. Returns 201 with the new post or 409 if limit reached.
+- **Weekly limit:** Implemented in `lib/api/weekly-limit.ts`. `WEEKLY_POST_LIMIT` is 5. Week is Monday–Sunday in America/New_York; counts posts in that window; create-post route returns 409 when count >= 5.
+- **Book search:** `GET /api/search/books?q=...`. Requires auth. Calls Google Books API (server-side, `GOOGLE_BOOKS_API_KEY`); returns `{ books: [{ id, title, authors, thumbnail? }] }`. Results are deduplicated by normalized title+author so one option per work (e.g. one "Little Women" by Louisa May Alcott).
 
-**Key files:** `app/share/page.tsx`, `app/share/[type]/page.tsx`, `app/api/posts/route.ts`, `app/api/users/me/route.ts`, `lib/api/weekly-limit.ts`, `lib/api/media.ts` (validation and find-or-create media item).
+**Key files:** `app/share/page.tsx`, `app/share/[type]/page.tsx`, `app/api/posts/route.ts`, `app/api/search/books/route.ts`, `app/api/users/me/route.ts`, `lib/api/weekly-limit.ts`, `lib/api/media.ts` (validation and find-or-create media item).
 
 ---
 
@@ -134,7 +135,7 @@
 
 **How it works today:**
 
-- **Types:** Enum in DB and TypeScript: BOOK, ARTICLE, MOVIE, SONG, ALBUM, ARTICLE. Article is the only one with required `external_url` (HTTPS) in validation.
+- **Types:** Enum in DB and TypeScript: BOOK, ARTICLE, MOVIE, SONG, ALBUM, PODCAST. Article is the only one with required `external_url` (HTTPS) in validation.
 - **Validation:** In `lib/api/media.ts`. Validates `mediaType`, `title`, `creator`; for article, `externalUrl` required and valid. `findOrCreateMediaItem` handles deduplication: for manual entries (no source/source_id), matches by media_type + case-insensitive title + creator (and null/empty creator); for integration entries, matches by source + source_id. Creates a new `media_items` row only when no match is found.
 - **DB:** Partial unique index on `media_items(source, source_id)` where both are non-null; multiple manual entries (null, null) are allowed.
 
@@ -202,8 +203,7 @@
 
 ## What’s Not Implemented (or Optional) Today
 
-- **Google Books (or other) search:** No `GET /api/search/books` wired in the share flow; book (and other) forms are manual entry only.
-- **Cover images:** `cover_url` exists on media_items but is not required or displayed in the feed/profile (large media-type icon is used instead).
+- **Cover images:** `cover_url` exists on media_items and is stored when sharing from Google Books, but is not displayed in the feed/profile (large media-type icon is used instead).
 - **Username/edit profile:** No dedicated settings page to change username or avatar color after signup.
 - **Public feed:** Feed and profile require authentication; there is no public view.
 

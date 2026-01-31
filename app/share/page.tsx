@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { UserMeResponse } from '@/lib/types'
+import { WEEKLY_POST_LIMIT } from '@/lib/api/weekly-limit'
 import { MossIcon } from '@/lib/components/MossIcon'
 import { StarIcon } from '@/lib/components/PostHelpers'
 import {
@@ -140,8 +141,8 @@ export default function SharePage() {
     return null
   }
 
-  // Calculate filled stars (0-3)
-  const filledStars = Math.min(user.weeklyPostCount, 3)
+  // Calculate filled stars (0 to WEEKLY_POST_LIMIT)
+  const filledStars = Math.min(user.weeklyPostCount, WEEKLY_POST_LIMIT)
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
@@ -175,12 +176,12 @@ export default function SharePage() {
 
       {/* Status Indicator - Centered */}
       <div className="absolute top-8 left-1/2 transform -translate-x-1/2 md:top-16 text-center">
-        <div className="flex justify-center gap-1 mb-2">
-          {[0, 1, 2].map((index) => (
-            <span key={index}>
+        <div className="flex justify-center gap-0.5 mb-2 items-center">
+          {Array.from({ length: WEEKLY_POST_LIMIT }, (_, i) => i).map((index) => (
+            <span key={index} className="inline-flex shrink-0" style={{ width: 20, height: 20 }}>
               <StarIcon
                 color={index < filledStars ? '#8FA68E' : '#8FA68E4D'}
-                size={28}
+                size={20}
               />
             </span>
           ))}

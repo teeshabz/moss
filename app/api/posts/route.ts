@@ -1,7 +1,7 @@
 import { createServerComponentClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
-import { countWeeklyPosts } from '@/lib/api/weekly-limit'
+import { countWeeklyPosts, WEEKLY_POST_LIMIT } from '@/lib/api/weekly-limit'
 import { validateMediaData, findOrCreateMediaItem } from '@/lib/api/media'
 import type { CreatePostRequest } from '@/lib/types'
 
@@ -56,10 +56,10 @@ export async function POST(request: Request) {
 
     // Check weekly limit
     const weeklyCount = await countWeeklyPosts(authUser.id, supabaseAdmin)
-    if (weeklyCount >= 3) {
+    if (weeklyCount >= WEEKLY_POST_LIMIT) {
       return NextResponse.json(
         {
-          error: "you've already posted 3 times this week. come back next week!",
+          error: "you've already posted 5 times this week. come back next week!",
           code: 'weekly_limit_exceeded',
         },
         { status: 409 }

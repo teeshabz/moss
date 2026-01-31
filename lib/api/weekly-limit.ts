@@ -2,6 +2,9 @@ import { startOfWeek, endOfWeek } from 'date-fns'
 import { toZonedTime, fromZonedTime } from 'date-fns-tz'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
+/** Maximum posts a user can create per week (America/New_York, Monday–Sunday). */
+export const WEEKLY_POST_LIMIT = 5
+
 /**
  * Calculate the start and end of the current week in America/New_York timezone
  * Week starts on Monday (ISO week)
@@ -56,12 +59,12 @@ export async function countWeeklyPosts(
 }
 
 /**
- * Check if user can create a post (hasn't reached weekly limit of 3)
+ * Check if user can create a post (hasn't reached weekly limit)
  */
 export async function canCreatePost(
   userId: string,
   supabase: SupabaseClient
 ): Promise<boolean> {
   const count = await countWeeklyPosts(userId, supabase)
-  return count < 3
+  return count < WEEKLY_POST_LIMIT
 }

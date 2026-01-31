@@ -144,7 +144,7 @@ export default function SignupPage() {
           {/* Description text */}
           <div className="mb-12 text-gray-300 text-sm md:text-base leading-relaxed max-w-md">
             <p className="mb-2">
-              Moss is a place to connect through the media that moves you. To encourage sharing the things that really resonate, you can share up to 3 things per week.
+              moss is a place to connect through the media that moves you. to encourage sharing the things that really resonate, you can share up to 5 things per week.
             </p>
           </div>
 
