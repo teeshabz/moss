@@ -123,9 +123,9 @@ export default function SignupPage() {
       {/* Logo - top left */}
       <div className="absolute top-8 left-8 md:top-16 md:left-16">
         <div className="flex items-center gap-2 mb-2">
-          <MossIcon color="#2d5016" size={24} />
+          <MossIcon color="#2d5016" size={36} />
           <h1
-            className="text-2xl font-bold lowercase"
+            className="text-4xl font-bold lowercase"
             style={{
               color: '#2d5016',
               fontFamily: 'monospace',

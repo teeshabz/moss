@@ -72,9 +72,9 @@ function LoginPageContent() {
         {/* Logo - top left */}
         <div className="absolute top-8 left-8 md:top-16 md:left-16">
           <div className="flex items-center gap-2">
-            <MossIcon color="#2d5016" size={24} />
+            <MossIcon color="#2d5016" size={36} />
             <h1
-              className="text-2xl font-bold lowercase"
+              className="text-4xl font-bold lowercase"
               style={{
                 color: '#2d5016',
                 fontFamily: 'monospace',
@@ -86,12 +86,12 @@ function LoginPageContent() {
             </h1>
           </div>
         </div>
-        <div className="flex-1 flex items-start justify-start pl-8 md:pl-16 pt-24 md:pt-32">
+        <div className="flex-1 flex items-center justify-start pl-8 md:pl-16">
           <div>
-            <h1 className="text-4xl md:text-5xl font-bold mb-2">
+            <h1 className="text-2xl md:text-3xl font-bold mb-2">
               link has been sent!
             </h1>
-            <p className="text-gray-400 text-lg md:text-xl">check your email</p>
+            <p className="text-gray-400 text-base md:text-lg">check your email</p>
           </div>
         </div>
       </div>
@@ -103,9 +103,9 @@ function LoginPageContent() {
       {/* Logo and tagline - top left */}
       <div className="absolute top-8 left-8 md:top-16 md:left-16">
         <div className="flex items-center gap-2 mb-2">
-          <MossIcon color="#2d5016" size={24} />
+          <MossIcon color="#2d5016" size={36} />
           <h1
-            className="text-2xl font-bold lowercase"
+            className="text-4xl font-bold lowercase"
             style={{
               color: '#2d5016',
               fontFamily: 'monospace',
@@ -147,7 +147,7 @@ function LoginPageContent() {
             disabled={loading}
             className="text-green-500 text-lg font-medium hover:text-green-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'sending...' : 'connect →'}
+            {loading ? 'sending...' : 'get magic link →'}
           </button>
         </form>
       </div>
@@ -168,9 +168,9 @@ function LoginPageFallback() {
     <div className="min-h-screen bg-black text-white flex flex-col">
       <div className="absolute top-8 left-8 md:top-16 md:left-16">
         <div className="flex items-center gap-2 mb-2">
-          <MossIcon color="#2d5016" size={24} />
+          <MossIcon color="#2d5016" size={36} />
           <h1
-            className="text-2xl font-bold lowercase"
+            className="text-4xl font-bold lowercase"
             style={{
               color: '#2d5016',
               fontFamily: 'monospace',

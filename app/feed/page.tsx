@@ -155,9 +155,9 @@ export default function FeedPage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* Header */}
+      {/* Header - same width/padding as feed content so logo and share align with posts */}
       <div className="sticky top-0 bg-black/90 backdrop-blur-sm z-10 mb-8">
-        <div className="max-w-4xl mx-auto px-4 md:px-8 py-4 flex items-center justify-between">
+        <div className="max-w-2xl mx-auto px-6 md:px-8 py-4 flex items-center justify-between">
           {/* Logo */}
           <Link href="/feed" className="flex items-center gap-2">
             <MossIcon color="#2d5016" size={24} />
@@ -182,8 +182,8 @@ export default function FeedPage() {
             onMouseEnter={() => setShareHovered(true)}
             onMouseLeave={() => setShareHovered(false)}
           >
-            <StarIcon color={shareHovered ? '#8fb084' : '#7a9b6f'} size={18} />
-            <span className="text-2xl font-bold">share</span>
+            <span className="text-2xl font-bold leading-none">share</span>
+            <StarIcon color={shareHovered ? '#8fb084' : '#7a9b6f'} size={22} />
           </Link>
         </div>
       </div>
@@ -320,14 +320,18 @@ export default function FeedPage() {
         )}
       </div>
 
-      {/* Footer - Username (links to profile) */}
+      {/* Footer - Avatar + Username (links to profile) */}
       {currentUser?.user?.username && (
-        <div className="fixed bottom-8 left-8 md:bottom-16 md:left-16">
+        <div className="fixed bottom-4 left-6 md:bottom-6 md:left-8">
           <Link
             href={`/profile/${encodeURIComponent(currentUser.user.username)}`}
-            className="text-stone-500 text-sm hover:text-[#7a9b6f] transition-colors"
+            className="flex items-center gap-2 text-stone-500 text-sm hover:text-[#7a9b6f] transition-colors"
           >
-            {currentUser.user.username}
+            <div
+              className="w-6 h-6 rounded-full flex-shrink-0"
+              style={{ backgroundColor: currentUser.user.avatar_color }}
+            />
+            <span>{currentUser.user.username}</span>
           </Link>
         </div>
       )}

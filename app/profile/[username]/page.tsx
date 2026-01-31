@@ -250,11 +250,11 @@ export default function ProfilePage() {
         {/* Profile header: avatar, username, settings */}
         <div className="flex items-center gap-4 mb-8">
           <div
-            className="w-16 h-16 md:w-20 md:h-20 rounded-full flex-shrink-0"
+            className="md:w-8 md:h-8 w-6 h-6 rounded-full flex-shrink-0"
             style={{ backgroundColor: user.avatar_color }}
           />
           <div className="flex-1 min-w-0">
-            <h1 className="text-2xl md:text-3xl font-bold lowercase truncate">
+            <h1 className="text-2xl font-bold lowercase truncate">
               {user.username}
             </h1>
           </div>
@@ -266,8 +266,8 @@ export default function ProfilePage() {
             onMouseLeave={() => setShareHovered(false)}
             aria-label="Share"
           >
-            <StarIcon color={shareHovered ? '#8fb084' : '#7a9b6f'} size={18} />
-            <span className="text-2xl font-bold">share</span>
+            <span className="text-2xl font-bold leading-none">share</span>
+            <StarIcon color={shareHovered ? '#8fb084' : '#7a9b6f'} size={22} />
           </Link>
         </div>
 
@@ -424,7 +424,7 @@ export default function ProfilePage() {
             )}
             {savedLoading && savedItems.length === 0 ? (
               <div className="text-center py-12">
-                <p className="text-stone-500">Loading saved items...</p>
+                <p className="text-stone-500">loading saved items...</p>
               </div>
             ) : savedItems.length === 0 ? (
               <div className="text-center py-12">

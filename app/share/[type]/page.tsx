@@ -11,7 +11,7 @@ import {
   MusicIcon,
   DiscIcon,
   PodcastIcon,
-} from '@/lib/components/MediaIcons'
+} from '@/lib/components/SharePageMediaIcons'
 import { MossIcon } from '@/lib/components/MossIcon'
 
 const validTypes = ['book', 'article', 'movie', 'song', 'album', 'podcast']
@@ -38,21 +38,21 @@ const mediaTypeConfig: Record<
       {
         label: 'BOOK TITLE',
         name: 'title',
-        placeholder: 'Enter book title...',
+        placeholder: 'enter book title...',
         required: true,
         type: 'text',
       },
       {
         label: 'AUTHOR',
         name: 'author',
-        placeholder: 'Who wrote it?',
+        placeholder: 'who wrote it?',
         required: true,
         type: 'text',
       },
       {
         label: 'NOTE',
         name: 'note',
-        placeholder: 'Your thoughts...',
+        placeholder: 'your thoughts...',
         required: false,
         type: 'text',
       },
@@ -65,28 +65,28 @@ const mediaTypeConfig: Record<
       {
         label: 'LINK',
         name: 'url',
-        placeholder: 'Enter article URL...',
+        placeholder: 'enter article URL...',
         required: true,
         type: 'url',
       },
       {
         label: 'TITLE',
         name: 'title',
-        placeholder: 'Enter article title...',
+        placeholder: 'enter article title...',
         required: true,
         type: 'text',
       },
       {
         label: 'AUTHOR',
         name: 'author',
-        placeholder: 'Who wrote it?',
+        placeholder: 'who wrote it?',
         required: true,
         type: 'text',
       },
       {
         label: 'NOTE',
         name: 'note',
-        placeholder: 'Your thoughts...',
+        placeholder: 'your thoughts...',
         required: false,
         type: 'text',
       },
@@ -99,21 +99,21 @@ const mediaTypeConfig: Record<
       {
         label: 'MOVIE TITLE',
         name: 'title',
-        placeholder: 'Enter movie title...',
+        placeholder: 'enter movie title...',
         required: true,
         type: 'text',
       },
       {
         label: 'DIRECTOR',
         name: 'director',
-        placeholder: 'Who directed it?',
+        placeholder: 'who directed it?',
         required: true,
         type: 'text',
       },
       {
         label: 'NOTE',
         name: 'note',
-        placeholder: 'Your thoughts...',
+        placeholder: 'your thoughts...',
         required: false,
         type: 'text',
       },
@@ -126,21 +126,21 @@ const mediaTypeConfig: Record<
       {
         label: 'SONG TITLE',
         name: 'title',
-        placeholder: 'Enter song title...',
+        placeholder: 'enter song title...',
         required: true,
         type: 'text',
       },
       {
         label: 'ARTIST',
         name: 'artist',
-        placeholder: 'Who performed it?',
+        placeholder: 'who performed it?',
         required: true,
         type: 'text',
       },
       {
         label: 'NOTE',
         name: 'note',
-        placeholder: 'Your thoughts...',
+        placeholder: 'your thoughts...',
         required: false,
         type: 'text',
       },
@@ -153,21 +153,21 @@ const mediaTypeConfig: Record<
       {
         label: 'ALBUM NAME',
         name: 'title',
-        placeholder: 'Enter album name...',
+        placeholder: 'enter album name...',
         required: true,
         type: 'text',
       },
       {
         label: 'ARTIST',
         name: 'artist',
-        placeholder: 'Who created it?',
+        placeholder: 'who created it?',
         required: true,
         type: 'text',
       },
       {
         label: 'NOTE',
         name: 'note',
-        placeholder: 'Your thoughts...',
+        placeholder: 'your thoughts...',
         required: false,
         type: 'text',
       },
@@ -180,21 +180,21 @@ const mediaTypeConfig: Record<
       {
         label: 'TITLE',
         name: 'title',
-        placeholder: 'Enter podcast title...',
+        placeholder: 'enter podcast title...',
         required: true,
         type: 'text',
       },
       {
         label: 'HOST',
         name: 'host',
-        placeholder: 'Who hosts it?',
+        placeholder: 'who hosts it?',
         required: true,
         type: 'text',
       },
       {
         label: 'NOTE',
         name: 'note',
-        placeholder: 'Your thoughts...',
+        placeholder: 'your thoughts...',
         required: false,
         type: 'text',
       },
@@ -519,7 +519,7 @@ export default function ShareTypePage() {
           <button
             type="submit"
             disabled={loading}
-            className="px-6 py-3 rounded font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="min-w-[7.5rem] px-6 py-3 rounded font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
               backgroundColor: buttonClicked ? config.color : 'transparent',
               color: buttonClicked ? 'white' : config.color,
@@ -529,7 +529,7 @@ export default function ShareTypePage() {
                 : 'none',
             }}
           >
-            {loading ? 'Sharing...' : 'share'}
+            {loading ? 'sharing...' : 'share'}
           </button>
         </form>
       </div>

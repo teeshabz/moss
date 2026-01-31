@@ -7,7 +7,7 @@ import {
   MusicIcon,
   DiscIcon,
   PodcastIcon,
-} from '@/lib/components/MediaIcons'
+} from '@/lib/components/SharePageMediaIcons'
 
 export function formatTimeAgo(dateString: string): string {
   const date = new Date(dateString)

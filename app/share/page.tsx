@@ -13,7 +13,7 @@ import {
   MusicIcon,
   DiscIcon,
   PodcastIcon,
-} from '@/lib/components/MediaIcons'
+} from '@/lib/components/SharePageMediaIcons'
 
 interface MediaType {
   label: string
@@ -88,7 +88,7 @@ function MediaIcon({ type, color }: { type: string; color: string }) {
     case 'album':
       return <DiscIcon {...iconProps} />
     case 'podcast':
-      return <PodcastIcon {...iconProps} />
+      return <PodcastIcon {...iconProps} size={38} />
     default:
       return null
   }
@@ -203,9 +203,9 @@ export default function SharePage() {
                 onMouseLeave={() => setHoveredType(null)}
                 className="relative flex items-center justify-center group transition-all"
               >
-                {/* Icon - only visible on hover */}
+                {/* Icon - fixed width so label aligns across all media types */}
                 <div
-                  className={`flex-shrink-0 mr-6 transition-all duration-200 ${
+                  className={`flex-shrink-0 w-10 mr-6 transition-all duration-200 ${
                     isHovered
                       ? 'opacity-100 translate-x-0'
                       : 'opacity-0 -translate-x-4'
@@ -232,13 +232,17 @@ export default function SharePage() {
         </div>
       </div>
 
-      {/* Footer - Username (links to profile) */}
+      {/* Footer - Avatar + Username (links to profile, same as feed) */}
       <div className="absolute bottom-8 left-8 md:bottom-16 md:left-16">
         <Link
           href={`/profile/${encodeURIComponent(user.user.username)}`}
-          className="text-gray-400 text-sm hover:text-[#7a9b6f] transition-colors"
+          className="flex items-center gap-2 text-gray-400 text-sm hover:text-[#7a9b6f] transition-colors"
         >
-          {user.user.username}
+          <div
+            className="w-6 h-6 rounded-full flex-shrink-0"
+            style={{ backgroundColor: user.user.avatar_color }}
+          />
+          <span>{user.user.username}</span>
         </Link>
       </div>
     </div>
