@@ -64,6 +64,16 @@ export interface SavedIdsResponse {
   postIds: string[]
 }
 
+export interface SearchUser {
+  id: string
+  username: string
+  avatar_color: string
+}
+
+export interface UserSearchResponse {
+  users: SearchUser[]
+}
+
 export interface ProfileUser {
   id: string
   username: string

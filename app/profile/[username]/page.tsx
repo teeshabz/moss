@@ -186,7 +186,7 @@ export default function ProfilePage() {
   if (loading && !profile) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-stone-500">Loading...</div>
+        <div className="text-stone-500">thinking...</div>
       </div>
     )
   }
@@ -224,7 +224,7 @@ export default function ProfilePage() {
     <div className="min-h-screen bg-black text-white">
       {/* Header: back + logo */}
       <div className="sticky top-0 bg-black/90 backdrop-blur-sm z-10 border-b border-stone-800">
-        <div className="max-w-4xl mx-auto px-4 md:px-8 py-4 flex items-center justify-between">
+        <div className="max-w-4xl mx-auto px-4 md:px-8 pt-6 pb-4 flex items-center justify-between">
           <Link href="/feed" className="text-white text-2xl hover:text-gray-300">
             ←
           </Link>
@@ -246,11 +246,11 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 md:px-8 py-8">
+      <div className="max-w-2xl mx-auto px-4 md:px-8 py-6">
         {/* Profile header: avatar, username, settings */}
-        <div className="flex items-center gap-4 mb-8">
+        <div className="flex items-center gap-4 mb-4">
           <div
-            className="md:w-8 md:h-8 w-6 h-6 rounded-full flex-shrink-0"
+            className="md:w-10 md:h-10 w-8 h-8 rounded-full flex-shrink-0"
             style={{ backgroundColor: user.avatar_color }}
           />
           <div className="flex-1 min-w-0">
@@ -273,27 +273,27 @@ export default function ProfilePage() {
 
         {/* Tabs */}
         <div className="border-b border-stone-700 mb-6">
-          <div className="flex gap-8">
+          <div className="flex gap-6">
             <button
               onClick={() => setActiveTab('shared')}
-              className={`pb-3 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors ${
+              className={`pb-2 text-sm font-bold lowercase tracking-wider border-b-2 transition-colors ${
                 activeTab === 'shared'
                   ? 'text-white border-[#7a9b6f]'
                   : 'text-stone-500 border-transparent hover:text-stone-400'
               }`}
             >
-              Shared
+              shared
             </button>
             {isOwnProfile && (
               <button
                 onClick={() => setActiveTab('saved')}
-                className={`pb-3 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors ${
+                className={`pb-2 text-sm font-bold lowercase tracking-wider border-b-2 transition-colors ${
                   activeTab === 'saved'
                     ? 'text-white border-[#7a9b6f]'
                     : 'text-stone-500 border-transparent hover:text-stone-400'
                 }`}
               >
-                Saved
+                saved
               </button>
             )}
           </div>
@@ -402,7 +402,7 @@ export default function ProfilePage() {
                   disabled={loadingMore}
                   className="text-[#7a9b6f] hover:text-[#8fb084] disabled:opacity-50"
                 >
-                  {loadingMore ? 'Loading...' : 'Load more →'}
+                  {loadingMore ? 'thinking...' : 'Load more →'}
                 </button>
               </div>
             )}
@@ -428,21 +428,30 @@ export default function ProfilePage() {
               </div>
             ) : savedItems.length === 0 ? (
               <div className="text-center py-12">
-                <p className="text-stone-500">No saved items yet</p>
+                <p className="text-stone-500">no saved posts yet</p>
+                <p className="text-stone-600 text-xs mt-1">tap the + on any post to save it</p>
               </div>
             ) : (
               <div>
                 {savedItems.map((post, index) => (
                   <div key={post.id}>
                     <div className="flex items-center gap-3 mb-3">
-                      <div
-                        className="md:w-8 md:h-8 w-6 h-6 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: post.user.avatar_color }}
-                      />
+                      <Link
+                        href={`/profile/${encodeURIComponent(post.user.username)}`}
+                        className="flex-shrink-0 hover:opacity-90 transition-opacity"
+                      >
+                        <div
+                          className="md:w-8 md:h-8 w-6 h-6 rounded-full"
+                          style={{ backgroundColor: post.user.avatar_color }}
+                        />
+                      </Link>
                       <div className="flex items-baseline gap-2 flex-1 flex-wrap">
-                        <span className="md:text-sm text-xs text-stone-200 font-bold lowercase">
+                        <Link
+                          href={`/profile/${encodeURIComponent(post.user.username)}`}
+                          className="md:text-sm text-xs text-stone-200 font-bold lowercase hover:text-[#7a9b6f] transition-colors"
+                        >
                           {post.user.username}
-                        </span>
+                        </Link>
                         <span className="text-stone-700">·</span>
                         <span className="md:text-sm text-xs text-stone-500">
                           {getMediaTypeLabel(post.media_item.media_type)}
@@ -507,7 +516,7 @@ export default function ProfilePage() {
                   disabled={savedLoadingMore}
                   className="text-[#7a9b6f] hover:text-[#8fb084] disabled:opacity-50"
                 >
-                  {savedLoadingMore ? 'Loading...' : 'Load more →'}
+                  {savedLoadingMore ? 'thinking...' : 'Load more →'}
                 </button>
               </div>
             )}

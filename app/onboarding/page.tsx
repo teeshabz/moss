@@ -107,7 +107,7 @@ export default function OnboardingPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-gray-400">Loading...</div>
+        <div className="text-gray-400">thinking...</div>
       </div>
     )
   }

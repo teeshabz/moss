@@ -202,7 +202,7 @@ function LoginPageFallback() {
         <p className="text-gray-400 text-sm md:text-base">share what moves you</p>
       </div>
       <div className="flex-1 flex items-center justify-start pl-8 md:pl-16">
-        <p className="text-gray-500 text-lg">Loading...</p>
+        <p className="text-gray-500 text-lg">thinking...</p>
       </div>
     </div>
   )

@@ -1,9 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import type { UserMeResponse } from '@/lib/types'
+import type {
+  SearchUser,
+  UserMeResponse,
+  UserSearchResponse,
+} from '@/lib/types'
 import { WEEKLY_POST_LIMIT } from '@/lib/api/weekly-limit'
 import { MossIcon } from '@/lib/components/MossIcon'
 import { StarIcon } from '@/lib/components/PostHelpers'
@@ -99,6 +103,11 @@ export default function SharePage() {
   const [user, setUser] = useState<UserMeResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [hoveredType, setHoveredType] = useState<string | null>(null)
+  const [searchExpanded, setSearchExpanded] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<SearchUser[]>([])
+  const [searchLoading, setSearchLoading] = useState(false)
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -125,6 +134,39 @@ export default function SharePage() {
     loadUser()
   }, [router])
 
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([])
+      setSearchLoading(false)
+      return
+    }
+
+    searchDebounceRef.current = setTimeout(async () => {
+      setSearchLoading(true)
+      try {
+        const res = await fetch(
+          `/api/search/users?q=${encodeURIComponent(searchQuery.trim())}`
+        )
+        if (res.ok) {
+          const data: UserSearchResponse = await res.json()
+          setSearchResults(data.users)
+        } else {
+          setSearchResults([])
+        }
+      } catch {
+        setSearchResults([])
+      } finally {
+        setSearchLoading(false)
+      }
+    }, 300)
+
+    return () => {
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current)
+      }
+    }
+  }, [searchQuery])
+
   const handleMediaTypeClick = (type: string) => {
     router.push(`/share/${type}`)
   }
@@ -132,7 +174,7 @@ export default function SharePage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-gray-400">Loading...</div>
+        <div className="text-gray-400">thinking...</div>
       </div>
     )
   }
@@ -145,8 +187,8 @@ export default function SharePage() {
   const filledStars = Math.min(user.weeklyPostCount, WEEKLY_POST_LIMIT)
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col">
-      {/* Header - arrow, stars, profile on same height */}
+    <div className="min-h-screen bg-black text-white flex flex-col pb-24">
+      {/* Header - arrow (left), stars (center, lowered), moss (right) */}
       <div className="absolute top-8 left-8 right-8 md:top-16 md:left-16 md:right-16 flex items-center justify-between">
         <Link
           href="/feed"
@@ -156,34 +198,49 @@ export default function SharePage() {
           ←
         </Link>
 
-        {/* Stars + label - centered, lowered so star midline aligns with arrow */}
-        <div className="absolute left-1/2 -translate-x-1/2 translate-y-2 flex flex-col items-center justify-center">
+        {/* Stars + label - centered, lowered */}
+        <div className="absolute left-1/2 -translate-x-1/2 top-12 md:top-16 flex flex-col items-center justify-center">
           <div className="flex justify-center gap-0.5 mb-2 items-center">
             {Array.from({ length: WEEKLY_POST_LIMIT }, (_, i) => i).map((index) => (
-              <span key={index} className="inline-flex shrink-0" style={{ width: 28, height: 28 }}>
+              <span key={index} className="inline-flex shrink-0" style={{ width: 24, height: 24 }}>
                 <StarIcon
                   color={index < filledStars ? '#8FA68E' : '#8FA68E4D'}
-                  size={28}
+                  size={24}
                 />
               </span>
             ))}
           </div>
-          <p className="text-gray-500 text-[10px] uppercase tracking-wider">
+          <p
+            className="text-[10px] uppercase tracking-wider font-bold"
+            style={{ color: '#8FA68E' }}
+          >
             SHARED THIS WEEK
           </p>
         </div>
 
         <Link
-          href={`/profile/${encodeURIComponent(user.user.username)}`}
-          className="flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0 hover:opacity-90 transition-opacity"
-          style={{ backgroundColor: user.user.avatar_color }}
-          aria-label="Go to profile"
-        />
+          href="/feed"
+          className="flex items-center gap-1.5 flex-shrink-0"
+          aria-label="moss"
+        >
+          <MossIcon color="#2d5016" size={18} />
+          <span
+            className="text-lg font-bold lowercase"
+            style={{
+              color: '#2d5016',
+              fontFamily: 'monospace',
+              letterSpacing: '0.1em',
+              textRendering: 'geometricPrecision',
+            }}
+          >
+            moss
+          </span>
+        </Link>
       </div>
 
-      {/* Media Types List - Centered (nudged left for visual balance) */}
-      <div className="flex-1 flex flex-col items-center justify-center px-8 py-24">
-        <div className="space-y-6 md:space-y-8 -translate-x-6">
+      {/* Media Types List - Left aligned, lowered */}
+      <div className="flex-1 flex flex-col justify-center px-8 md:px-16 pt-48 md:pt-56 pb-24">
+        <div className="space-y-6 md:space-y-8">
           {mediaTypes.map((type) => {
             const isHovered = hoveredType === type.value
             return (
@@ -192,7 +249,7 @@ export default function SharePage() {
                 onClick={() => handleMediaTypeClick(type.value)}
                 onMouseEnter={() => setHoveredType(type.value)}
                 onMouseLeave={() => setHoveredType(null)}
-                className="relative flex items-center justify-center group transition-all"
+                className="relative flex items-center group transition-all"
               >
                 {/* Icon - fixed width so label aligns across all media types */}
                 <div
@@ -223,22 +280,137 @@ export default function SharePage() {
         </div>
       </div>
 
-      {/* Footer - moss icon + logo bottom left */}
-      <div className="absolute bottom-8 left-8 md:bottom-16 md:left-16 flex items-center gap-2">
-        <Link href="/feed" className="flex items-center gap-2">
-          <MossIcon color="#2d5016" size={24} />
-          <span
-            className="text-2xl font-bold lowercase"
-            style={{
-              color: '#2d5016',
-              fontFamily: 'monospace',
-              letterSpacing: '0.1em',
-              textRendering: 'geometricPrecision',
-            }}
-          >
-            moss
-          </span>
-        </Link>
+      {/* Bottom Bar - Fixed (same as feed) */}
+      <div className="fixed bottom-0 left-0 right-0 bg-black z-20">
+        <div className="h-px bg-stone-800 flex-shrink-0" />
+
+        {searchExpanded ? (
+          <div className="flex flex-col w-full px-6 md:px-8 py-4">
+            {searchQuery.trim() && (
+              <div className="pb-4">
+                {searchLoading ? (
+                  <div className="text-stone-500 text-sm py-2">searching...</div>
+                ) : searchResults.length > 0 ? (
+                  <div className="space-y-1">
+                    {searchResults.slice(0, 3).map((user) => (
+                      <Link
+                        key={user.id}
+                        href={`/profile/${encodeURIComponent(user.username)}`}
+                        onMouseDown={(e) => e.preventDefault()}
+                        className="flex items-center gap-3 px-2 py-3 rounded-lg hover:bg-stone-800/50 transition-colors group"
+                      >
+                        <div
+                          className="w-8 h-8 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: user.avatar_color }}
+                        />
+                        <span className="md:text-sm text-xs text-stone-200 font-bold lowercase group-hover:text-[#7a9b6f] transition-colors">
+                          {user.username}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-stone-500 text-sm py-2">
+                    no friends found :/
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="relative w-full">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-500">
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.35-4.35" />
+                </svg>
+              </div>
+              <input
+                type="text"
+                placeholder="search friends"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-stone-900 text-stone-200 placeholder-stone-500 pl-11 pr-11 py-3 rounded-full outline-none border border-stone-700 focus:border-stone-600 text-sm h-10"
+                autoFocus
+                onBlur={() => {
+                  setTimeout(() => {
+                    setSearchExpanded(false)
+                    setSearchQuery('')
+                    setSearchResults([])
+                  }, 150)
+                }}
+              />
+              <button
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  setSearchExpanded(false)
+                  setSearchQuery('')
+                  setSearchResults([])
+                }}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-500 hover:text-stone-400"
+                aria-label="Close search"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="max-w-2xl mx-auto px-6 md:px-8 py-3 flex items-center justify-between">
+            {user?.user?.username ? (
+              <Link
+                href={`/profile/${encodeURIComponent(user.user.username)}`}
+                className="hover:opacity-90 transition-opacity"
+              >
+                <div
+                  className="w-8 h-8 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: user.user.avatar_color }}
+                />
+              </Link>
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-stone-800 flex-shrink-0" />
+            )}
+
+            <button
+              onClick={() => setSearchExpanded(true)}
+              className="text-stone-400 hover:text-stone-300 transition-colors"
+              aria-label="Search for friends"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.35-4.35" />
+              </svg>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

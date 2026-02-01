@@ -102,7 +102,7 @@ export function PlusIcon({
   size?: number
   className?: string
 }) {
-  const strokeWidth = saved ? 2.5 : 1.5
+  const strokeWidth = saved ? 3 : 2
   return (
     <svg
       width={size}
