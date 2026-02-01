@@ -11,6 +11,7 @@ function LoginPageContent() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [emailSent, setEmailSent] = useState(false)
+  const [noAccount, setNoAccount] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirect = searchParams.get('redirect') || '/feed'
@@ -21,6 +22,7 @@ function LoginPageContent() {
     e.preventDefault()
     setLoading(true)
     setError(null)
+    setNoAccount(false)
 
     try {
       // Check if account exists before sending magic link
@@ -35,7 +37,7 @@ function LoginPageContent() {
       const checkData = await checkResponse.json()
 
       if (!checkData.exists) {
-        setError("couldn't find account")
+        setNoAccount(true)
         setLoading(false)
         return
       }
@@ -142,13 +144,29 @@ function LoginPageContent() {
             <div className="mb-4 text-red-400 text-sm">{error}</div>
           )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="text-green-500 text-lg font-medium hover:text-green-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? 'sending...' : 'get magic link →'}
-          </button>
+          {noAccount && (
+            <div className="mb-4">
+              <p className="text-red-400 text-sm">
+                you don&apos;t have an account yet, make one below!
+              </p>
+              <Link
+                href="/signup"
+                className="text-green-500 text-sm font-medium hover:text-green-400 transition-colors mt-3 inline-block"
+              >
+                create account →
+              </Link>
+            </div>
+          )}
+
+          {!noAccount && (
+            <button
+              type="submit"
+              disabled={loading}
+              className="text-green-500 text-lg font-medium hover:text-green-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'sending...' : 'get magic link →'}
+            </button>
+          )}
         </form>
       </div>
 

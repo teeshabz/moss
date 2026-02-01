@@ -61,7 +61,7 @@ Moss is structured as an API-first application where **the backend API is the si
 **Constraints:**
 - Username length: 3-20 characters
 - Username format: `^[a-zA-Z0-9_]+$` (no spaces)
-- Reserved usernames: `moss`, `api`, `admin`, `support`, `tali`
+- Reserved usernames: `moss`, `api`, `admin`, `support`
 
 **media_items**
 - `id` TEXT PRIMARY KEY
@@ -118,7 +118,7 @@ All tables have RLS enabled with policies:
 ### Username Rules
 
 - 3–20 characters, no spaces. Case-insensitive uniqueness ("Alex" and "alex" are the same).
-- Reserved (blocked): `moss`, `api`, `admin`, `support`, `tali`. No duplicate usernames.
+- Reserved (blocked): `moss`, `api`, `admin`, `support`. No duplicate usernames.
 - Validate on sign-up; return clear errors (e.g. `409`, `code: "username_taken"`).
 
 ### Avatar
@@ -375,7 +375,7 @@ This ensures:
 - **Uniqueness**: Case-insensitive ("Alex" and "alex" are the same)
 - **Length**: 3-20 characters
 - **Format**: Alphanumeric + underscore only (no spaces)
-- **Reserved**: `moss`, `api`, `admin`, `support`, `tali`
+- **Reserved**: `moss`, `api`, `admin`, `support`
 
 ### Feed Visibility
 - **Access**: Logged-in only
@@ -423,7 +423,7 @@ This ensures:
 
 - **Architecture**: API-first, mobile-ready. All business logic in API routes (or `lib/api/`). UI only fetches/submits via REST. No Server Actions or RSC-only mutation paths for feed/posts. Session-based auth for web + future native.
 
-- **Auth**: Supabase Auth; email + magic link (no passwords). Make account (username + email) → magic link sent → onboarding / set up profile (new users) → feed. Login → magic link → feed. Username: 3–20 chars, no spaces, case-insensitive, reserved `moss`/`api`/`admin`/`support`/`tali`.
+- **Auth**: Supabase Auth; email + magic link (no passwords). Make account (username + email) → magic link sent → onboarding / set up profile (new users) → feed. Login → magic link → feed. Username: 3–20 chars, no spaces, case-insensitive, reserved `moss`/`api`/`admin`/`support`.
 
 - **Avatar**: `avatarColor` (hex); v0 random warm palette, v2 color picker. No image upload.
 

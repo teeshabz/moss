@@ -3,7 +3,7 @@ import { toZonedTime, fromZonedTime } from 'date-fns-tz'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 /** Maximum posts a user can create per week (America/New_York, Monday–Sunday). */
-export const WEEKLY_POST_LIMIT = 5
+export const WEEKLY_POST_LIMIT = 3
 
 /**
  * Calculate the start and end of the current week in America/New_York timezone

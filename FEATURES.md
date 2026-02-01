@@ -2,7 +2,7 @@
 
 ## High-Level Purpose
 
-**Moss** is a social app where users share what they're reading, watching, and listening to. The goal is to "share what moves you"—recommendations as simple posts: a media item (book, article, movie, song, album, or podcast) plus an optional short note. There are no passwords: sign-up and login use email magic links. Sharing is intentionally limited (5 posts per week) to keep the feed focused and thoughtful. Users can save others' posts for later and view their own profile (shared items and saved items) with the same layout and divider style as the main feed.
+**Moss** is a social app where users share what they're reading, watching, and listening to. The goal is to "share what moves you"—recommendations as simple posts: a media item (book, article, movie, song, album, or podcast) plus an optional short note. There are no passwords: sign-up and login use email magic links. Sharing is intentionally limited (3 posts per week) to keep the feed focused and thoughtful. Users can save others' posts for later and view their own profile (shared items and saved items) with the same layout and divider style as the main feed.
 
 ---
 
@@ -25,7 +25,8 @@
 - **Login (`/login`):**
   - User enters email. App calls `POST /api/auth/check-user` with that email.
   - Backend uses Supabase Admin API to see if a user exists and if their email is verified.
-  - If user does not exist or email is not verified → show "Couldn't find account" (or similar); no magic link is sent.
+  - If user does not exist → show "you don't have an account yet, make one below!" (red) and a "create account →" link to signup; "get magic link" button is hidden so they can only go to signup.
+  - If user exists but email is not verified → show "Please verify your email first. Check your inbox for the confirmation link."; no magic link is sent.
   - If user exists and is verified → Supabase sends a magic link. User clicks it and is redirected to `/auth/callback?code=...&type=login`. Callback exchanges the code for a session and redirects to `/feed` (or `next` param).
 - **Sign up (`/signup`):**
   - User enters username + email. App calls `supabase.auth.signUp()` (with a random password workaround so Supabase still sends the confirmation email). Confirmation email contains a link to `/auth/callback?code=...&type=signup`.
@@ -58,7 +59,7 @@
 
 **How it works today:**
 
-- **Page:** `app/feed/page.tsx`. Client-side fetch to `GET /api/feed` (with optional `cursor` and `limit`). Renders a list of posts; each post has header row (avatar, username link to profile, media type, relative time, save button for non-own posts) and content row (title, creator, note, large media-type icon). Thin 1px divider (`h-px bg-stone-800`) between posts with `mt-6 mb-6 pl-9 md:pl-11`. "Load more" uses `nextCursor` from the response.
+- **Page:** `app/feed/page.tsx`. Sticky header: moss icon only (left, links to feed), "share" + star icon (center, links to `/share`), current user’s profile avatar (right, no username). Client-side fetch to `GET /api/feed` (with optional `cursor` and `limit`). Renders a list of posts; each post has header row (avatar, username link to profile, media type, relative time, save button for non-own posts) and content row (title, creator, note, large media-type icon). Thin 1px divider (`h-px bg-stone-800`) between posts with `mt-6 mb-6 pl-9 md:pl-11`. "Load more" uses `nextCursor` from the response. No footer; profile access is via header avatar only.
 - **API:** `GET /api/feed`. Requires auth. Reads `posts` joined with `users` and `media_items`, ordered by `created_at DESC, id DESC`. Returns `{ items: PostWithRelations[], nextCursor? }` using composite cursor pagination (cursor = base64 of `{ created_at, id }`). Default limit 20, max 50.
 - **Save state:** On load, feed also fetches `GET /api/users/me/saved-ids` to get the current user’s saved post IDs. Toggling save calls `POST /api/posts/[id]/save` or `DELETE /api/posts/[id]/save`. Save button is a plus icon (thin when unsaved, bold when saved); only shown for posts not authored by the current user.
 
@@ -68,16 +69,16 @@
 
 ### 4. Share Flow (Media Type Selection + Per-Type Forms)
 
-**Purpose:** Let users create a new post by choosing a media type (book, article, movie, song, album, podcast) and filling a small form (title, creator, optional note; article also has required URL). Enforce a weekly post limit (5 per week in America/New_York) and deduplicate media items where appropriate.
+**Purpose:** Let users create a new post by choosing a media type (book, article, movie, song, album, podcast) and filling a small form (title, creator, optional note; article also has required URL). Enforce a weekly post limit (3 per week in America/New_York) and deduplicate media items where appropriate.
 
 **How it works today:**
 
 - **Share hub (`/share`):**
-  - Client fetches `GET /api/users/me` to get current user and `weeklyPostCount`. Renders "SHARED THIS WEEK" with up to 5 stars filled by count, and a list of media types (book, article, movie, song, album, podcast). Each type links to `/share/[type]` (e.g. `/share/book`). Icons and styling match the design (hover states, media-type colors).
+  - Client fetches `GET /api/users/me` to get current user and `weeklyPostCount`. Header: back arrow (left), "SHARED THIS WEEK" with up to 3 stars (center, same row as arrow and profile), current user’s profile avatar (right, no username). Media types list below (book, article, movie, song, album, podcast); each type links to `/share/[type]` (e.g. `/share/book`). On hover, the media-type icon appears and the label fades slightly. Footer: moss icon + "moss" logo bottom left (links to feed).
 - **Share form (`/share/[type]`):**
   - One dynamic page for all types. Config drives labels, placeholders, and field types (text, textarea, url). Common fields: title (required), creator-style field (author/director/artist/host, required), note (optional, 60 chars, textarea with counter). Article also has required URL. For **book** only: a "Search for a book" input calls `GET /api/search/books?q=...` (debounced); results are deduplicated by title+author; user can pick one to autopopulate title/author and submit with `source: 'google_books'`, `sourceId`, and optional `coverUrl` so the same book aligns across users. Manual entry (no search) remains available. Form submits to `POST /api/posts` with body `{ media: { mediaType, title, creator, externalUrl?, source?, sourceId?, coverUrl? }, note? }`.
-- **API:** `POST /api/posts`. Requires auth. Validates body; ensures weekly post count in America/New_York is below the limit (5). Looks up or creates `media_items` (deduplication by type+title+creator for manual entries; by source+source_id for integrations). Inserts `posts` with `user_id`, `media_item_id`, `note`. Returns 201 with the new post or 409 if limit reached.
-- **Weekly limit:** Implemented in `lib/api/weekly-limit.ts`. `WEEKLY_POST_LIMIT` is 5. Week is Monday–Sunday in America/New_York; counts posts in that window; create-post route returns 409 when count >= 5.
+- **API:** `POST /api/posts`. Requires auth. Validates body; ensures weekly post count in America/New_York is below the limit (3). Looks up or creates `media_items` (deduplication by type+title+creator for manual entries; by source+source_id for integrations). Inserts `posts` with `user_id`, `media_item_id`, `note`. Returns 201 with the new post or 409 if limit reached.
+- **Weekly limit:** Implemented in `lib/api/weekly-limit.ts`. `WEEKLY_POST_LIMIT` is 3. Week is Monday–Sunday in America/New_York; counts posts in that window; create-post route returns 409 when count >= 3.
 - **Book search:** `GET /api/search/books?q=...`. Requires auth. Calls Google Books API (server-side, `GOOGLE_BOOKS_API_KEY`); returns `{ books: [{ id, title, authors, thumbnail? }] }`. Results are deduplicated by normalized title+author so one option per work (e.g. one "Little Women" by Louisa May Alcott).
 
 **Key files:** `app/share/page.tsx`, `app/share/[type]/page.tsx`, `app/api/posts/route.ts`, `app/api/search/books/route.ts`, `app/api/users/me/route.ts`, `lib/api/weekly-limit.ts`, `lib/api/media.ts` (validation and find-or-create media item).

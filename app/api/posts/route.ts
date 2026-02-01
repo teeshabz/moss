@@ -59,7 +59,7 @@ export async function POST(request: Request) {
     if (weeklyCount >= WEEKLY_POST_LIMIT) {
       return NextResponse.json(
         {
-          error: "you've already posted 5 times this week. come back next week!",
+          error: "you've already posted 3 times this week. come back next week!",
           code: 'weekly_limit_exceeded',
         },
         { status: 409 }

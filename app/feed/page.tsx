@@ -14,8 +14,8 @@ import {
   formatTimeAgo,
   getMediaTypeLabel,
   MediaTypeFilledIcon,
-  StarIcon,
   PlusIcon,
+  StarIcon,
 } from '@/lib/components/PostHelpers'
 
 export default function FeedPage() {
@@ -155,29 +155,18 @@ export default function FeedPage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* Header - same width/padding as feed content so logo and share align with posts */}
+      {/* Header - logo left, share center, profile right */}
       <div className="sticky top-0 bg-black/90 backdrop-blur-sm z-10 mb-8">
-        <div className="max-w-2xl mx-auto px-6 md:px-8 py-4 flex items-center justify-between">
-          {/* Logo */}
-          <Link href="/feed" className="flex items-center gap-2">
+        <div className="relative max-w-2xl mx-auto px-6 md:px-8 py-4 flex items-center justify-between">
+          {/* Logo - left (icon only) */}
+          <Link href="/feed" className="flex items-center" aria-label="moss">
             <MossIcon color="#2d5016" size={24} />
-            <span
-              className="text-2xl font-bold lowercase"
-              style={{
-                color: '#2d5016',
-                fontFamily: 'monospace',
-                letterSpacing: '0.1em',
-                textRendering: 'geometricPrecision',
-              }}
-            >
-              moss
-            </span>
           </Link>
 
-          {/* Share Button */}
+          {/* Share - center */}
           <Link
             href="/share"
-            className="flex items-center gap-2 transition-colors"
+            className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 transition-colors"
             style={{ color: shareHovered ? '#8fb084' : '#7a9b6f' }}
             onMouseEnter={() => setShareHovered(true)}
             onMouseLeave={() => setShareHovered(false)}
@@ -185,6 +174,18 @@ export default function FeedPage() {
             <span className="text-2xl font-bold leading-none">share</span>
             <StarIcon color={shareHovered ? '#8fb084' : '#7a9b6f'} size={22} />
           </Link>
+
+          {/* Profile avatar - right (no username) */}
+          {currentUser?.user?.username ? (
+            <Link
+              href={`/profile/${encodeURIComponent(currentUser.user.username)}`}
+              className="flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0 hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: currentUser.user.avatar_color }}
+              aria-label="Go to profile"
+            />
+          ) : (
+            <div className="w-8 h-8" aria-hidden />
+          )}
         </div>
       </div>
 
@@ -320,21 +321,6 @@ export default function FeedPage() {
         )}
       </div>
 
-      {/* Footer - Avatar + Username (links to profile) */}
-      {currentUser?.user?.username && (
-        <div className="fixed bottom-4 left-6 md:bottom-6 md:left-8">
-          <Link
-            href={`/profile/${encodeURIComponent(currentUser.user.username)}`}
-            className="flex items-center gap-2 text-stone-500 text-sm hover:text-[#7a9b6f] transition-colors"
-          >
-            <div
-              className="w-6 h-6 rounded-full flex-shrink-0"
-              style={{ backgroundColor: currentUser.user.avatar_color }}
-            />
-            <span>{currentUser.user.username}</span>
-          </Link>
-        </div>
-      )}
     </div>
   )
 }

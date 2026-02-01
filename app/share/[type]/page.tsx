@@ -426,7 +426,7 @@ export default function ShareTypePage() {
 
       if (!response.ok) {
         if (response.status === 409) {
-          setSubmitError(data.error || "you've already posted 5 times this week. come back next week!")
+          setSubmitError(data.error || "you've already posted 3 times this week. come back next week!")
         } else if (response.status === 400) {
           setSubmitError(data.error || 'Validation error')
         } else {

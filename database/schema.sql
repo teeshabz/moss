@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
   -- Constraints
   CONSTRAINT username_length CHECK (char_length(username) >= 3 AND char_length(username) <= 20),
   CONSTRAINT username_format CHECK (username ~ '^[a-zA-Z0-9_]+$'), -- no spaces, alphanumeric + underscore
-  CONSTRAINT reserved_usernames CHECK (username NOT IN ('moss', 'api', 'admin', 'support', 'tali'))
+  CONSTRAINT reserved_usernames CHECK (username NOT IN ('moss', 'api', 'admin', 'support'))
 );
 
 -- Create media_items table
