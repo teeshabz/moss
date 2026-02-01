@@ -107,11 +107,27 @@ export default function SignupPage() {
   if (emailSent) {
     return (
       <div className="min-h-screen bg-black text-white flex flex-col">
-        <div className="flex-1 flex items-center justify-start pl-8 md:pl-16 pt-16">
+        <div className="flex-1 flex items-center justify-start min-w-0 px-4 sm:px-8 md:px-16 pt-16">
           <div>
-            <h1 className="text-4xl md:text-5xl font-bold mb-2">link has been sent!</h1>
-            <p className="text-gray-400 text-lg md:text-xl ml-4">check your email</p>
-            <p className="text-gray-500 text-sm md:text-base ml-4 mt-4">after confirming your email, you'll be able to login</p>
+            <h1 className="text-4xl md:text-5xl font-bold mb-2">link has been sent</h1>
+            <p className="text-gray-400 text-lg md:text-xl">confirm your email to login</p>
+          </div>
+        </div>
+        {/* Moss logo - bottom left */}
+        <div className="absolute bottom-8 left-8 md:bottom-16 md:left-16">
+          <div className="flex items-center gap-2">
+            <MossIcon color="#2d5016" size={24} />
+            <span
+              className="text-2xl font-bold lowercase"
+              style={{
+                color: '#2d5016',
+                fontFamily: 'monospace',
+                letterSpacing: '0.1em',
+                textRendering: 'geometricPrecision',
+              }}
+            >
+              moss
+            </span>
           </div>
         </div>
       </div>
@@ -139,10 +155,10 @@ export default function SignupPage() {
       </div>
 
       {/* Main content - centered left */}
-      <div className="flex-1 flex items-center justify-start pl-8 md:pl-16">
-        <div className="w-full max-w-md">
+      <div className="flex-1 flex items-center justify-start min-w-0 px-4 sm:px-8 md:px-16">
+        <div className="w-full max-w-sm min-w-0">
           {/* Description text */}
-          <div className="mb-12 text-gray-300 text-sm md:text-base leading-relaxed max-w-md">
+          <div className="mb-12 text-gray-300 text-sm md:text-base leading-relaxed max-w-sm">
             <p className="mb-2">
               moss is a place to connect through the media that moves you. to encourage sharing the things that really resonate, you can share up to 3 things per week.
             </p>

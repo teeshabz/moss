@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { generateAvatarColor } from '@/lib/utils'
+import { generateAvatarColor, sanitizeRedirectPath } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,7 +10,7 @@ export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
   const type = requestUrl.searchParams.get('type') // 'signup' or 'login'
-  const next = requestUrl.searchParams.get('next') || '/feed'
+  const next = sanitizeRedirectPath(requestUrl.searchParams.get('next'))
 
   if (!code) {
     return NextResponse.redirect(new URL('/login', requestUrl.origin))
@@ -104,11 +104,8 @@ export async function GET(request: Request) {
       )
     }
 
-    // Clear session - log user out (they need to login separately)
-    await supabase.auth.signOut()
-
-    // Redirect to login page (not logged in, just email verified)
-    return NextResponse.redirect(new URL('/login?verified=true', requestUrl.origin))
+    // Keep session — user is already logged in from the confirmation link. Send to feed.
+    return NextResponse.redirect(new URL(next, requestUrl.origin))
   } else {
     // LOGIN FLOW
     // User exists in public.users - this is a login

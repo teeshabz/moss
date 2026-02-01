@@ -1,4 +1,15 @@
 /**
+ * Sanitize redirect/next path for auth callback and login.
+ * Only allows relative paths (starts with /, no //) to prevent open redirects.
+ */
+export function sanitizeRedirectPath(value: string | null): string {
+  if (value == null || typeof value !== 'string') return '/feed'
+  const trimmed = value.trim()
+  if (trimmed.startsWith('/') && !trimmed.includes('//')) return trimmed
+  return '/feed'
+}
+
+/**
  * Generate a random hex color for user avatars from a 100-color palette.
  * Used for random assignment when creating new profiles.
  */

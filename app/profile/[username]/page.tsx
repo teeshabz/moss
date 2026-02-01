@@ -30,6 +30,7 @@ export default function ProfilePage() {
   const [notFound, setNotFound] = useState(false)
   const [activeTab, setActiveTab] = useState<'shared' | 'saved'>('shared')
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [savedItems, setSavedItems] = useState<PostWithRelations[]>([])
   const [savedNextCursor, setSavedNextCursor] = useState<string | undefined>()
   const [savedLoading, setSavedLoading] = useState(false)
@@ -147,7 +148,7 @@ export default function ProfilePage() {
   }, [activeTab, isOwnProfile, savedLoaded, savedLoading])
 
   async function handleDeletePost(postId: string) {
-    if (!confirm('Delete this post?')) return
+    setDeleteConfirmId(null)
     setDeletingId(postId)
     try {
       const res = await fetch(`/api/posts/${postId}`, { method: 'DELETE' })
@@ -249,10 +250,36 @@ export default function ProfilePage() {
       <div className="max-w-2xl mx-auto px-4 md:px-8 py-6">
         {/* Profile header: avatar, username, settings */}
         <div className="flex items-center gap-4 mb-4">
-          <div
-            className="md:w-10 md:h-10 w-8 h-8 rounded-full flex-shrink-0"
-            style={{ backgroundColor: user.avatar_color }}
-          />
+          {isOwnProfile ? (
+            <Link
+              href="/edit-profile"
+              className="group relative w-12 h-12 md:w-16 md:h-16 rounded-full flex-shrink-0 block transition-opacity hover:opacity-80"
+              style={{ backgroundColor: user.avatar_color }}
+              aria-label="Edit profile"
+            >
+              <span
+                className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-stone-900 rounded-full border border-stone-700 flex items-center justify-center"
+                aria-hidden
+              >
+                <svg
+                  className="w-[10px] h-[10px] text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2.5}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+              </span>
+            </Link>
+          ) : (
+            <div
+              className="w-12 h-12 md:w-16 md:h-16 rounded-full flex-shrink-0"
+              style={{ backgroundColor: user.avatar_color }}
+            />
+          )}
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-bold lowercase truncate">
               {user.username}
@@ -300,7 +327,7 @@ export default function ProfilePage() {
         </div>
 
         {activeTab === 'shared' && (
-          <>
+          <div className="relative">
             {error && (
               <div className="mb-4 p-3 bg-red-900/20 border border-red-800 rounded text-red-400 text-sm">
                 {error}
@@ -314,7 +341,7 @@ export default function ProfilePage() {
             )}
             {items.length === 0 && !loading ? (
               <div className="text-center py-12">
-                <p className="text-stone-500">No shared items yet</p>
+                <p className="text-stone-500">no shared items yet</p>
               </div>
             ) : (
               <div>
@@ -339,7 +366,7 @@ export default function ProfilePage() {
                         </span>
                         {isOwnProfile && (
                           <button
-                            onClick={() => handleDeletePost(post.id)}
+                            onClick={() => setDeleteConfirmId(post.id)}
                             disabled={deletingId === post.id}
                             className="ml-auto text-stone-500 hover:text-red-400 transition-colors disabled:opacity-50"
                             aria-label="Delete post"
@@ -406,7 +433,50 @@ export default function ProfilePage() {
                 </button>
               </div>
             )}
-          </>
+
+            {/* Delete confirmation modal */}
+            {deleteConfirmId && (
+              <div className="absolute inset-0 z-50 flex items-end justify-center pb-4 pt-24">
+                <div className="bg-stone-950 border border-stone-700 max-w-[220px] w-full p-4 shadow-2xl relative">
+                  <button
+                    onClick={() => setDeleteConfirmId(null)}
+                    className="absolute top-2 left-2 text-stone-500 hover:text-stone-300 transition-colors"
+                    aria-label="Close"
+                  >
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
+                  </button>
+                  <p className="text-stone-200 text-sm font-medium text-center mb-4">
+                    delete this post?
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setDeleteConfirmId(null)}
+                      className="flex-1 py-2 text-sm font-medium text-stone-500 hover:text-stone-300 lowercase transition-colors"
+                    >
+                      no
+                    </button>
+                    <button
+                      onClick={() => handleDeletePost(deleteConfirmId)}
+                      className="flex-1 py-2 text-sm font-medium text-[#7a9b6f] hover:text-[#8fb084] lowercase transition-colors"
+                    >
+                      yes
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
         {activeTab === 'saved' && isOwnProfile && (

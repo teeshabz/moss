@@ -5,6 +5,7 @@ import { createClientComponentClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { MossIcon } from '@/lib/components/MossIcon'
+import { sanitizeRedirectPath } from '@/lib/utils'
 
 function LoginPageContent() {
   const [email, setEmail] = useState('')
@@ -14,7 +15,7 @@ function LoginPageContent() {
   const [noAccount, setNoAccount] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
-  const redirect = searchParams.get('redirect') || '/feed'
+  const redirect = sanitizeRedirectPath(searchParams.get('redirect'))
 
   const supabase = createClientComponentClient()
 
@@ -88,7 +89,7 @@ function LoginPageContent() {
             </h1>
           </div>
         </div>
-        <div className="flex-1 flex items-center justify-start pl-8 md:pl-16">
+        <div className="flex-1 flex items-center justify-start min-w-0 px-4 sm:px-8 md:px-16">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold mb-2">
               link has been sent!
@@ -122,8 +123,8 @@ function LoginPageContent() {
       </div>
 
       {/* Main content - centered left */}
-      <div className="flex-1 flex items-center justify-start pl-8 md:pl-16">
-        <form onSubmit={handleSubmit} className="w-full max-w-md">
+      <div className="flex-1 flex items-center justify-start min-w-0 px-4 sm:px-8 md:px-16">
+        <form onSubmit={handleSubmit} className="w-full max-w-sm min-w-0">
           <div className="mb-8">
             <label htmlFor="email" className="block text-gray-400 text-sm mb-2">
               email
@@ -173,7 +174,7 @@ function LoginPageContent() {
       {/* Footer - bottom left */}
       <div className="absolute bottom-8 left-8 md:bottom-16 md:left-16">
         <Link href="/signup" className="text-gray-400 text-sm hover:text-gray-300 transition-colors">
-          need an account?
+          make an account
         </Link>
         <div className="text-gray-500 text-xs mt-2">BETA</div>
       </div>
@@ -201,7 +202,7 @@ function LoginPageFallback() {
         </div>
         <p className="text-gray-400 text-sm md:text-base">share what moves you</p>
       </div>
-      <div className="flex-1 flex items-center justify-start pl-8 md:pl-16">
+      <div className="flex-1 flex items-center justify-start min-w-0 px-4 sm:px-8 md:px-16">
         <p className="text-gray-500 text-lg">thinking...</p>
       </div>
     </div>

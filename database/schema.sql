@@ -7,6 +7,9 @@ CREATE TABLE IF NOT EXISTS users (
   email TEXT UNIQUE NOT NULL,
   username TEXT UNIQUE NOT NULL,
   avatar_color TEXT, -- hex color, e.g. "#E07C54"
+  phone_number TEXT,
+  first_name TEXT,
+  last_name TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   
   -- Constraints
@@ -71,6 +74,7 @@ ALTER TABLE saves ENABLE ROW LEVEL SECURITY;
 
 -- Basic RLS policies (allow all for now, we'll refine later)
 CREATE POLICY "Users are viewable by everyone" ON users FOR SELECT USING (true);
+CREATE POLICY "Users can update own row" ON users FOR UPDATE USING (auth.uid()::text = id) WITH CHECK (auth.uid()::text = id);
 CREATE POLICY "Media items are viewable by everyone" ON media_items FOR SELECT USING (true);
 CREATE POLICY "Posts are viewable by everyone" ON posts FOR SELECT USING (true);
 
@@ -83,3 +87,10 @@ CREATE POLICY "Users can insert their saves" ON saves
 
 CREATE POLICY "Users can delete their saves" ON saves
   FOR DELETE USING (auth.uid() = user_id);
+
+-- Migration for existing projects: add profile columns and UPDATE policy to users
+-- Run in Supabase SQL Editor if users table already exists without these columns:
+-- ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_number TEXT;
+-- ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name TEXT;
+-- ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name TEXT;
+-- CREATE POLICY "Users can update own row" ON users FOR UPDATE USING (auth.uid()::text = id) WITH CHECK (auth.uid()::text = id);

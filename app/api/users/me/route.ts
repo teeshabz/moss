@@ -28,7 +28,7 @@ export async function GET() {
 
     const { data: dbUser, error: dbError } = await supabase
       .from('users')
-      .select('id, email, username, avatar_color, created_at')
+      .select('id, email, username, avatar_color, phone_number, first_name, last_name, created_at')
       .eq('id', authUser.id)
       .single()
 
@@ -50,6 +50,82 @@ export async function GET() {
     return NextResponse.json(result)
   } catch (error) {
     console.error('Error in /api/users/me:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
+/**
+ * PATCH /api/users/me
+ * Update current user profile (avatar_color, phone_number, first_name, last_name only)
+ */
+export async function PATCH(request: Request) {
+  try {
+    const supabase = await createServerComponentClient()
+    const {
+      data: { user: authUser },
+      error: userError,
+    } = await supabase.auth.getUser()
+
+    if (userError || !authUser) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    const body = await request.json().catch(() => ({}))
+    const updates: {
+      avatar_color?: string
+      phone_number?: string | null
+      first_name?: string | null
+      last_name?: string | null
+    } = {}
+
+    if (body.avatar_color !== undefined) {
+      const v = typeof body.avatar_color === 'string' ? body.avatar_color.trim() : ''
+      if (v) updates.avatar_color = v
+    }
+    if (body.phone_number !== undefined) {
+      const v = typeof body.phone_number === 'string' ? body.phone_number.trim() : null
+      updates.phone_number = v === '' ? null : v
+    }
+    if (body.first_name !== undefined) {
+      const v = typeof body.first_name === 'string' ? body.first_name.trim() : null
+      updates.first_name = v === '' ? null : v
+    }
+    if (body.last_name !== undefined) {
+      const v = typeof body.last_name === 'string' ? body.last_name.trim() : null
+      updates.last_name = v === '' ? null : v
+    }
+
+    const { data: dbUser, error: updateError } = await supabase
+      .from('users')
+      .update(updates)
+      .eq('id', authUser.id)
+      .select('id, email, username, avatar_color, phone_number, first_name, last_name, created_at')
+      .single()
+
+    if (updateError) {
+      console.error('Error updating user:', updateError)
+      return NextResponse.json(
+        { error: updateError.message || 'Failed to update user' },
+        { status: 400 }
+      )
+    }
+
+    if (!dbUser) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      )
+    }
+
+    return NextResponse.json({ user: dbUser })
+  } catch (error) {
+    console.error('Error in PATCH /api/users/me:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

@@ -489,7 +489,7 @@ export default function FeedPage() {
         {activeTab === 'friends' && (
           <div className="text-center py-12">
             <p className="text-stone-500">"follow" feature coming soon :)</p>
-            <p className="text-stone-600 text-xs mt-1">thanks so much for being here btw</p>
+            <p className="text-stone-600 text-xs mt-1">thank you for being here!</p>
           </div>
         )}
 

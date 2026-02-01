@@ -9,6 +9,9 @@ export interface User {
   email: string
   username: string
   avatar_color: string
+  phone_number?: string | null
+  first_name?: string | null
+  last_name?: string | null
   created_at: string
 }
 
@@ -78,6 +81,9 @@ export interface ProfileUser {
   id: string
   username: string
   avatar_color: string
+  phone_number?: string | null
+  first_name?: string | null
+  last_name?: string | null
   created_at: string
 }
 
