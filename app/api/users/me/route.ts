@@ -13,6 +13,9 @@ export const dynamic = 'force-dynamic'
 export async function GET() {
   try {
     const { userId } = await auth()
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/59875346-206d-4eaa-9b1d-4b3916768d08',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/api/users/me/route.ts:GET',message:'auth() and DB lookup',data:{userId:userId ?? null},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H2,H5'})}).catch(()=>{});
+    // #endregion
     if (!userId) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -27,6 +30,10 @@ export async function GET() {
       .select('id, email, username, avatar_color, phone_number, first_name, last_name, created_at')
       .eq('id', userId)
       .single()
+
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/59875346-206d-4eaa-9b1d-4b3916768d08',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/api/users/me/route.ts:GET:afterSelect',message:'Supabase users lookup result',data:{userId,found:!!dbUser,dbErrorCode:dbError?.code ?? null,dbErrorMsg:dbError?.message ?? null},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H3,H4'})}).catch(()=>{});
+    // #endregion
 
     if (dbError || !dbUser) {
       return NextResponse.json(

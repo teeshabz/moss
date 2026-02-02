@@ -47,13 +47,13 @@ export default function OnboardingPage() {
     }
   }, [clerkLoaded, clerkUser, router])
 
-  // Check if user has a row in public.users
+  // Check if user has a row in public.users; if not, try reconcile (migration id mismatch)
   useEffect(() => {
     if (!clerkLoaded || !clerkUser) return
 
     async function checkUser() {
       try {
-        const res = await fetch('/api/users/me')
+        let res = await fetch('/api/users/me')
         if (res.status === 401) {
           router.push('/login')
           setLoading(false)
@@ -62,6 +62,15 @@ export default function OnboardingPage() {
         if (res.ok) {
           const data = await res.json()
           if (data.user) {
+            router.push('/feed')
+            setLoading(false)
+            return
+          }
+        }
+        if (res.status === 404) {
+          const reconcileRes = await fetch('/api/auth/reconcile-migration', { method: 'POST', credentials: 'include' })
+          const reconcileData = await reconcileRes.json().catch(() => ({}))
+          if (reconcileData.reconciled) {
             router.push('/feed')
             setLoading(false)
             return

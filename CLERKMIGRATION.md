@@ -57,6 +57,12 @@ If you have existing rows in `public.users` with **old** ids (e.g. Supabase Auth
 
 **Tables that reference `users.id`:** `posts.user_id`, `saves.user_id`.
 
+#### Migration script (implemented)
+- **Script:** [scripts/migrate-users-to-clerk.ts](scripts/migrate-users-to-clerk.ts) – builds mapping (Clerk Backend API: list users by email, create user if missing), then for each user: insert new row with Clerk id, update `posts`/`saves`, delete old row.
+- **Env:** `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `CLERK_SECRET_KEY` (script loads `.env.local` if present).
+- **Run:** From project root, after backing up the DB: `npm run migrate:users` (requires `tsx`; run `npm install` first).
+- **After running:** Verify by signing in with Clerk (same email); optionally note here when the migration was run and remove or disable the script.
+
 ### 3. Moving Off Clerk Later (e.g. “Just Use SendGrid”)
 - **SendGrid/Resend** = email delivery only. They don’t replace auth (sessions, identity).
 - **Moving off Clerk** = replacing Clerk with another auth layer (e.g. NextAuth + magic link) and using SendGrid/Resend to **send** those emails.
@@ -82,3 +88,4 @@ If you have existing rows in `public.users` with **old** ids (e.g. Supabase Auth
 | Clerk appearance | `lib/clerk-appearance.ts` – `mossClerkAppearance` |
 | Phase 1 migration SQL | `database/migrations/phase1-clerk-rls.sql` |
 | Phase 1 plan (original) | `PHASE1-DATABASE-PLAN.md` |
+| Existing-user migration script | `scripts/migrate-users-to-clerk.ts` – run with `npm run migrate:users` after backup |
