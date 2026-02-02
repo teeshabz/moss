@@ -1,30 +1,36 @@
-import { createServerComponentClient } from './supabase/server'
+import { auth, currentUser } from '@clerk/nextjs/server'
+import { createAdminClient } from './supabase/admin'
 
 /**
- * Get the current authenticated user from Supabase
+ * Get Clerk user id for the current request, or null if not signed in.
+ */
+export async function getUserId(): Promise<string | null> {
+  const { userId } = await auth()
+  return userId
+}
+
+/**
+ * Get the current authenticated user from public.users (by Clerk user id).
+ * Returns null if not signed in or no matching row.
  */
 export async function getCurrentUser() {
-  const supabase = await createServerComponentClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
+  const userId = await getUserId()
+  if (!userId) {
     return null
   }
 
-  // Get user from our custom users table
+  const supabase = createAdminClient()
   const { data: dbUser } = await supabase
     .from('users')
     .select('*')
-    .eq('email', user.email!)
+    .eq('id', userId)
     .single()
 
   return dbUser
 }
 
 /**
- * Require authentication - throws if user is not authenticated
+ * Require authentication - throws if user is not authenticated.
  */
 export async function requireAuth() {
   const user = await getCurrentUser()
@@ -35,23 +41,17 @@ export async function requireAuth() {
 }
 
 /**
- * Get Supabase session for API routes
+ * Get Clerk session id for API routes (or null).
  */
-export async function getSession() {
-  const supabase = await createServerComponentClient()
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-  return session
+export async function getSession(): Promise<{ sessionId: string } | null> {
+  const { sessionId } = await auth()
+  if (!sessionId) return null
+  return { sessionId }
 }
 
 /**
- * Get Supabase user (from auth.users table)
+ * Get Clerk user (auth identity only). Use getCurrentUser() for public.users row.
  */
-export async function getSupabaseUser() {
-  const supabase = await createServerComponentClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  return user
+export async function getClerkUser() {
+  return currentUser()
 }

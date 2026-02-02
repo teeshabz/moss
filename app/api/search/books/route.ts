@@ -1,4 +1,4 @@
-import { createServerComponentClient } from '@/lib/supabase/server'
+import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
@@ -43,13 +43,8 @@ function dedupeKey(book: BookSearchResult): string {
  */
 export async function GET(request: Request) {
   try {
-    const supabase = await createServerComponentClient()
-    const {
-      data: { user: authUser },
-      error: userError,
-    } = await supabase.auth.getUser()
-
-    if (userError || !authUser) {
+    const { userId } = await auth()
+    if (!userId) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }

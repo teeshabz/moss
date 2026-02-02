@@ -1,4 +1,4 @@
-import { createServerComponentClient } from '@/lib/supabase/server'
+import { auth, currentUser } from '@clerk/nextjs/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { generateAvatarColor } from '@/lib/utils'
@@ -6,12 +6,21 @@ import { generateAvatarColor } from '@/lib/utils'
 export const dynamic = 'force-dynamic'
 
 /**
- * Create user in public.users table
- * Called when email confirmation is disabled and user is immediately authenticated
+ * Create user in public.users table (id = Clerk user id).
+ * Called after Clerk sign-up when the user has no row in public.users yet.
  */
 export async function POST(request: Request) {
   try {
-    const { username } = await request.json()
+    const { userId } = await auth()
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    const body = await request.json().catch(() => ({}))
+    const username = body.username
 
     if (!username || typeof username !== 'string') {
       return NextResponse.json(
@@ -20,47 +29,43 @@ export async function POST(request: Request) {
       )
     }
 
-    // Get authenticated user
-    const supabase = await createServerComponentClient()
-    const {
-      data: { user: authUser },
-      error: userError,
-    } = await supabase.auth.getUser()
-
-    if (userError || !authUser) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
+    const supabaseAdmin = createAdminClient()
 
     // Check if user already exists in public.users
-    const { data: existingUser } = await supabase
+    const { data: existingUser } = await supabaseAdmin
       .from('users')
       .select('id')
-      .eq('id', authUser.id)
+      .eq('id', userId)
       .single()
 
     if (existingUser) {
-      // User already exists
       return NextResponse.json(
         { message: 'User already exists', user: existingUser },
         { status: 200 }
       )
     }
 
-    // Use service role key to create user in public.users table
-    const supabaseAdmin = createAdminClient()
+    const clerkUser = await currentUser()
+    const email =
+      clerkUser?.primaryEmailAddress?.emailAddress ??
+      clerkUser?.emailAddresses?.[0]?.emailAddress ??
+      ''
+
+    if (!email) {
+      return NextResponse.json(
+        { error: 'Email is required to create user' },
+        { status: 400 }
+      )
+    }
 
     const avatarColor = generateAvatarColor()
 
-    // Create user in public.users table
     const { data: newUser, error: insertError } = await supabaseAdmin
       .from('users')
       .insert({
-        id: authUser.id,
-        email: authUser.email!,
-        username: username.toLowerCase(),
+        id: userId,
+        email,
+        username: username.toLowerCase().trim(),
         avatar_color: avatarColor,
       })
       .select()

@@ -1,5 +1,5 @@
+import { auth } from '@clerk/nextjs/server'
 import { mapRawPostToPostWithRelations } from '@/lib/api/posts'
-import { createServerComponentClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 import type { ProfileResponse, RawPostResult } from '@/lib/types'
@@ -16,13 +16,8 @@ export async function GET(
   { params }: { params: { username: string } }
 ) {
   try {
-    const supabase = await createServerComponentClient()
-    const {
-      data: { user: authUser },
-      error: userError,
-    } = await supabase.auth.getUser()
-
-    if (userError || !authUser) {
+    const { userId } = await auth()
+    if (!userId) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -47,7 +42,7 @@ export async function GET(
 
     const supabaseAdmin = createAdminClient()
 
-    const { data: profileUser, error: userLookupError } = await supabase
+    const { data: profileUser, error: userLookupError } = await supabaseAdmin
       .from('users')
       .select('id, username, avatar_color, created_at')
       .ilike('username', username.trim())

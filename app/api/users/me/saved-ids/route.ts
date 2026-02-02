@@ -1,4 +1,5 @@
-import { createServerComponentClient } from '@/lib/supabase/server'
+import { auth } from '@clerk/nextjs/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -10,20 +11,17 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET(_request: NextRequest) {
   try {
-    const supabase = await createServerComponentClient()
-    const {
-      data: { user: authUser },
-      error: userError,
-    } = await supabase.auth.getUser()
-
-    if (userError || !authUser) {
+    const { userId } = await auth()
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const supabase = createAdminClient()
 
     const { data, error } = await supabase
       .from('saves')
       .select('post_id')
-      .eq('user_id', authUser.id)
+      .eq('user_id', userId)
 
     if (error) {
       console.error('Error fetching saved ids:', error)
@@ -44,4 +42,3 @@ export async function GET(_request: NextRequest) {
     )
   }
 }
-

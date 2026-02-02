@@ -189,7 +189,7 @@ export default function SharePage() {
   return (
     <div className="min-h-screen bg-black text-white flex flex-col pb-24">
       {/* Header - arrow (left), stars (center, lowered), moss (right) */}
-      <div className="absolute top-8 left-8 right-8 md:top-16 md:left-16 md:right-16 flex items-center justify-between">
+      <div className="absolute top-4 left-8 right-8 md:top-8 md:left-16 md:right-16 flex items-center justify-between">
         <Link
           href="/feed"
           className="text-white text-2xl hover:text-gray-300 transition-colors flex-shrink-0"

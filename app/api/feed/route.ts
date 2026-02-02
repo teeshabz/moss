@@ -1,5 +1,6 @@
+import { auth } from '@clerk/nextjs/server'
 import { mapRawPostToPostWithRelations } from '@/lib/api/posts'
-import { createServerComponentClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 import type { FeedResponse, RawPostResult } from '@/lib/types'
 
@@ -12,19 +13,15 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET(request: NextRequest) {
   try {
-    // Get authenticated user
-    const supabase = await createServerComponentClient()
-    const {
-      data: { user: authUser },
-      error: userError,
-    } = await supabase.auth.getUser()
-
-    if (userError || !authUser) {
+    const { userId } = await auth()
+    if (!userId) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       )
     }
+
+    const supabase = createAdminClient()
 
     // Parse query parameters
     const searchParams = request.nextUrl.searchParams

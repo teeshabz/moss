@@ -1,4 +1,5 @@
-import { createServerComponentClient } from '@/lib/supabase/server'
+import { auth } from '@clerk/nextjs/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
@@ -10,13 +11,8 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET(request: Request) {
   try {
-    const supabase = await createServerComponentClient()
-    const {
-      data: { user: authUser },
-      error: userError,
-    } = await supabase.auth.getUser()
-
-    if (userError || !authUser) {
+    const { userId } = await auth()
+    if (!userId) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -32,11 +28,13 @@ export async function GET(request: Request) {
       )
     }
 
+    const supabase = createAdminClient()
+
     const { data: users, error } = await supabase
       .from('users')
       .select('id, username, avatar_color')
       .ilike('username', `%${q}%`)
-      .neq('id', authUser.id)
+      .neq('id', userId)
       .limit(3)
 
     if (error) {

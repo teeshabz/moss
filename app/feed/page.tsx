@@ -274,13 +274,30 @@ export default function FeedPage() {
       {/* Header with tabs - sticky together */}
       <div className="sticky top-0 bg-black/90 backdrop-blur-sm z-10">
         <div className="max-w-2xl mx-auto px-6 md:px-8">
-          {/* Logo and Share */}
-          <div className="pt-6 pb-4 flex items-center justify-between mb-2">
-            {/* Logo + text - left */}
-            <Link href="/feed" className="flex items-center gap-2" aria-label="moss">
-              <MossIcon color="#2d5016" size={24} />
+          {/* Profile (left), moss (right) */}
+          <div className="pt-4 pb-4 flex items-center justify-between mb-2">
+            {/* Profile avatar - left */}
+            <div className="flex-shrink-0 w-8">
+              {currentUser?.user?.username ? (
+                <Link
+                  href={`/profile/${encodeURIComponent(currentUser.user.username)}`}
+                  className="hover:opacity-90 transition-opacity"
+                >
+                  <div
+                    className="w-8 h-8 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: currentUser.user.avatar_color }}
+                  />
+                </Link>
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-stone-800 flex-shrink-0" />
+              )}
+            </div>
+
+            {/* Logo + text - right (same size as share page) */}
+            <Link href="/feed" className="flex items-center gap-1.5 flex-shrink-0" aria-label="moss">
+              <MossIcon color="#2d5016" size={18} />
               <span
-                className="text-2xl font-bold lowercase"
+                className="text-lg font-bold lowercase"
                 style={{
                   color: '#2d5016',
                   fontFamily: 'monospace',
@@ -291,53 +308,53 @@ export default function FeedPage() {
                 moss
               </span>
             </Link>
-
-            {/* Share + icon - right */}
-            <Link
-              href="/share"
-              className="flex items-center gap-2 transition-colors"
-              style={{ color: shareHovered ? '#8fb084' : '#7a9b6f' }}
-              onMouseEnter={() => setShareHovered(true)}
-              onMouseLeave={() => setShareHovered(false)}
-            >
-              <span className="text-2xl font-bold leading-none">share</span>
-              <StarIcon color={shareHovered ? '#8fb084' : '#7a9b6f'} size={22} />
-            </Link>
           </div>
 
-          {/* Tabs */}
+          {/* Tabs + Share button */}
           <div className="border-b border-stone-700">
-            <div className="flex gap-6">
-              <button
-                onClick={() => setActiveTab('everyone')}
-                className={`pb-2 text-sm font-bold lowercase tracking-wider border-b-2 transition-colors ${
-                  activeTab === 'everyone'
-                    ? 'text-white border-[#7a9b6f]'
-                    : 'text-stone-500 border-transparent hover:text-stone-400'
-                }`}
+            <div className="flex items-center justify-between">
+              <div className="flex gap-6">
+                <button
+                  onClick={() => setActiveTab('everyone')}
+                  className={`pb-2 text-sm font-bold lowercase tracking-wider border-b-2 transition-colors ${
+                    activeTab === 'everyone'
+                      ? 'text-white border-[#7a9b6f]'
+                      : 'text-stone-500 border-transparent hover:text-stone-400'
+                  }`}
+                >
+                  everyone
+                </button>
+                <button
+                  onClick={() => setActiveTab('friends')}
+                  className={`pb-2 text-sm font-bold lowercase tracking-wider border-b-2 transition-colors ${
+                    activeTab === 'friends'
+                      ? 'text-white border-[#7a9b6f]'
+                      : 'text-stone-500 border-transparent hover:text-stone-400'
+                  }`}
+                >
+                  friends
+                </button>
+                <button
+                  onClick={() => setActiveTab('saved')}
+                  className={`pb-2 text-sm font-bold lowercase tracking-wider border-b-2 transition-colors ${
+                    activeTab === 'saved'
+                      ? 'text-white border-[#7a9b6f]'
+                      : 'text-stone-500 border-transparent hover:text-stone-400'
+                  }`}
+                >
+                  saved
+                </button>
+              </div>
+              <Link
+                href="/share"
+                className="pb-2 text-sm font-bold lowercase tracking-wider transition-colors flex items-center gap-1.5 -mb-px border-b-2 border-transparent hover:border-[#7a9b6f]"
+                style={{ color: shareHovered ? '#8fb084' : '#7a9b6f' }}
+                onMouseEnter={() => setShareHovered(true)}
+                onMouseLeave={() => setShareHovered(false)}
               >
-                everyone
-              </button>
-              <button
-                onClick={() => setActiveTab('friends')}
-                className={`pb-2 text-sm font-bold lowercase tracking-wider border-b-2 transition-colors ${
-                  activeTab === 'friends'
-                    ? 'text-white border-[#7a9b6f]'
-                    : 'text-stone-500 border-transparent hover:text-stone-400'
-                }`}
-              >
-                friends
-              </button>
-              <button
-                onClick={() => setActiveTab('saved')}
-                className={`pb-2 text-sm font-bold lowercase tracking-wider border-b-2 transition-colors ${
-                  activeTab === 'saved'
-                    ? 'text-white border-[#7a9b6f]'
-                    : 'text-stone-500 border-transparent hover:text-stone-400'
-                }`}
-              >
-                saved
-              </button>
+                share
+                <StarIcon color={shareHovered ? '#8fb084' : '#7a9b6f'} size={16} />
+              </Link>
             </div>
           </div>
         </div>
@@ -714,22 +731,8 @@ export default function FeedPage() {
             </div>
           </div>
         ) : (
-          /* Collapsed mode - avatar + search icon */
-          <div className="max-w-2xl mx-auto px-6 md:px-8 py-3 flex items-center justify-between">
-            {currentUser?.user?.username ? (
-              <Link
-                href={`/profile/${encodeURIComponent(currentUser.user.username)}`}
-                className="hover:opacity-90 transition-opacity"
-              >
-                <div
-                  className="w-8 h-8 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: currentUser.user.avatar_color }}
-                />
-              </Link>
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-stone-800 flex-shrink-0" />
-            )}
-
+          /* Collapsed mode - search right */
+          <div className="max-w-2xl mx-auto px-6 md:px-8 py-3 flex items-center justify-end">
             <button
               onClick={() => setSearchExpanded(true)}
               className="text-stone-400 hover:text-stone-300 transition-colors"

@@ -1,4 +1,4 @@
-import { createServerComponentClient } from '@/lib/supabase/server'
+import { auth } from '@clerk/nextjs/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { countWeeklyPosts, WEEKLY_POST_LIMIT } from '@/lib/api/weekly-limit'
@@ -14,14 +14,8 @@ export const dynamic = 'force-dynamic'
  */
 export async function POST(request: Request) {
   try {
-    // Get authenticated user
-    const supabase = await createServerComponentClient()
-    const {
-      data: { user: authUser },
-      error: userError,
-    } = await supabase.auth.getUser()
-
-    if (userError || !authUser) {
+    const { userId } = await auth()
+    if (!userId) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -51,11 +45,10 @@ export async function POST(request: Request) {
       )
     }
 
-    // Use service role key for admin operations
     const supabaseAdmin = createAdminClient()
 
     // Check weekly limit
-    const weeklyCount = await countWeeklyPosts(authUser.id, supabaseAdmin)
+    const weeklyCount = await countWeeklyPosts(userId, supabaseAdmin)
     if (weeklyCount >= WEEKLY_POST_LIMIT) {
       return NextResponse.json(
         {
@@ -81,7 +74,7 @@ export async function POST(request: Request) {
     const { data: newPost, error: postError } = await supabaseAdmin
       .from('posts')
       .insert({
-        user_id: authUser.id,
+        user_id: userId,
         media_item_id: mediaItemId,
         note: body.note?.trim() || null,
       })

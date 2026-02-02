@@ -19,3 +19,113 @@ body {
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Google button: flat, one color, no 3D effect (no shadow, no gradient) */
+.cl-socialButtonsBlockButton {
+  border: 2px solid rgb(168 162 158) !important; /* stone-400 */
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  filter: none !important;
+}
+.cl-socialButtonsBlockButton:hover,
+.cl-socialButtonsBlockButton:focus,
+.cl-socialButtonsBlockButton:active {
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+  filter: none !important;
+}
+.cl-formFieldInput,
+.cl-formFieldInput input {
+  border: 1px solid rgb(168 162 158) !important; /* stone-400, thin */
+  border-radius: 0 !important; /* sharp corners */
+  height: 40px !important;
+  padding: 0 12px !important;
+  box-sizing: border-box !important;
+}
+/* Code/verification input: white outline on digit boxes (same thin, sharp corners) */
+input[name="code"],
+.cl-formFieldInput__code,
+.cl-formFieldInput__code input,
+.cl-formFieldInput input[inputmode="numeric"],
+[data-otp-input],
+.cl-formFieldInput input[type="text"][inputmode="numeric"] {
+  border: 1px solid rgba(255, 255, 255, 0.9) !important; /* white outline */
+  border-radius: 0 !important; /* sharp corners */
+  box-sizing: border-box !important;
+}
+/* OTP segment boxes (each digit box) - white outline */
+[data-otp-input] input,
+.cl-otpCodeInput input,
+.cl-formFieldInput input[inputmode="numeric"] {
+  border: 1px solid rgba(255, 255, 255, 0.9) !important;
+  border-radius: 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* Email verification step: more space between "check your email" and email below */
+.cl-headerTitle {
+  margin-bottom: 1.5rem !important;
+}
+/* Hide "use another method" link on email/code verification steps */
+.cl-card a[href*="alternative"],
+a.cl-footerActionLink[href*="alternative"],
+[data-localization-key*="alternativeMethods"],
+.cl-card a[href*="havingTrouble"],
+.cl-card a[href*="factor"],
+a[href*="alternativeMethods"],
+.cl-footerAction a[href*="factor"],
+.cl-footerAction a[href*="alternative"],
+.cl-footerAction a[href*="trouble"] {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Continue button: flat green, match .continue-button spec */
+.cl-formAction {
+  box-shadow: none !important;
+}
+.cl-formButtonPrimary,
+button.cl-formButtonPrimary {
+  width: 100% !important;
+  height: 40px !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background-color: #2d5016 !important;
+  color: #ffffff !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  text-transform: lowercase !important;
+  border: none !important;
+  border-radius: 0 !important;
+  transition: background-color 150ms ease !important;
+  cursor: pointer !important;
+  box-shadow: none !important;
+  outline: none !important;
+  box-sizing: border-box !important;
+}
+.cl-formButtonPrimary:hover,
+button.cl-formButtonPrimary:hover {
+  background-color: #3d6a1e !important;
+}
+.cl-formButtonPrimary:focus,
+.cl-formButtonPrimary:active,
+button.cl-formButtonPrimary:focus,
+button.cl-formButtonPrimary:active {
+  background-color: #2d5016 !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+/* Hide play/triangle icon on continue button, keep arrow (→) in text */
+.cl-formButtonPrimary svg,
+button.cl-formButtonPrimary svg {
+  display: none !important;
+}

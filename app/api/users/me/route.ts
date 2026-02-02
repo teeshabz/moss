@@ -1,4 +1,4 @@
-import { createServerComponentClient } from '@/lib/supabase/server'
+import { auth } from '@clerk/nextjs/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { countWeeklyPosts } from '@/lib/api/weekly-limit'
@@ -12,24 +12,20 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET() {
   try {
-    // Get authenticated user
-    const supabase = await createServerComponentClient()
-    const {
-      data: { user: authUser },
-      error: userError,
-    } = await supabase.auth.getUser()
-
-    if (userError || !authUser) {
+    const { userId } = await auth()
+    if (!userId) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       )
     }
 
-    const { data: dbUser, error: dbError } = await supabase
+    const supabaseAdmin = createAdminClient()
+
+    const { data: dbUser, error: dbError } = await supabaseAdmin
       .from('users')
       .select('id, email, username, avatar_color, phone_number, first_name, last_name, created_at')
-      .eq('id', authUser.id)
+      .eq('id', userId)
       .single()
 
     if (dbError || !dbUser) {
@@ -39,8 +35,7 @@ export async function GET() {
       )
     }
 
-    const supabaseAdmin = createAdminClient()
-    const weeklyPostCount = await countWeeklyPosts(authUser.id, supabaseAdmin)
+    const weeklyPostCount = await countWeeklyPosts(userId, supabaseAdmin)
 
     const result: UserMeResponse = {
       user: dbUser,
@@ -63,13 +58,8 @@ export async function GET() {
  */
 export async function PATCH(request: Request) {
   try {
-    const supabase = await createServerComponentClient()
-    const {
-      data: { user: authUser },
-      error: userError,
-    } = await supabase.auth.getUser()
-
-    if (userError || !authUser) {
+    const { userId } = await auth()
+    if (!userId) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -101,10 +91,12 @@ export async function PATCH(request: Request) {
       updates.last_name = v === '' ? null : v
     }
 
-    const { data: dbUser, error: updateError } = await supabase
+    const supabaseAdmin = createAdminClient()
+
+    const { data: dbUser, error: updateError } = await supabaseAdmin
       .from('users')
       .update(updates)
-      .eq('id', authUser.id)
+      .eq('id', userId)
       .select('id, email, username, avatar_color, phone_number, first_name, last_name, created_at')
       .single()
 

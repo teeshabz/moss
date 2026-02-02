@@ -1,116 +1,16 @@
-import { createServerClient } from '@supabase/ssr'
-import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
-import { generateAvatarColor, sanitizeRedirectPath } from '@/lib/utils'
+import { sanitizeRedirectPath } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
+/**
+ * Auth redirect (Clerk). No Supabase code exchange.
+ * Clerk handles sign-in/sign-up redirects via dashboard URLs (e.g. afterSignInUrl).
+ * This route exists so /auth/callback remains a valid public path; redirects to feed or ?next=.
+ */
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
-  const code = requestUrl.searchParams.get('code')
-  const type = requestUrl.searchParams.get('type') // 'signup' or 'login'
   const next = sanitizeRedirectPath(requestUrl.searchParams.get('next'))
-
-  if (!code) {
-    return NextResponse.redirect(new URL('/login', requestUrl.origin))
-  }
-
-  const cookieStore = await cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
-          } catch {
-            // The `setAll` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
-          }
-        },
-      },
-    }
-  )
-
-  // Exchange the code for a session
-  const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
-
-  if (exchangeError) {
-    console.error('Error exchanging code for session:', exchangeError)
-    return NextResponse.redirect(new URL('/login?error=auth_failed', requestUrl.origin))
-  }
-
-  // Get the authenticated user
-  const {
-    data: { user: authUser },
-    error: userError,
-  } = await supabase.auth.getUser()
-
-  if (userError || !authUser) {
-    console.error('Error getting user:', userError)
-    return NextResponse.redirect(new URL('/login?error=auth_failed', requestUrl.origin))
-  }
-
-  // Check if user exists in our public.users table
-  const { data: dbUser, error: dbError } = await supabase
-    .from('users')
-    .select('id, username')
-    .eq('id', authUser.id)
-    .single()
-
-  // Determine if this is signup confirmation or login
-  const isSignupConfirmation = type === 'signup' || (dbError || !dbUser)
-
-  if (isSignupConfirmation) {
-    // SIGNUP CONFIRMATION FLOW
-    // Get username from user metadata or try to get from auth user data
-    let username = authUser.user_metadata?.username
-
-    // If not in metadata, we'll need to handle this case
-    // For now, we'll create the user with email as fallback
-    if (!username) {
-      // Try to extract from email (fallback)
-      username = authUser.email?.split('@')[0] || 'user'
-    }
-
-    // Use service role key to create user in public.users table
-    const supabaseAdmin = createAdminClient()
-
-    const avatarColor = generateAvatarColor()
-
-    // Create user in public.users table
-    const { error: insertError } = await supabaseAdmin
-      .from('users')
-      .insert({
-        id: authUser.id,
-        email: authUser.email!,
-        username: username.toLowerCase(),
-        avatar_color: avatarColor,
-      })
-
-    if (insertError) {
-      console.error('Error creating user in public.users:', insertError)
-      // If insert fails (e.g., username taken), redirect to login with error
-      return NextResponse.redirect(
-        new URL('/login?error=signup_failed', requestUrl.origin)
-      )
-    }
-
-    // Keep session — user is already logged in from the confirmation link. Send to feed.
-    return NextResponse.redirect(new URL(next, requestUrl.origin))
-  } else {
-    // LOGIN FLOW
-    // User exists in public.users - this is a login
-    // User is already authenticated from exchangeCodeForSession above
-    // Redirect to feed (or the 'next' param if provided)
-    return NextResponse.redirect(new URL(next, requestUrl.origin))
-  }
+  const destination = next || '/feed'
+  return NextResponse.redirect(new URL(destination, requestUrl.origin))
 }

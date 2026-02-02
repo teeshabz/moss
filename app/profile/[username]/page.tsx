@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { SignOutButton } from '@clerk/nextjs'
 import type {
   FeedResponse,
   ProfileResponse,
@@ -222,7 +223,7 @@ export default function ProfilePage() {
   const { user, items, nextCursor } = profile
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-black text-white pb-24">
       {/* Header: back + logo */}
       <div className="sticky top-0 bg-black/90 backdrop-blur-sm z-10 border-b border-stone-800">
         <div className="max-w-4xl mx-auto px-4 md:px-8 pt-6 pb-4 flex items-center justify-between">
@@ -593,6 +594,23 @@ export default function ProfilePage() {
           </>
         )}
       </div>
+
+      {/* Bottom bar - own profile only: sign out */}
+      {isOwnProfile && (
+        <div className="fixed bottom-0 left-0 right-0 bg-black z-20">
+          <div className="h-px bg-stone-800 flex-shrink-0" />
+          <div className="max-w-4xl mx-auto px-4 md:px-8 py-3 flex items-center justify-end">
+            <SignOutButton>
+              <button
+                type="button"
+                className="text-white text-xs font-medium hover:text-stone-300 transition-colors lowercase"
+              >
+                sign out
+              </button>
+            </SignOutButton>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

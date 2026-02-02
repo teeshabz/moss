@@ -1,9 +1,11 @@
 -- Moss Database Schema
--- Run this in Supabase SQL Editor to create all tables
+-- Run this in Supabase SQL Editor to create all tables.
+-- Identity: users.id = Clerk user id (set by app). RLS does not use auth.uid();
+-- API uses service role and enforces "current user" in application code.
 
--- Create users table (extends Supabase auth.users)
+-- Create users table (id = Clerk user id; set by app on insert)
 CREATE TABLE IF NOT EXISTS users (
-  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  id TEXT PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
   username TEXT UNIQUE NOT NULL,
   avatar_color TEXT, -- hex color, e.g. "#E07C54"
@@ -72,25 +74,15 @@ ALTER TABLE media_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE saves ENABLE ROW LEVEL SECURITY;
 
--- Basic RLS policies (allow all for now, we'll refine later)
+-- RLS: Auth is via Clerk; API uses service role (bypasses RLS) and enforces "current user" in code.
+-- No auth.uid() policies; public SELECT only where needed.
 CREATE POLICY "Users are viewable by everyone" ON users FOR SELECT USING (true);
-CREATE POLICY "Users can update own row" ON users FOR UPDATE USING (auth.uid()::text = id) WITH CHECK (auth.uid()::text = id);
 CREATE POLICY "Media items are viewable by everyone" ON media_items FOR SELECT USING (true);
 CREATE POLICY "Posts are viewable by everyone" ON posts FOR SELECT USING (true);
+-- saves: no per-user policies; API uses service role and filters by Clerk userId
 
--- Saves RLS: users can manage their own saves
-CREATE POLICY "Users can view their saves" ON saves
-  FOR SELECT USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert their saves" ON saves
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can delete their saves" ON saves
-  FOR DELETE USING (auth.uid() = user_id);
-
--- Migration for existing projects: add profile columns and UPDATE policy to users
--- Run in Supabase SQL Editor if users table already exists without these columns:
+-- Migration for existing projects: add profile columns if users table already exists:
 -- ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_number TEXT;
 -- ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name TEXT;
 -- ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name TEXT;
--- CREATE POLICY "Users can update own row" ON users FOR UPDATE USING (auth.uid()::text = id) WITH CHECK (auth.uid()::text = id);
+-- For Phase 1 (Clerk): run database/migrations/phase1-clerk-rls.sql to drop auth.uid() policies and default on users.id.
