@@ -52,18 +52,19 @@ export default function OnboardingPage() {
     if (!clerkLoaded || !clerkUser) return
 
     async function checkUser() {
+      let redirecting = false
       try {
         let res = await fetch('/api/users/me')
         if (res.status === 401) {
+          redirecting = true
           router.push('/login')
-          setLoading(false)
           return
         }
         if (res.ok) {
           const data = await res.json()
           if (data.user) {
+            redirecting = true
             router.push('/feed')
-            setLoading(false)
             return
           }
         }
@@ -71,8 +72,8 @@ export default function OnboardingPage() {
           const reconcileRes = await fetch('/api/auth/reconcile-migration', { method: 'POST', credentials: 'include' })
           const reconcileData = await reconcileRes.json().catch(() => ({}))
           if (reconcileData.reconciled) {
+            redirecting = true
             router.push('/feed')
-            setLoading(false)
             return
           }
         }
@@ -81,7 +82,7 @@ export default function OnboardingPage() {
         setError('Something went wrong. Please try again.')
         console.error('Error loading user:', err)
       } finally {
-        setLoading(false)
+        if (!redirecting) setLoading(false)
       }
     }
 

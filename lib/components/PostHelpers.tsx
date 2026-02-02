@@ -111,8 +111,8 @@ export function PlusIcon({
       fill="none"
       stroke="currentColor"
       strokeWidth={strokeWidth}
-      strokeLinecap="round"
-      strokeLinejoin="round"
+      strokeLinecap="butt"
+      strokeLinejoin="miter"
       className={className}
     >
       <line x1="12" y1="5" x2="12" y2="19" />

@@ -3,6 +3,7 @@
 import { useState, useEffect, FormEvent } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { SignOutButton } from '@clerk/nextjs'
 import { MossIcon } from '@/lib/components/MossIcon'
 import { generateAvatarColor } from '@/lib/utils'
 import type { User } from '@/lib/types'
@@ -282,6 +283,17 @@ export default function EditProfilePage() {
           >
             {saving ? 'saving...' : 'save'}
           </button>
+
+          <div className="mt-8">
+            <SignOutButton>
+              <button
+                type="button"
+                className="text-stone-500 hover:text-stone-400 text-sm font-medium transition-colors"
+              >
+                sign out
+              </button>
+            </SignOutButton>
+          </div>
         </form>
       </div>
     </div>

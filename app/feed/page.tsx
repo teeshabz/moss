@@ -6,7 +6,6 @@ import Link from 'next/link'
 import type {
   FeedResponse,
   PostWithRelations,
-  SavedIdsResponse,
   SearchUser,
   UserMeResponse,
   UserSearchResponse,
@@ -35,6 +34,7 @@ export default function FeedPage() {
   const [searchResults, setSearchResults] = useState<SearchUser[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const backgroundFeedLoadedRef = useRef(false)
   const [activeTab, setActiveTab] = useState<'everyone' | 'friends' | 'saved'>('everyone')
   const [savedPosts, setSavedPosts] = useState<PostWithRelations[]>([])
   const [savedNextCursor, setSavedNextCursor] = useState<string | undefined>()
@@ -50,11 +50,18 @@ export default function FeedPage() {
     }
   }, [activeTab])
 
+  // Load saved when user clicks the saved tab (if not already loading/loaded)
   useEffect(() => {
     if (activeTab === 'saved' && !savedLoaded && !savedLoading) {
       loadSavedPosts()
     }
   }, [activeTab, savedLoaded, savedLoading])
+
+  // Preload saved posts in background once we have a user, so the tab feels instant
+  useEffect(() => {
+    if (!currentUser?.user?.id || savedLoaded || savedLoading) return
+    loadSavedPosts()
+  }, [currentUser?.user?.id, savedLoaded, savedLoading])
 
   useEffect(() => {
     async function loadUser() {
@@ -63,26 +70,15 @@ export default function FeedPage() {
         if (res.ok) {
           const data: UserMeResponse = await res.json()
           setCurrentUser(data)
+          if (data.postIds?.length !== undefined) {
+            setSavedIds(new Set(data.postIds))
+          }
         }
       } catch {
         // ignore
       }
     }
     loadUser()
-  }, [])
-
-  useEffect(() => {
-    async function loadSavedIds() {
-      try {
-        const res = await fetch('/api/users/me/saved-ids')
-        if (!res.ok) return
-        const data: SavedIdsResponse = await res.json()
-        setSavedIds(new Set(data.postIds))
-      } catch {
-        // ignore
-      }
-    }
-    loadSavedIds()
   }, [])
 
   useEffect(() => {
@@ -119,10 +115,11 @@ export default function FeedPage() {
   }, [searchQuery])
 
   async function loadFeed(cursor?: string) {
+    if (!cursor) backgroundFeedLoadedRef.current = false
     try {
       const url = cursor
         ? `/api/feed?cursor=${encodeURIComponent(cursor)}`
-        : '/api/feed'
+        : '/api/feed?limit=10'
       const response = await fetch(url)
 
       if (!response.ok) {
@@ -136,8 +133,12 @@ export default function FeedPage() {
       const data: FeedResponse = await response.json()
 
       if (cursor) {
-        // Append to existing posts (pagination)
-        setPosts((prev) => [...prev, ...data.items])
+        // Append to existing posts (pagination), dedupe by id to avoid duplicate keys
+        setPosts((prev) => {
+          const existingIds = new Set(prev.map((p) => p.id))
+          const newItems = data.items.filter((p) => !existingIds.has(p.id))
+          return [...prev, ...newItems]
+        })
       } else {
         // Replace posts (initial load)
         setPosts(data.items)
@@ -146,6 +147,11 @@ export default function FeedPage() {
       setNextCursor(data.nextCursor)
       setHasMore(!!data.nextCursor)
       setError(null) // Clear any previous errors on success
+      // Load next page in background once so more content appears quickly (initial load only)
+      if (!cursor && data.nextCursor && data.items.length > 0 && !backgroundFeedLoadedRef.current) {
+        backgroundFeedLoadedRef.current = true
+        loadFeed(data.nextCursor)
+      }
     } catch (error) {
       console.error('Error loading feed:', error)
       setError('Failed to load feed. Please try again.')
@@ -193,6 +199,7 @@ export default function FeedPage() {
       setError('Failed to load saved posts. Please try again.')
     } finally {
       setSavedLoading(false)
+      if (!cursor) setSavedLoaded(true)
     }
   }
 
@@ -274,30 +281,12 @@ export default function FeedPage() {
       {/* Header with tabs - sticky together */}
       <div className="sticky top-0 bg-black/90 backdrop-blur-sm z-10">
         <div className="max-w-2xl mx-auto px-6 md:px-8">
-          {/* Profile (left), moss (right) */}
-          <div className="pt-4 pb-4 flex items-center justify-between mb-2">
-            {/* Profile avatar - left */}
-            <div className="flex-shrink-0 w-8">
-              {currentUser?.user?.username ? (
-                <Link
-                  href={`/profile/${encodeURIComponent(currentUser.user.username)}`}
-                  className="hover:opacity-90 transition-opacity"
-                >
-                  <div
-                    className="w-8 h-8 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: currentUser.user.avatar_color }}
-                  />
-                </Link>
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-stone-800 flex-shrink-0" />
-              )}
-            </div>
-
-            {/* Logo + text - right (same size as share page) */}
-            <Link href="/feed" className="flex items-center gap-1.5 flex-shrink-0" aria-label="moss">
-              <MossIcon color="#2d5016" size={18} />
+          {/* Moss logo - top middle */}
+          <div className="pt-2 pb-1.5 flex justify-center">
+            <Link href="/feed" className="flex items-center gap-2 flex-shrink-0" aria-label="moss">
+              <MossIcon color="#2d5016" size={22} />
               <span
-                className="text-lg font-bold lowercase"
+                className="text-xl font-bold lowercase"
                 style={{
                   color: '#2d5016',
                   fontFamily: 'monospace',
@@ -310,51 +299,74 @@ export default function FeedPage() {
             </Link>
           </div>
 
-          {/* Tabs + Share button */}
+          {/* Profile (left) and Share (right) - same level */}
+          <div className="pb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2 flex-shrink-0 min-w-0">
+              {currentUser?.user?.username ? (
+                <Link
+                  href={`/profile/${encodeURIComponent(currentUser.user.username)}`}
+                  className="flex items-center gap-2 hover:opacity-90 transition-opacity min-w-0"
+                >
+                  <div
+                    className="w-8 h-8 rounded-full flex-shrink-0 ring-2 ring-stone-400"
+                    style={{ backgroundColor: currentUser.user.avatar_color }}
+                  />
+                  <span className="text-sm font-bold lowercase text-stone-200 truncate">
+                    {currentUser.user.username}
+                  </span>
+                </Link>
+              ) : (
+                <>
+                  <div className="w-8 h-8 rounded-full bg-stone-800 flex-shrink-0 ring-2 ring-stone-400" />
+                  <span className="text-sm text-stone-500">...</span>
+                </>
+              )}
+            </div>
+            <Link
+              href="/share"
+              className="pb-0.5 text-lg font-bold lowercase tracking-wider transition-colors flex items-center gap-2.5"
+              style={{ color: shareHovered ? '#8fb084' : '#7a9b6f' }}
+              onMouseEnter={() => setShareHovered(true)}
+              onMouseLeave={() => setShareHovered(false)}
+            >
+              share
+              <StarIcon color={shareHovered ? '#8fb084' : '#7a9b6f'} size={24} />
+            </Link>
+          </div>
+
+          {/* Tabs */}
           <div className="border-b border-stone-700">
-            <div className="flex items-center justify-between">
-              <div className="flex gap-6">
-                <button
-                  onClick={() => setActiveTab('everyone')}
-                  className={`pb-2 text-sm font-bold lowercase tracking-wider border-b-2 transition-colors ${
-                    activeTab === 'everyone'
-                      ? 'text-white border-[#7a9b6f]'
-                      : 'text-stone-500 border-transparent hover:text-stone-400'
-                  }`}
-                >
-                  everyone
-                </button>
-                <button
-                  onClick={() => setActiveTab('friends')}
-                  className={`pb-2 text-sm font-bold lowercase tracking-wider border-b-2 transition-colors ${
-                    activeTab === 'friends'
-                      ? 'text-white border-[#7a9b6f]'
-                      : 'text-stone-500 border-transparent hover:text-stone-400'
-                  }`}
-                >
-                  friends
-                </button>
-                <button
-                  onClick={() => setActiveTab('saved')}
-                  className={`pb-2 text-sm font-bold lowercase tracking-wider border-b-2 transition-colors ${
-                    activeTab === 'saved'
-                      ? 'text-white border-[#7a9b6f]'
-                      : 'text-stone-500 border-transparent hover:text-stone-400'
-                  }`}
-                >
-                  saved
-                </button>
-              </div>
-              <Link
-                href="/share"
-                className="pb-2 text-sm font-bold lowercase tracking-wider transition-colors flex items-center gap-1.5 -mb-px border-b-2 border-transparent hover:border-[#7a9b6f]"
-                style={{ color: shareHovered ? '#8fb084' : '#7a9b6f' }}
-                onMouseEnter={() => setShareHovered(true)}
-                onMouseLeave={() => setShareHovered(false)}
+            <div className="flex gap-6 justify-center">
+              <button
+                onClick={() => setActiveTab('everyone')}
+                className={`pb-2 text-sm font-bold lowercase tracking-wider border-b-2 transition-colors ${
+                  activeTab === 'everyone'
+                    ? 'text-white border-[#7a9b6f]'
+                    : 'text-stone-500 border-transparent hover:text-stone-400'
+                }`}
               >
-                share
-                <StarIcon color={shareHovered ? '#8fb084' : '#7a9b6f'} size={16} />
-              </Link>
+                everyone
+              </button>
+              <button
+                onClick={() => setActiveTab('friends')}
+                className={`pb-2 text-sm font-bold lowercase tracking-wider border-b-2 transition-colors ${
+                  activeTab === 'friends'
+                    ? 'text-white border-[#7a9b6f]'
+                    : 'text-stone-500 border-transparent hover:text-stone-400'
+                }`}
+              >
+                friends
+              </button>
+              <button
+                onClick={() => setActiveTab('saved')}
+                className={`pb-2 text-sm font-bold lowercase tracking-wider border-b-2 transition-colors ${
+                  activeTab === 'saved'
+                    ? 'text-white border-[#7a9b6f]'
+                    : 'text-stone-500 border-transparent hover:text-stone-400'
+                }`}
+              >
+                saved
+              </button>
             </div>
           </div>
         </div>

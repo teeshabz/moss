@@ -56,6 +56,8 @@ export interface RawPostResult {
 export interface UserMeResponse {
   user: User
   weeklyPostCount: number
+  /** When present, feed can skip separate saved-ids request */
+  postIds?: string[]
 }
 
 export interface FeedResponse {

@@ -6,7 +6,7 @@ import { mossClerkAppearance } from "@/lib/clerk-appearance";
 
 export const metadata: Metadata = {
   title: "Moss",
-  description: "Share what you're reading, watching, and listening to",
+  description: `Share what you're reading, watching, and listening to`,
 };
 
 export default function RootLayout({
@@ -32,12 +32,12 @@ export default function RootLayout({
           start: {
             title: 'sign in',
             subtitle: '',
-            actionText: "don't have an account? ",
+            actionText: `don't have an account? `,
             actionLink: 'sign up',
           },
           emailCode: {
             subtitle: '',
-            resendButton: "didn't receive a code? resend",
+            resendButton: `didn't receive a code? resend`,
           },
           alternativeMethods: {
             title: '',

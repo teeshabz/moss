@@ -6,9 +6,6 @@ import { createAdminClient } from './supabase/admin'
  */
 export async function getUserId(): Promise<string | null> {
   const { userId } = await auth()
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/59875346-206d-4eaa-9b1d-4b3916768d08',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/auth.ts:getUserId',message:'auth() result',data:{userId:userId ?? null},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H2,H5'})}).catch(()=>{});
-  // #endregion
   return userId
 }
 
@@ -28,10 +25,6 @@ export async function getCurrentUser() {
     .select('*')
     .eq('id', userId)
     .single()
-
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/59875346-206d-4eaa-9b1d-4b3916768d08',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/auth.ts:getCurrentUser',message:'Supabase lookup by userId',data:{userId,found:!!dbUser,dbUserId:dbUser?.id ?? null,dbErrorCode:dbError?.code ?? null,dbErrorMsg:dbError?.message ?? null},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H3,H4'})}).catch(()=>{});
-  // #endregion
 
   return dbUser
 }

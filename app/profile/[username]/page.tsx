@@ -142,11 +142,19 @@ export default function ProfilePage() {
     }
   }, [activeTab, isOwnProfile])
 
+  // Load saved when user clicks the saved tab (if not already loading/loaded)
   useEffect(() => {
     if (activeTab === 'saved' && isOwnProfile && !savedLoaded && !savedLoading) {
       loadSaved()
     }
   }, [activeTab, isOwnProfile, savedLoaded, savedLoading])
+
+  // Preload saved items in background when viewing own profile, so the tab feels instant
+  useEffect(() => {
+    if (isOwnProfile && !savedLoaded && !savedLoading) {
+      loadSaved()
+    }
+  }, [isOwnProfile, savedLoaded, savedLoading])
 
   async function handleDeletePost(postId: string) {
     setDeleteConfirmId(null)
