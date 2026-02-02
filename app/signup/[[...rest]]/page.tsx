@@ -30,7 +30,7 @@ export default function SignupPage() {
       <div className="flex-1 flex items-center justify-start min-w-0 px-4 sm:px-8 md:px-16 pt-24 md:pt-32">
         <SignUp
           appearance={mossClerkAppearance}
-          afterSignUpUrl="/onboarding"
+          fallbackRedirectUrl="/onboarding"
           signInUrl="/login"
         />
       </div>

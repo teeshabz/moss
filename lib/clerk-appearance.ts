@@ -35,7 +35,7 @@ export const mossClerkAppearance = {
     formButtonPrimary:
       'w-full py-3 bg-[#2d5016] text-white text-sm font-bold lowercase border-0 rounded-none transition-colors duration-150 cursor-pointer hover:bg-[#3d6a1e] focus:outline-none focus:ring-0',
     footerAction: 'text-left',
-    footerActionText: 'text-stone-400 text-sm',
+    footerActionText: 'text-stone-400 text-sm lowercase',
     footerActionLink: 'text-sm font-bold text-[#2d5016] hover:text-[#3a6b1e] lowercase',
     identityPreviewEditButton: 'text-[#2d5016] hover:text-[#3a6b1e]',
   },

@@ -64,6 +64,14 @@ input[name="code"],
   box-sizing: border-box !important;
 }
 
+/* Footer action ("already have an account? sign up") - tight spacing, same as sign up */
+.cl-footerAction {
+  margin-top: 0.25rem !important;
+}
+/* Header: hide subtitle ("welcome! please fill in the details to get started" on signup, etc.) */
+.cl-headerSubtitle {
+  display: none !important;
+}
 /* Email verification step: more space between "check your email" and email below */
 .cl-headerTitle {
   margin-bottom: 1.5rem !important;

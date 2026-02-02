@@ -436,7 +436,7 @@ export default function FeedPage() {
                                 : 'text-stone-600 hover:text-[#7a9b6f]'
                             } ${savingIds.has(post.id) ? 'opacity-60 cursor-not-allowed' : ''}`}
                           >
-                            <PlusIcon saved={savedIds.has(post.id)} size={14} />
+                            <PlusIcon saved={savedIds.has(post.id)} size={18} />
                           </button>
                         )}
                       </div>
@@ -564,7 +564,7 @@ export default function FeedPage() {
                                 unsavingId === post.id ? 'opacity-60 cursor-not-allowed' : ''
                               }`}
                             >
-                              <PlusIcon saved={true} size={14} />
+                              <PlusIcon saved={true} size={18} />
                             </button>
                           </div>
                         </div>

@@ -20,7 +20,12 @@ export default function RootLayout({
       localization={{
         formButtonPrimary: 'continue →',
         formFieldLabel__emailAddress_username: 'EMAIL OR USERNAME',
-        formFieldInputPlaceholder__emailAddress_username: 'enter email or username',
+        formFieldInputPlaceholder__emailAddress_username: '',
+        formFieldInputPlaceholder__emailAddress: '',
+        formFieldInputPlaceholder__password: '',
+        formFieldInputPlaceholder__firstName: '',
+        formFieldInputPlaceholder__lastName: '',
+        formFieldInputPlaceholder__username: '',
         lastAuthenticationStrategy: '',
         socialButtonsBlockButton: 'sign in with {{provider}}',
         signIn: {

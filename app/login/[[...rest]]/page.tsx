@@ -126,7 +126,7 @@ export default function LoginPage() {
                 },
               },
             }}
-            afterSignInUrl="/onboarding"
+            fallbackRedirectUrl="/onboarding"
             signUpUrl="/signup"
           />
         </div>
