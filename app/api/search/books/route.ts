@@ -1,4 +1,4 @@
-import { auth } from '@clerk/nextjs/server'
+import { getUserId } from '@/lib/auth'
 import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
@@ -43,7 +43,7 @@ function dedupeKey(book: BookSearchResult): string {
  */
 export async function GET(request: Request) {
   try {
-    const { userId } = await auth()
+    const userId = await getUserId()
     if (!userId) {
       return NextResponse.json(
         { error: 'Unauthorized' },

@@ -1,4 +1,4 @@
-import { auth } from '@clerk/nextjs/server'
+import { getUserId } from '@/lib/auth'
 import { mapRawPostToPostWithRelations } from '@/lib/api/posts'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
@@ -18,7 +18,7 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET(request: NextRequest) {
   try {
-    const { userId } = await auth()
+    const userId = await getUserId()
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

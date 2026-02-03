@@ -123,7 +123,7 @@ export default function FeedPage() {
 
       if (!response.ok) {
         if (response.status === 401) {
-          router.push('/login')
+          router.push('/onboarding')
           return
         }
         throw new Error('Failed to load feed')
@@ -176,7 +176,7 @@ export default function FeedPage() {
 
       if (!response.ok) {
         if (response.status === 401) {
-          router.push('/login')
+          router.push('/onboarding')
           return
         }
         throw new Error('Failed to load saved posts')

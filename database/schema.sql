@@ -1,9 +1,9 @@
 -- Moss Database Schema
 -- Run this in Supabase SQL Editor to create all tables.
--- Identity: users.id = Clerk user id (set by app). RLS does not use auth.uid();
--- API uses service role and enforces "current user" in application code.
+-- Identity: users.id = internal ID (e.g. UUID); users.clerk_id links to Clerk (see Phase 2 migration).
+-- RLS does not use auth.uid(); API uses service role and enforces "current user" in application code.
 
--- Create users table (id = Clerk user id; set by app on insert)
+-- Create users table (id = internal PK; clerk_id added by database/migrations/phase2-clerk-id-column.sql)
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
@@ -86,3 +86,4 @@ CREATE POLICY "Posts are viewable by everyone" ON posts FOR SELECT USING (true);
 -- ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name TEXT;
 -- ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name TEXT;
 -- For Phase 1 (Clerk): run database/migrations/phase1-clerk-rls.sql to drop auth.uid() policies and default on users.id.
+-- For Phase 2 (two-ID): run database/migrations/phase2-clerk-id-column.sql to add users.clerk_id.

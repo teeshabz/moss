@@ -1,18 +1,19 @@
-import { auth, currentUser } from '@clerk/nextjs/server'
+import { currentUser } from '@clerk/nextjs/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getClerkUserId } from '@/lib/auth'
 import { NextResponse } from 'next/server'
 import { generateAvatarColor } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
 /**
- * Create user in public.users table (id = Clerk user id).
+ * Create user in public.users table (internal id + clerk_id).
  * Called after Clerk sign-up when the user has no row in public.users yet.
  */
 export async function POST(request: Request) {
   try {
-    const { userId } = await auth()
-    if (!userId) {
+    const clerkUserId = await getClerkUserId()
+    if (!clerkUserId) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -31,11 +32,11 @@ export async function POST(request: Request) {
 
     const supabaseAdmin = createAdminClient()
 
-    // Check if user already exists in public.users
+    // Check if user already exists in public.users (by clerk_id)
     const { data: existingUser } = await supabaseAdmin
       .from('users')
       .select('id')
-      .eq('id', userId)
+      .eq('clerk_id', clerkUserId)
       .single()
 
     if (existingUser) {
@@ -59,11 +60,13 @@ export async function POST(request: Request) {
     }
 
     const avatarColor = generateAvatarColor()
+    const internalId = crypto.randomUUID()
 
     const { data: newUser, error: insertError } = await supabaseAdmin
       .from('users')
       .insert({
-        id: userId,
+        id: internalId,
+        clerk_id: clerkUserId,
         email,
         username: username.toLowerCase().trim(),
         avatar_color: avatarColor,

@@ -6,14 +6,14 @@ export const dynamic = 'force-dynamic'
 
 /**
  * POST /api/auth/reconcile-migration
- * One-time fix: if the signed-in Clerk user has no row in public.users, look up
- * by primary email. If a row exists with a different id (migration wrote wrong id),
- * repoint that row to the current Clerk userId so the user is recognized.
+ * Backfill clerk_id only: if the signed-in Clerk user has no row in public.users
+ * by clerk_id, look up by primary email. If a row exists without this clerk_id,
+ * set clerk_id so the user is recognized. No row replacement.
  */
 export async function POST() {
   try {
-    const { userId } = await auth()
-    if (!userId) {
+    const { userId: clerkUserId } = await auth()
+    if (!clerkUserId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -31,76 +31,50 @@ export async function POST() {
 
     const supabase = createAdminClient()
 
-    const { data: existingByUserId } = await supabase
+    // Already linked by clerk_id
+    const { data: existingByClerkId } = await supabase
       .from('users')
       .select('id')
-      .eq('id', userId)
+      .eq('clerk_id', clerkUserId)
       .single()
 
-    if (existingByUserId) {
+    if (existingByClerkId) {
       return NextResponse.json(
-        { reconciled: false, user: existingByUserId },
+        { reconciled: false, user: existingByClerkId },
         { status: 200 }
       )
     }
 
-    const { data: rowByEmail, error: emailLookupErr } = await supabase
+    // Find row by email (case-insensitive)
+    const { data: rowByEmail } = await supabase
       .from('users')
-      .select('id, email, username, avatar_color, phone_number, first_name, last_name, created_at')
+      .select('id, clerk_id')
       .ilike('email', primaryEmail.trim())
       .maybeSingle()
 
-    if (!rowByEmail || rowByEmail.id === userId) {
+    if (!rowByEmail) {
+      return NextResponse.json({ reconciled: false }, { status: 200 })
+    }
+    if (rowByEmail.clerk_id === clerkUserId) {
       return NextResponse.json({ reconciled: false }, { status: 200 })
     }
 
-    const oldId = rowByEmail.id
-    const newRow = {
-      id: userId,
-      email: rowByEmail.email,
-      username: rowByEmail.username,
-      avatar_color: rowByEmail.avatar_color,
-      phone_number: rowByEmail.phone_number,
-      first_name: rowByEmail.first_name,
-      last_name: rowByEmail.last_name,
-      created_at: rowByEmail.created_at,
-    }
+    // Backfill clerk_id only
+    const { error: updateErr } = await supabase
+      .from('users')
+      .update({ clerk_id: clerkUserId })
+      .eq('id', rowByEmail.id)
 
-    const { error: insertErr } = await supabase.from('users').insert(newRow)
-    if (insertErr) {
+    if (updateErr) {
       return NextResponse.json(
-        { error: insertErr.message, reconciled: false },
-        { status: 500 }
-      )
-    }
-
-    const { error: updatePostsErr } = await supabase.from('posts').update({ user_id: userId }).eq('user_id', oldId)
-    if (updatePostsErr) {
-      return NextResponse.json(
-        { error: updatePostsErr.message, reconciled: false },
-        { status: 500 }
-      )
-    }
-
-    const { error: updateSavesErr } = await supabase.from('saves').update({ user_id: userId }).eq('user_id', oldId)
-    if (updateSavesErr) {
-      return NextResponse.json(
-        { error: updateSavesErr.message, reconciled: false },
-        { status: 500 }
-      )
-    }
-
-    const { error: deleteErr } = await supabase.from('users').delete().eq('id', oldId)
-    if (deleteErr) {
-      return NextResponse.json(
-        { error: deleteErr.message, reconciled: false },
+        { error: updateErr.message, reconciled: false },
         { status: 500 }
       )
     }
 
     return NextResponse.json({
       reconciled: true,
-      user: newRow,
+      user: { id: rowByEmail.id },
     })
   } catch (err) {
     console.error('Error in reconcile-migration:', err)

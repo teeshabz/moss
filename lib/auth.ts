@@ -3,27 +3,50 @@ import { createAdminClient } from './supabase/admin'
 
 /**
  * Get Clerk user id for the current request, or null if not signed in.
+ * Use only where Clerk identity is needed (e.g. user create, reconcile).
  */
-export async function getUserId(): Promise<string | null> {
+export async function getClerkUserId(): Promise<string | null> {
   const { userId } = await auth()
   return userId
 }
 
 /**
- * Get the current authenticated user from public.users (by Clerk user id).
- * Returns null if not signed in or no matching row.
+ * Get internal user id (public.users.id) for the current request.
+ * Resolves Clerk session → lookup users by clerk_id → return user.id.
+ * Returns null if not signed in or no matching row in public.users.
  */
-export async function getCurrentUser() {
-  const userId = await getUserId()
-  if (!userId) {
+export async function getUserId(): Promise<string | null> {
+  const clerkUserId = await getClerkUserId()
+  if (!clerkUserId) {
     return null
   }
 
   const supabase = createAdminClient()
-  const { data: dbUser, error: dbError } = await supabase
+  const { data: dbUser } = await supabase
+    .from('users')
+    .select('id')
+    .eq('clerk_id', clerkUserId)
+    .single()
+
+  return dbUser?.id ?? null
+}
+
+/**
+ * Get the current authenticated user from public.users (by clerk_id).
+ * Returns null if not signed in or no matching row.
+ * Callers get internal user.id for DB operations.
+ */
+export async function getCurrentUser() {
+  const clerkUserId = await getClerkUserId()
+  if (!clerkUserId) {
+    return null
+  }
+
+  const supabase = createAdminClient()
+  const { data: dbUser } = await supabase
     .from('users')
     .select('*')
-    .eq('id', userId)
+    .eq('clerk_id', clerkUserId)
     .single()
 
   return dbUser

@@ -1,8 +1,11 @@
 /**
- * One-off migration: map existing Supabase users (old id) to Clerk user ids,
- * then update Supabase so public.users.id = Clerk user id for each person.
+ * Two-ID migration: backfill users.clerk_id only.
+ * For each Supabase user (by internal id), find or create Clerk user by email,
+ * then UPDATE users SET clerk_id = clerkId WHERE id = internalId.
+ * No row replacement, no changes to posts or saves.
  *
  * Prerequisites:
+ * - Phase 2 migration applied: users.clerk_id column exists.
  * - Back up your database (Supabase Dashboard → Backups or export users/posts/saves).
  * - Env: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, CLERK_SECRET_KEY
  *
@@ -59,11 +62,7 @@ type SupabaseUser = {
   id: string
   email: string
   username: string
-  avatar_color: string | null
-  phone_number: string | null
-  first_name: string | null
-  last_name: string | null
-  created_at: string
+  clerk_id: string | null
 }
 
 function normalizeEmail(email: string): string {
@@ -71,14 +70,14 @@ function normalizeEmail(email: string): string {
 }
 
 async function main() {
-  console.log('=== Clerk user migration ===')
+  console.log('=== Two-ID: backfill users.clerk_id ===')
   console.log('Ensure you have backed up your database (Supabase → Backups or export users/posts/saves) before continuing.')
   console.log('')
 
-  // 1. Fetch all Supabase users (old ids)
+  // 1. Fetch all Supabase users (internal id, email, clerk_id)
   const { data: supabaseUsers, error: selectError } = await supabase
     .from('users')
-    .select('id, email, username, avatar_color, phone_number, first_name, last_name, created_at')
+    .select('id, email, username, clerk_id')
 
   if (selectError) {
     console.error('Failed to fetch Supabase users:', selectError.message)
@@ -86,7 +85,7 @@ async function main() {
   }
 
   if (!supabaseUsers?.length) {
-    console.log('No users in Supabase. Nothing to migrate.')
+    console.log('No users in Supabase. Nothing to do.')
     return
   }
 
@@ -121,17 +120,23 @@ async function main() {
   }
   console.log(`Found ${clerkEmailToId.size} Clerk user(s) by email.`)
 
-  // 3. Build mapping old_id -> clerk_id (create Clerk user if not found)
-  const mapping: { oldId: string; clerkId: string }[] = []
+  // 3. For each Supabase user: find or create Clerk user, then UPDATE users SET clerk_id = ? WHERE id = ?
   for (const row of supabaseUsers as SupabaseUser[]) {
+    const internalId = row.id
     const emailNorm = normalizeEmail(row.email)
+
+    if (row.clerk_id) {
+      console.log(`User ${internalId} already has clerk_id, skipping.`)
+      continue
+    }
+
     let clerkId = clerkEmailToId.get(emailNorm)
     if (!clerkId) {
       try {
         const created = await clerk.users.createUser({
           emailAddress: [row.email],
-          firstName: row.first_name ?? undefined,
-          lastName: row.last_name ?? undefined,
+          firstName: undefined,
+          lastName: undefined,
           username: row.username || undefined,
         })
         clerkId = created.id
@@ -139,74 +144,25 @@ async function main() {
         console.log(`Created Clerk user for ${row.email} -> ${clerkId}`)
       } catch (err) {
         console.error(`Failed to create Clerk user for ${row.email}:`, err)
-        process.exit(1)
-      }
-    }
-    mapping.push({ oldId: row.id, clerkId })
-  }
-
-  console.log('')
-  console.log('Mapping (old_id -> clerk_id):')
-  mapping.forEach(({ oldId, clerkId }) => console.log(`  ${oldId} -> ${clerkId}`))
-  console.log('')
-
-  // 4. For each (old_id, clerk_id): INSERT new user row, UPDATE posts/saves, DELETE old row
-  for (const { oldId, clerkId } of mapping) {
-    const { data: row, error: getErr } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', oldId)
-      .single()
-
-    if (getErr || !row) {
-      console.error(`Could not load user ${oldId}:`, getErr?.message)
-      continue
-    }
-
-    const newRow = {
-      id: clerkId,
-      email: row.email,
-      username: row.username,
-      avatar_color: row.avatar_color,
-      phone_number: row.phone_number,
-      first_name: row.first_name,
-      last_name: row.last_name,
-      created_at: row.created_at,
-    }
-
-    const { error: insertErr } = await supabase.from('users').insert(newRow)
-    if (insertErr) {
-      if (insertErr.code === '23505') {
-        console.log(`User ${clerkId} already exists (skipping insert), updating refs and deleting old.`)
-      } else {
-        console.error(`Insert failed for ${oldId} -> ${clerkId}:`, insertErr.message)
         continue
       }
     }
 
-    const { error: updatePostsErr } = await supabase.from('posts').update({ user_id: clerkId }).eq('user_id', oldId)
-    if (updatePostsErr) {
-      console.error(`Update posts failed for ${oldId}:`, updatePostsErr.message)
+    const { error: updateErr } = await supabase
+      .from('users')
+      .update({ clerk_id: clerkId })
+      .eq('id', internalId)
+
+    if (updateErr) {
+      console.error(`Update clerk_id failed for ${internalId}:`, updateErr.message)
       continue
     }
 
-    const { error: updateSavesErr } = await supabase.from('saves').update({ user_id: clerkId }).eq('user_id', oldId)
-    if (updateSavesErr) {
-      console.error(`Update saves failed for ${oldId}:`, updateSavesErr.message)
-      continue
-    }
-
-    const { error: deleteErr } = await supabase.from('users').delete().eq('id', oldId)
-    if (deleteErr) {
-      console.error(`Delete old user ${oldId} failed:`, deleteErr.message)
-      continue
-    }
-
-    console.log(`Migrated ${oldId} -> ${clerkId}`)
+    console.log(`Backfilled clerk_id for ${internalId} (${row.email})`)
   }
 
   console.log('')
-  console.log('Migration complete. Verify by signing in with Clerk (same email) and checking profile, posts, saves.')
+  console.log('Backfill complete. Verify by signing in with Clerk (same email) and checking profile, posts, saves.')
 }
 
 main().catch((err) => {

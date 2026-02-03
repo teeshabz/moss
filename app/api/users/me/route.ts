@@ -1,4 +1,4 @@
-import { auth } from '@clerk/nextjs/server'
+import { getCurrentUser, getUserId } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { countWeeklyPosts } from '@/lib/api/weekly-limit'
@@ -13,35 +13,32 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET(request: Request) {
   try {
-    const { userId } = await auth()
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
-    const supabaseAdmin = createAdminClient()
-    const url = new URL(request.url)
-    const summaryOnly = url.searchParams.get('summary') === '1'
-
-    const { data: dbUser, error: dbError } = await supabaseAdmin
-      .from('users')
-      .select('id, email, username, avatar_color, phone_number, first_name, last_name, created_at')
-      .eq('id', userId)
-      .single()
-
-    if (dbError || !dbUser) {
+    const dbUser = await getCurrentUser()
+    if (!dbUser) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
       )
     }
 
+    const supabaseAdmin = createAdminClient()
+    const url = new URL(request.url)
+    const summaryOnly = url.searchParams.get('summary') === '1'
+    const userId = dbUser.id
+
     if (summaryOnly) {
       const weeklyPostCount = await countWeeklyPosts(userId, supabaseAdmin)
       const result: UserMeResponse = {
-        user: dbUser,
+        user: {
+          id: dbUser.id,
+          email: dbUser.email,
+          username: dbUser.username,
+          avatar_color: dbUser.avatar_color ?? '',
+          phone_number: dbUser.phone_number ?? null,
+          first_name: dbUser.first_name ?? null,
+          last_name: dbUser.last_name ?? null,
+          created_at: dbUser.created_at,
+        },
         weeklyPostCount,
       }
       return NextResponse.json(result)
@@ -55,7 +52,16 @@ export async function GET(request: Request) {
     const postIds = (saves ?? []).map((row) => row.post_id as string)
 
     const result: UserMeResponse = {
-      user: dbUser,
+      user: {
+        id: dbUser.id,
+        email: dbUser.email,
+        username: dbUser.username,
+        avatar_color: dbUser.avatar_color ?? '',
+        phone_number: dbUser.phone_number ?? null,
+        first_name: dbUser.first_name ?? null,
+        last_name: dbUser.last_name ?? null,
+        created_at: dbUser.created_at,
+      },
       weeklyPostCount,
       postIds,
     }
@@ -76,7 +82,7 @@ export async function GET(request: Request) {
  */
 export async function PATCH(request: Request) {
   try {
-    const { userId } = await auth()
+    const userId = await getUserId()
     if (!userId) {
       return NextResponse.json(
         { error: 'Unauthorized' },
