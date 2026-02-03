@@ -76,7 +76,7 @@ const mediaTypes: MediaType[] = [
 // Icon component wrapper - renders appropriate icon based on type
 function MediaIcon({ type, color }: { type: string; color: string }) {
   const iconProps = {
-    size: 32,
+    size: 40,
     className: '',
     style: { color } as React.CSSProperties,
   }
@@ -93,7 +93,7 @@ function MediaIcon({ type, color }: { type: string; color: string }) {
     case 'album':
       return <DiscIcon {...iconProps} />
     case 'podcast':
-      return <PodcastIcon {...iconProps} size={38} />
+      return <PodcastIcon {...iconProps} size={48} />
     default:
       return null
   }
@@ -177,44 +177,47 @@ export default function SharePage() {
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col pb-24">
-      {/* Header - arrow (left), stars (center, lowered), moss (right) */}
-      <div className="absolute top-4 left-8 right-8 md:top-8 md:left-16 md:right-16 flex items-center justify-between">
+      {/* Arrow - same position as share/[type] */}
+      <div className="absolute top-8 left-8 md:top-16 md:left-16">
         <Link
           href="/feed"
-          className="text-white text-2xl hover:text-gray-300 transition-colors flex-shrink-0"
+          className="text-white text-2xl hover:text-gray-300 transition-colors block"
           aria-label="Back to feed"
         >
           ←
         </Link>
+      </div>
 
-        {/* Stars + label - centered, lowered */}
-        <div className="absolute left-1/2 -translate-x-1/2 top-12 md:top-16 flex flex-col items-center justify-center">
-          <div className="flex justify-center gap-0.5 mb-2 items-center">
-            {Array.from({ length: WEEKLY_POST_LIMIT }, (_, i) => i).map((index) => (
-              <span key={index} className="inline-flex shrink-0" style={{ width: 24, height: 24 }}>
-                <StarIcon
-                  color={index < filledStars ? '#8FA68E' : '#8FA68E4D'}
-                  size={24}
-                />
-              </span>
-            ))}
-          </div>
-          <p
-            className="text-[10px] uppercase tracking-wider font-bold"
-            style={{ color: '#8FA68E' }}
-          >
-            SHARED THIS WEEK
-          </p>
+      {/* Stars + label - centered in gap between header and media types */}
+      <div className="absolute left-1/2 -translate-x-1/2 top-24 md:top-32 flex flex-col items-center justify-center">
+        <div className="flex justify-center gap-1 mb-2.5 items-center">
+          {Array.from({ length: WEEKLY_POST_LIMIT }, (_, i) => i).map((index) => (
+            <span key={index} className="inline-flex shrink-0" style={{ width: 28, height: 28 }}>
+              <StarIcon
+                color={index < filledStars ? '#8FA68E' : '#8FA68E4D'}
+                size={28}
+              />
+            </span>
+          ))}
         </div>
+        <p
+          className="text-xs uppercase tracking-wider font-bold"
+          style={{ color: '#8FA68E' }}
+        >
+          SHARED THIS WEEK
+        </p>
+      </div>
 
+      {/* Moss logo - same position as share/[type] */}
+      <div className="absolute top-8 right-8 md:top-16 md:right-16">
         <Link
           href="/feed"
-          className="flex items-center gap-1.5 flex-shrink-0"
+          className="flex items-center gap-2"
           aria-label="moss"
         >
-          <MossIcon color="#2d5016" size={22} />
+          <MossIcon color="#2d5016" size={26} />
           <span
-            className="text-xl font-bold lowercase"
+            className="text-2xl font-bold lowercase"
             style={{
               color: '#2d5016',
               fontFamily: 'monospace',
@@ -242,7 +245,7 @@ export default function SharePage() {
               >
                 {/* Icon - fixed width so label aligns across all media types */}
                 <div
-                  className={`flex-shrink-0 w-10 mr-6 transition-all duration-200 ${
+                  className={`flex-shrink-0 w-12 mr-6 transition-all duration-200 ${
                     isHovered
                       ? 'opacity-100 translate-x-0'
                       : 'opacity-0 -translate-x-4'

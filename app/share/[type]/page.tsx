@@ -315,8 +315,9 @@ export default function ShareTypePage() {
   ) => {
     const { name, value } = e.target
     
-    // Enforce 60 character limit for all fields
-    if (value.length > 60) return
+    // Enforce 60 character limit for all fields except article URL
+    const isArticleUrl = type === 'article' && name === 'url'
+    if (!isArticleUrl && value.length > 60) return
     if (name === 'note') setNoteLimitReached(value.length === 60)
     
     // If user edits title or author while a book was selected, treat as manual entry
@@ -473,7 +474,7 @@ export default function ShareTypePage() {
       {/* Moss Logo - top right */}
       <div className="absolute top-8 right-8 md:top-16 md:right-16">
         <Link href="/feed" className="flex items-center gap-2">
-          <MossIcon color="#2d5016" size={24} />
+          <MossIcon color="#2d5016" size={26} />
           <span
             className="text-2xl font-bold lowercase"
             style={{
@@ -625,7 +626,7 @@ export default function ShareTypePage() {
                     onChange={handleInputChange}
                     placeholder={field.placeholder}
                     required={field.required}
-                    maxLength={60}
+                    {...(type === 'article' && field.name === 'url' ? {} : { maxLength: 60 })}
                     className={`w-full border-2 rounded-lg px-4 py-3 text-stone-200 placeholder-stone-500 focus:outline-none transition-all text-lg md:text-xl font-medium ${
                       errors[field.name]
                         ? 'border-red-500'

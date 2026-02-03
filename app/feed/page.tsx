@@ -282,11 +282,11 @@ export default function FeedPage() {
       <div className="sticky top-0 bg-black/90 backdrop-blur-sm z-10">
         <div className="max-w-2xl mx-auto px-6 md:px-8">
           {/* Moss logo - top middle */}
-          <div className="pt-2 pb-1.5 flex justify-center">
+          <div className="pt-5 pb-1.5 flex justify-center">
             <Link href="/feed" className="flex items-center gap-2 flex-shrink-0" aria-label="moss">
-              <MossIcon color="#2d5016" size={22} />
+              <MossIcon color="#2d5016" size={26} />
               <span
-                className="text-xl font-bold lowercase"
+                className="text-2xl font-bold lowercase"
                 style={{
                   color: '#2d5016',
                   fontFamily: 'monospace',

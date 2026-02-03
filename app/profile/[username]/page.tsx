@@ -237,7 +237,7 @@ export default function ProfilePage() {
             ←
           </Link>
           <Link href="/feed" className="flex items-center gap-2">
-            <MossIcon color="#2d5016" size={24} />
+            <MossIcon color="#2d5016" size={26} />
             <span
               className="text-2xl font-bold lowercase"
               style={{

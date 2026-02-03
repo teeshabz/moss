@@ -51,13 +51,7 @@ export async function GET(request: Request) {
       )
     }
 
-    const apiKey = process.env.GOOGLE_BOOKS_API_KEY
-    if (!apiKey || apiKey.trim() === '') {
-      return NextResponse.json(
-        { error: 'Search unavailable' },
-        { status: 503 }
-      )
-    }
+    const apiKey = process.env.GOOGLE_BOOKS_API_KEY?.trim()
 
     const { searchParams } = new URL(request.url)
     const q = searchParams.get('q')?.trim()
@@ -72,13 +66,21 @@ export async function GET(request: Request) {
     url.searchParams.set('q', q)
     url.searchParams.set('maxResults', '10')
     url.searchParams.set('printType', 'books')
-    url.searchParams.set('key', apiKey)
+    if (apiKey) {
+      url.searchParams.set('key', apiKey)
+    }
 
     const res = await fetch(url.toString())
     if (!res.ok) {
-      console.error('Google Books API error:', res.status, await res.text())
+      const body = await res.text()
+      console.error('Google Books API error:', res.status, body)
+      // 403 often means invalid/restricted API key or quota
+      const message =
+        res.status === 403
+          ? 'Search unavailable. Check GOOGLE_BOOKS_API_KEY or try without it.'
+          : 'Search failed'
       return NextResponse.json(
-        { error: 'Search failed' },
+        { error: message },
         { status: 502 }
       )
     }
