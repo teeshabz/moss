@@ -8,9 +8,10 @@ export const dynamic = 'force-dynamic'
 
 /**
  * GET /api/users/me
- * Returns current authenticated user and their weekly post count
+ * Returns current authenticated user and their weekly post count.
+ * ?summary=1 skips saved post IDs for faster response (e.g. share page).
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const { userId } = await auth()
     if (!userId) {
@@ -21,6 +22,8 @@ export async function GET() {
     }
 
     const supabaseAdmin = createAdminClient()
+    const url = new URL(request.url)
+    const summaryOnly = url.searchParams.get('summary') === '1'
 
     const { data: dbUser, error: dbError } = await supabaseAdmin
       .from('users')
@@ -33,6 +36,15 @@ export async function GET() {
         { error: 'User not found' },
         { status: 404 }
       )
+    }
+
+    if (summaryOnly) {
+      const weeklyPostCount = await countWeeklyPosts(userId, supabaseAdmin)
+      const result: UserMeResponse = {
+        user: dbUser,
+        weeklyPostCount,
+      }
+      return NextResponse.json(result)
     }
 
     const [weeklyPostCount, { data: saves }] = await Promise.all([

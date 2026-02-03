@@ -74,8 +74,22 @@ export async function POST() {
       )
     }
 
-    await supabase.from('posts').update({ user_id: userId }).eq('user_id', oldId)
-    await supabase.from('saves').update({ user_id: userId }).eq('user_id', oldId)
+    const { error: updatePostsErr } = await supabase.from('posts').update({ user_id: userId }).eq('user_id', oldId)
+    if (updatePostsErr) {
+      return NextResponse.json(
+        { error: updatePostsErr.message, reconciled: false },
+        { status: 500 }
+      )
+    }
+
+    const { error: updateSavesErr } = await supabase.from('saves').update({ user_id: userId }).eq('user_id', oldId)
+    if (updateSavesErr) {
+      return NextResponse.json(
+        { error: updateSavesErr.message, reconciled: false },
+        { status: 500 }
+      )
+    }
+
     const { error: deleteErr } = await supabase.from('users').delete().eq('id', oldId)
     if (deleteErr) {
       return NextResponse.json(

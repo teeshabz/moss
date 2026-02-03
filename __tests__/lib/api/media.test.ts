@@ -99,9 +99,15 @@ describe('validateMediaData', () => {
   })
 
   describe('ARTICLE validation', () => {
+    it('should require creator', () => {
+      expect(() => {
+        validateMediaData('ARTICLE', { title: 'Test Article', externalUrl: 'https://example.com/article' })
+      }).toThrow('Creator is required')
+    })
+
     it('should require externalUrl', () => {
       expect(() => {
-        validateMediaData('ARTICLE', { title: 'Test Article' })
+        validateMediaData('ARTICLE', { title: 'Test Article', creator: 'Test Author' })
       }).toThrow('External URL is required for articles')
     })
 
@@ -109,6 +115,7 @@ describe('validateMediaData', () => {
       expect(() => {
         validateMediaData('ARTICLE', {
           title: 'Test Article',
+          creator: 'Test Author',
           externalUrl: 'http://example.com',
         })
       }).toThrow('External URL must use HTTPS')
@@ -118,6 +125,7 @@ describe('validateMediaData', () => {
       expect(() => {
         validateMediaData('ARTICLE', {
           title: 'Test Article',
+          creator: 'Test Author',
           externalUrl: 'not-a-url',
         })
       }).toThrow('External URL must be a valid URL')
@@ -127,15 +135,7 @@ describe('validateMediaData', () => {
       expect(() => {
         validateMediaData('ARTICLE', {
           title: 'Test Article',
-          externalUrl: 'https://example.com/article',
-        })
-      }).not.toThrow()
-    })
-
-    it('should accept article without creator (optional)', () => {
-      expect(() => {
-        validateMediaData('ARTICLE', {
-          title: 'Test Article',
+          creator: 'Test Author',
           externalUrl: 'https://example.com/article',
         })
       }).not.toThrow()

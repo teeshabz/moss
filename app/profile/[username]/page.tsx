@@ -15,7 +15,6 @@ import {
   formatTimeAgo,
   getMediaTypeLabel,
   MediaTypeFilledIcon,
-  StarIcon,
   PlusIcon,
 } from '@/lib/components/PostHelpers'
 
@@ -39,7 +38,6 @@ export default function ProfilePage() {
   const [savedError, setSavedError] = useState<string | null>(null)
   const [savedLoaded, setSavedLoaded] = useState(false)
   const [unsavingId, setUnsavingId] = useState<string | null>(null)
-  const [shareHovered, setShareHovered] = useState(false)
 
   const isOwnProfile =
     currentUser?.user?.username?.toLowerCase() === username?.toLowerCase()
@@ -233,7 +231,7 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-black text-white pb-24">
       {/* Header: back + logo */}
-      <div className="sticky top-0 bg-black/90 backdrop-blur-sm z-10 border-b border-stone-800">
+      <div className="sticky top-0 bg-black/90 backdrop-blur-sm z-10">
         <div className="max-w-4xl mx-auto px-4 md:px-8 pt-6 pb-4 flex items-center justify-between">
           <Link href="/feed" className="text-white text-2xl hover:text-gray-300">
             ←
@@ -294,17 +292,15 @@ export default function ProfilePage() {
               {user.username}
             </h1>
           </div>
-          <Link
-            href="/share"
-            className="flex items-center gap-2 transition-colors"
-            style={{ color: shareHovered ? '#8fb084' : '#7a9b6f' }}
-            onMouseEnter={() => setShareHovered(true)}
-            onMouseLeave={() => setShareHovered(false)}
-            aria-label="Share"
-          >
-            <span className="text-2xl font-bold leading-none">share</span>
-            <StarIcon color={shareHovered ? '#8fb084' : '#7a9b6f'} size={22} />
-          </Link>
+          {isOwnProfile && (
+            <Link
+              href="/share"
+              className="px-3 py-1.5 text-sm font-bold lowercase tracking-wider transition-colors rounded-md bg-[#2d5016] text-white hover:bg-[#3a6b1e]"
+              aria-label="Share"
+            >
+              share
+            </Link>
+          )}
         </div>
 
         {/* Tabs */}
@@ -607,7 +603,7 @@ export default function ProfilePage() {
       {isOwnProfile && (
         <div className="fixed bottom-0 left-0 right-0 bg-black z-20">
           <div className="h-px bg-stone-800 flex-shrink-0" />
-          <div className="max-w-4xl mx-auto px-4 md:px-8 py-3 flex items-center justify-end">
+          <div className="max-w-4xl mx-auto px-4 md:px-8 py-3 flex items-center justify-start">
             <SignOutButton>
               <button
                 type="button"

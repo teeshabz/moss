@@ -16,7 +16,6 @@ import {
   getMediaTypeLabel,
   MediaTypeFilledIcon,
   PlusIcon,
-  StarIcon,
 } from '@/lib/components/PostHelpers'
 
 export default function FeedPage() {
@@ -35,7 +34,7 @@ export default function FeedPage() {
   const [searchLoading, setSearchLoading] = useState(false)
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const backgroundFeedLoadedRef = useRef(false)
-  const [activeTab, setActiveTab] = useState<'everyone' | 'friends' | 'saved'>('everyone')
+  const [activeTab, setActiveTab] = useState<'everyone' | 'saved'>('everyone')
   const [savedPosts, setSavedPosts] = useState<PostWithRelations[]>([])
   const [savedNextCursor, setSavedNextCursor] = useState<string | undefined>()
   const [savedHasMore, setSavedHasMore] = useState(false)
@@ -203,7 +202,7 @@ export default function FeedPage() {
     }
   }
 
-  const toggleSave = async (postId: string) => {
+  const toggleSave = async (postId: string, post?: PostWithRelations) => {
     const wasSaved = savedIds.has(postId)
     setSavingIds((prev) => {
       const next = new Set(prev)
@@ -224,10 +223,11 @@ export default function FeedPage() {
       if (!res.ok) {
         throw new Error('Failed to update save')
       }
-      
-      // If we're on the saved tab and unsaving, remove from saved posts
-      if (wasSaved && activeTab === 'saved') {
+
+      if (wasSaved) {
         setSavedPosts((prev) => prev.filter((p) => p.id !== postId))
+      } else if (post) {
+        setSavedPosts((prev) => [post, ...prev])
       }
     } catch (error) {
       console.error('Error toggling save:', error)
@@ -301,7 +301,7 @@ export default function FeedPage() {
 
           {/* Profile (left) and Share (right) - same level */}
           <div className="pb-3 flex items-center justify-between">
-            <div className="flex items-center gap-2 flex-shrink-0 min-w-0">
+            <div className="flex items-center gap-2.5 flex-shrink-0 min-w-0">
               {currentUser?.user?.username ? (
                 <Link
                   href={`/profile/${encodeURIComponent(currentUser.user.username)}`}
@@ -311,7 +311,7 @@ export default function FeedPage() {
                     className="w-8 h-8 rounded-full flex-shrink-0 ring-2 ring-stone-400"
                     style={{ backgroundColor: currentUser.user.avatar_color }}
                   />
-                  <span className="text-sm font-bold lowercase text-stone-200 truncate">
+                  <span className="text-base font-bold lowercase text-stone-200 truncate ml-0.5">
                     {currentUser.user.username}
                   </span>
                 </Link>
@@ -324,13 +324,11 @@ export default function FeedPage() {
             </div>
             <Link
               href="/share"
-              className="pb-0.5 text-lg font-bold lowercase tracking-wider transition-colors flex items-center gap-2.5"
-              style={{ color: shareHovered ? '#8fb084' : '#7a9b6f' }}
+              className="px-3 py-1.5 text-sm font-bold lowercase tracking-wider transition-colors rounded-md bg-[#2d5016] text-white hover:bg-[#3a6b1e]"
               onMouseEnter={() => setShareHovered(true)}
               onMouseLeave={() => setShareHovered(false)}
             >
               share
-              <StarIcon color={shareHovered ? '#8fb084' : '#7a9b6f'} size={24} />
             </Link>
           </div>
 
@@ -345,17 +343,7 @@ export default function FeedPage() {
                     : 'text-stone-500 border-transparent hover:text-stone-400'
                 }`}
               >
-                everyone
-              </button>
-              <button
-                onClick={() => setActiveTab('friends')}
-                className={`pb-2 text-sm font-bold lowercase tracking-wider border-b-2 transition-colors ${
-                  activeTab === 'friends'
-                    ? 'text-white border-[#7a9b6f]'
-                    : 'text-stone-500 border-transparent hover:text-stone-400'
-                }`}
-              >
-                friends
+                home
               </button>
               <button
                 onClick={() => setActiveTab('saved')}
@@ -438,7 +426,7 @@ export default function FeedPage() {
                         {/* Plus icon (thin when unsaved, bold when saved) */}
                         {currentUser?.user?.id !== post.user.id && (
                           <button
-                            onClick={() => toggleSave(post.id)}
+                            onClick={() => toggleSave(post.id, post)}
                             disabled={savingIds.has(post.id)}
                             aria-pressed={savedIds.has(post.id)}
                             aria-label={savedIds.has(post.id) ? 'Unsave post' : 'Save post'}
@@ -512,14 +500,6 @@ export default function FeedPage() {
               </>
             )}
           </>
-        )}
-
-        {/* Friends Tab Content */}
-        {activeTab === 'friends' && (
-          <div className="text-center py-12">
-            <p className="text-stone-500">"follow" feature coming soon :)</p>
-            <p className="text-stone-600 text-xs mt-1">thank you for being here!</p>
-          </div>
         )}
 
         {/* Saved Tab Content */}

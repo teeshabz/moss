@@ -113,7 +113,8 @@ export default function SharePage() {
   useEffect(() => {
     async function loadUser() {
       try {
-        const response = await fetch('/api/users/me')
+        // summary=1 skips saved post IDs for faster response on share page
+        const response = await fetch('/api/users/me?summary=1')
         if (!response.ok) {
           if (response.status === 401) {
             router.push('/login')
@@ -171,20 +172,8 @@ export default function SharePage() {
     router.push(`/share/${type}`)
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-gray-400">thinking...</div>
-      </div>
-    )
-  }
-
-  if (!user) {
-    return null
-  }
-
-  // Calculate filled stars (0 to WEEKLY_POST_LIMIT)
-  const filledStars = Math.min(user.weeklyPostCount, WEEKLY_POST_LIMIT)
+  // Show shell immediately; stars and bottom bar use placeholders until user loads
+  const filledStars = user ? Math.min(user.weeklyPostCount, WEEKLY_POST_LIMIT) : 0
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col pb-24">
@@ -223,9 +212,9 @@ export default function SharePage() {
           className="flex items-center gap-1.5 flex-shrink-0"
           aria-label="moss"
         >
-          <MossIcon color="#2d5016" size={18} />
+          <MossIcon color="#2d5016" size={22} />
           <span
-            className="text-lg font-bold lowercase"
+            className="text-xl font-bold lowercase"
             style={{
               color: '#2d5016',
               fontFamily: 'monospace',
@@ -376,19 +365,27 @@ export default function SharePage() {
           </div>
         ) : (
           <div className="max-w-2xl mx-auto px-6 md:px-8 py-3 flex items-center justify-between">
-            {user?.user?.username ? (
-              <Link
-                href={`/profile/${encodeURIComponent(user.user.username)}`}
-                className="hover:opacity-90 transition-opacity"
-              >
-                <div
-                  className="w-8 h-8 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: user.user.avatar_color }}
-                />
-              </Link>
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-stone-800 flex-shrink-0" />
-            )}
+            <div className="flex items-center gap-2.5 flex-shrink-0 min-w-0">
+              {user?.user?.username ? (
+                <Link
+                  href={`/profile/${encodeURIComponent(user.user.username)}`}
+                  className="flex items-center gap-2.5 hover:opacity-90 transition-opacity min-w-0"
+                >
+                  <div
+                    className="w-8 h-8 rounded-full flex-shrink-0 ring-2 ring-stone-400"
+                    style={{ backgroundColor: user.user.avatar_color }}
+                  />
+                  <span className="text-base font-bold lowercase text-stone-200 truncate">
+                    {user.user.username}
+                  </span>
+                </Link>
+              ) : (
+                <>
+                  <div className="w-8 h-8 rounded-full bg-stone-800 flex-shrink-0 ring-2 ring-stone-400" />
+                  <span className="text-sm text-stone-500">...</span>
+                </>
+              )}
+            </div>
 
             <button
               onClick={() => setSearchExpanded(true)}

@@ -4,6 +4,10 @@ import { NextResponse } from 'next/server'
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
+  if (process.env.NODE_ENV === 'production') {
+    return new NextResponse(null, { status: 404 })
+  }
+
   const results: Record<string, unknown> = {
     timestamp: new Date().toISOString(),
     checks: {} as Record<string, string>,

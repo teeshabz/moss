@@ -29,9 +29,9 @@ export default function LoginPage() {
 
       {/* When already signed in: show message + sign out */}
       <SignedIn>
-        <div className="flex-1 flex flex-col items-start justify-center min-w-0 px-4 sm:px-8 md:px-16 pt-24 md:pt-32">
-          <p className="text-gray-400 mb-4">You&apos;re already signed in.</p>
-          <div className="flex flex-wrap gap-3">
+        <div className="flex-1 flex flex-col items-center justify-center min-w-0 px-4 sm:px-8 md:px-16 pt-24 md:pt-32 text-center">
+          <p className="text-gray-400 mb-4 lowercase">you&apos;re already signed in</p>
+          <div className="flex flex-wrap gap-3 justify-center">
             <Link
               href="/feed"
               className="px-4 py-2 rounded-full bg-[#2d5016] text-white text-sm font-medium hover:bg-[#3a6b1e] transition-colors"
@@ -54,17 +54,7 @@ export default function LoginPage() {
       <SignedOut>
         <div className="flex-1 flex items-center justify-start min-w-0 px-4 sm:px-8 md:px-16 pt-24 md:pt-32">
           <SignIn
-            appearance={{
-              ...mossClerkAppearance,
-              localization: {
-                signIn: {
-                  start: {
-                    title: 'sign in',
-                    subtitle: '',
-                  },
-                },
-              },
-            }}
+            appearance={mossClerkAppearance}
             fallbackRedirectUrl="/onboarding"
             signUpUrl="/signup"
           />
