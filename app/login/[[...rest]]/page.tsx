@@ -8,9 +8,9 @@ import { mossClerkAppearance } from '@/lib/clerk-appearance'
 export default function LoginPage() {
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
-      {/* Logo and tagline - top left */}
-      <div className="absolute top-8 left-8 md:top-16 md:left-16 z-10">
-        <div className="flex items-center gap-2 mb-2">
+      {/* Logo and tagline - centered at top */}
+      <div className="absolute top-8 left-1/2 -translate-x-1/2 md:top-16 z-10 text-center">
+        <div className="flex items-center justify-center gap-2 mb-2">
           <MossIcon color="#2d5016" size={36} />
           <h1
             className="text-4xl font-bold lowercase"
@@ -50,9 +50,9 @@ export default function LoginPage() {
         </div>
       </SignedIn>
 
-      {/* When signed out: show Clerk SignIn */}
+      {/* When signed out: show Clerk SignIn - centered, middle of page */}
       <SignedOut>
-        <div className="flex-1 flex items-center justify-start min-w-0 px-4 sm:px-8 md:px-16 pt-24 md:pt-32">
+        <div className="flex-1 flex items-center justify-center min-w-0 px-4 sm:px-8 md:px-16">
           <SignIn
             appearance={mossClerkAppearance}
             fallbackRedirectUrl="/onboarding"
@@ -61,8 +61,8 @@ export default function LoginPage() {
         </div>
       </SignedOut>
 
-      {/* Footer - bottom left */}
-      <div className="absolute bottom-8 left-8 md:bottom-16 md:left-16">
+      {/* Footer - centered */}
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 md:bottom-16 text-center">
         <SignedIn>
           <Link href="/feed" className="text-gray-400 text-sm hover:text-gray-300 transition-colors">
             go to feed
