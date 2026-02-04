@@ -268,7 +268,7 @@ export default function ShareTypePage() {
   const [buttonClicked, setButtonClicked] = useState(false)
 
   // Book search (only used when type === 'book')
-  type BookResult = { id: string; title: string; authors: string; thumbnail?: string }
+  type BookResult = { id: string; title: string; authors: string; thumbnail?: string; infoLink?: string }
   const [bookSearchQuery, setBookSearchQuery] = useState('')
   const [bookSearchResults, setBookSearchResults] = useState<BookResult[]>([])
   const [bookSearchLoading, setBookSearchLoading] = useState(false)
@@ -383,12 +383,14 @@ export default function ShareTypePage() {
       let sourceId: string | undefined
       let coverUrl: string | undefined
 
+      let externalUrl: string | undefined
       if (type === 'book' && selectedBook) {
         title = selectedBook.title
         creator = selectedBook.authors
         source = 'google_books'
         sourceId = selectedBook.id
         coverUrl = selectedBook.thumbnail
+        externalUrl = selectedBook.infoLink?.trim() || undefined
       } else if (type === 'book') {
         creator = formData.author?.trim() || ''
       } else if (type === 'movie') {
@@ -399,6 +401,7 @@ export default function ShareTypePage() {
         creator = formData.host?.trim() || ''
       } else if (type === 'article') {
         creator = formData.author?.trim() || ''
+        externalUrl = formData.url?.trim() || undefined
       }
 
       // Prepare request body based on media type
@@ -407,7 +410,7 @@ export default function ShareTypePage() {
           mediaType: type.toUpperCase() as MediaType,
           title,
           creator,
-          externalUrl: type === 'article' ? formData.url?.trim() : undefined,
+          externalUrl,
           source,
           sourceId,
           coverUrl,
@@ -501,18 +504,26 @@ export default function ShareTypePage() {
               >
                 search for a book
               </label>
-              <input
-                id="book-search"
-                type="text"
-                value={bookSearchQuery}
-                onChange={(e) => setBookSearchQuery(e.target.value)}
-                placeholder="title or author..."
-                className="w-full border-2 rounded-lg px-4 py-3 text-stone-200 placeholder-stone-500 focus:outline-none transition-all text-lg md:text-xl font-medium"
-                style={{
-                  background: 'linear-gradient(to bottom, rgba(28, 25, 23, 0.5), rgba(31, 27, 24, 0.5))',
-                  borderColor: bookSearchQuery ? config.color : '#374151',
-                }}
-              />
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-500 pointer-events-none" aria-hidden>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="m21 21-4.35-4.35" />
+                  </svg>
+                </span>
+                <input
+                  id="book-search"
+                  type="text"
+                  value={bookSearchQuery}
+                  onChange={(e) => setBookSearchQuery(e.target.value)}
+                  placeholder="title or author..."
+                  className="w-full border-2 rounded-3xl pl-12 pr-4 py-3 text-stone-200 placeholder-stone-500 focus:outline-none transition-all text-lg md:text-xl font-medium"
+                  style={{
+                    background: 'linear-gradient(to bottom, rgba(28, 25, 23, 0.5), rgba(31, 27, 24, 0.5))',
+                    borderColor: config.color,
+                  }}
+                />
+              </div>
               {selectedBook ? (
                 <div className="flex items-center gap-2 flex-wrap mt-2">
                   <span className="text-stone-400 text-sm normal-case">selected: {selectedBook.title}</span>
@@ -600,22 +611,25 @@ export default function ShareTypePage() {
                     required={field.required}
                     maxLength={60}
                     rows={4}
-                    className={`w-full border-2 rounded-lg px-4 py-3 text-stone-200 placeholder-stone-500 focus:outline-none transition-all text-lg md:text-xl font-medium ${
-                      errors[field.name]
-                        ? 'border-red-500'
-                        : ''
-                    }`}
-                    style={{
-                      background: 'linear-gradient(to bottom, rgba(28, 25, 23, 0.5), rgba(31, 27, 24, 0.5))',
-                      borderColor: errors[field.name]
-                        ? '#EF4444'
-                        : formData[field.name]
-                          ? config.color
-                          : '#374151',
-                      boxShadow: formData[field.name] && !errors[field.name]
-                        ? `0 0 12px ${config.color}20`
-                        : 'none',
-                    }}
+                    className={`w-full rounded-lg px-4 py-3 text-stone-200 placeholder-stone-500 focus:outline-none transition-all text-lg md:text-xl font-medium ${
+                      type === 'book' ? 'border' : 'border-2'
+                    } ${errors[field.name] ? 'border-red-500' : type === 'book' ? '' : ''}`}
+                    style={type === 'book' && !errors[field.name]
+                      ? {
+                          background: 'linear-gradient(to bottom, rgba(28, 25, 23, 0.5), rgba(31, 27, 24, 0.5))',
+                          borderColor: errors[field.name] ? '#EF4444' : '#71717a',
+                        }
+                      : {
+                          background: 'linear-gradient(to bottom, rgba(28, 25, 23, 0.5), rgba(31, 27, 24, 0.5))',
+                          borderColor: errors[field.name]
+                            ? '#EF4444'
+                            : formData[field.name]
+                              ? config.color
+                              : '#374151',
+                          boxShadow: formData[field.name] && !errors[field.name]
+                            ? `0 0 12px ${config.color}20`
+                            : 'none',
+                        }}
                   />
                 ) : (
                   <input
@@ -627,22 +641,25 @@ export default function ShareTypePage() {
                     placeholder={field.placeholder}
                     required={field.required}
                     {...(type === 'article' && field.name === 'url' ? {} : { maxLength: 60 })}
-                    className={`w-full border-2 rounded-lg px-4 py-3 text-stone-200 placeholder-stone-500 focus:outline-none transition-all text-lg md:text-xl font-medium ${
-                      errors[field.name]
-                        ? 'border-red-500'
-                        : ''
-                    }`}
-                    style={{
-                      background: 'linear-gradient(to bottom, rgba(28, 25, 23, 0.5), rgba(31, 27, 24, 0.5))',
-                      borderColor: errors[field.name]
-                        ? '#EF4444'
-                        : formData[field.name]
-                          ? config.color
-                          : '#374151',
-                      boxShadow: formData[field.name] && !errors[field.name]
-                        ? `0 0 12px ${config.color}20`
-                        : 'none',
-                    }}
+                    className={`w-full rounded-lg px-4 py-3 text-stone-200 placeholder-stone-500 focus:outline-none transition-all text-lg md:text-xl font-medium ${
+                      type === 'book' ? 'border' : 'border-2'
+                    } ${errors[field.name] ? 'border-red-500' : ''}`}
+                    style={type === 'book' && !errors[field.name]
+                      ? {
+                          background: 'linear-gradient(to bottom, rgba(28, 25, 23, 0.5), rgba(31, 27, 24, 0.5))',
+                          borderColor: errors[field.name] ? '#EF4444' : '#71717a',
+                        }
+                      : {
+                          background: 'linear-gradient(to bottom, rgba(28, 25, 23, 0.5), rgba(31, 27, 24, 0.5))',
+                          borderColor: errors[field.name]
+                            ? '#EF4444'
+                            : formData[field.name]
+                              ? config.color
+                              : '#374151',
+                          boxShadow: formData[field.name] && !errors[field.name]
+                            ? `0 0 12px ${config.color}20`
+                            : 'none',
+                        }}
                   />
                 )}
                 {errors[field.name] && (

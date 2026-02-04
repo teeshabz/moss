@@ -41,6 +41,7 @@ export default function FeedPage() {
   const [savedLoading, setSavedLoading] = useState(false)
   const [savedLoaded, setSavedLoaded] = useState(false)
   const [unsavingId, setUnsavingId] = useState<string | null>(null)
+  const [aboutOpen, setAboutOpen] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -493,7 +494,7 @@ export default function FeedPage() {
                       disabled={loading}
                       className="text-[#7a9b6f] hover:text-[#8fb084] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {loading ? 'thinking...' : 'Load more →'}
+                      {loading ? 'thinking...' : 'keep scrolling?'}
                     </button>
                   </div>
                 )}
@@ -612,7 +613,7 @@ export default function FeedPage() {
                       disabled={savedLoading}
                       className="text-[#7a9b6f] hover:text-[#8fb084] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {savedLoading ? 'thinking...' : 'Load more →'}
+                      {savedLoading ? 'thinking...' : 'load more →'}
                     </button>
                   </div>
                 )}
@@ -723,8 +724,15 @@ export default function FeedPage() {
             </div>
           </div>
         ) : (
-          /* Collapsed mode - search right */
-          <div className="max-w-2xl mx-auto px-6 md:px-8 py-3 flex items-center justify-end">
+          /* Collapsed mode - about left, search right */
+          <div className="max-w-2xl mx-auto px-6 md:px-8 py-3 flex items-center justify-between">
+            <button
+              onClick={() => setAboutOpen(true)}
+              type="button"
+              className="text-white text-xs font-medium hover:text-stone-300 transition-colors lowercase"
+            >
+              about
+            </button>
             <button
               onClick={() => setSearchExpanded(true)}
               className="text-stone-400 hover:text-stone-300 transition-colors"
@@ -747,6 +755,47 @@ export default function FeedPage() {
           </div>
         )}
       </div>
+
+      {/* About modal */}
+      {aboutOpen && (
+        <div
+          className="fixed inset-0 z-30 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setAboutOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="about-title"
+        >
+          <div
+            className="bg-black border border-stone-800 rounded-lg max-w-md w-full p-8 flex flex-col items-center text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2 mb-6" id="about-title">
+              <MossIcon color="#2d5016" size={26} />
+              <span
+                className="text-2xl font-bold lowercase"
+                style={{
+                  color: '#2d5016',
+                  fontFamily: 'monospace',
+                  letterSpacing: '0.1em',
+                  textRendering: 'geometricPrecision',
+                }}
+              >
+                moss
+              </span>
+            </div>
+            <p className="text-stone-400 text-sm leading-relaxed lowercase">
+              moss is a place to connect through the media that moves you. to encourage sharing the things that really resonate, you can share up to 3 things per week.
+            </p>
+            <button
+              onClick={() => setAboutOpen(false)}
+              type="button"
+              className="mt-6 text-white text-xs font-medium hover:text-stone-300 transition-colors lowercase"
+            >
+              close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,0 +1,49 @@
+import Link from 'next/link'
+import { MossIcon } from '@/lib/components/MossIcon'
+
+export default function Home() {
+  return (
+    <main className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-8">
+      <div className="flex flex-col items-center justify-center flex-1 w-full max-w-lg text-center">
+        {/* Logo: icon + "moss" (same as login) */}
+        <div className="flex items-center gap-2 mb-4">
+          <MossIcon color="#2d5016" size={36} />
+          <h1
+            className="text-4xl font-bold lowercase"
+            style={{
+              color: '#2d5016',
+              fontFamily: 'monospace',
+              letterSpacing: '0.1em',
+              textRendering: 'geometricPrecision',
+            }}
+          >
+            moss
+          </h1>
+        </div>
+
+        {/* Tagline */}
+        <p className="text-gray-400 text-lg mb-10">
+          connect through media that moves you
+        </p>
+
+        {/* Enter → login */}
+        <Link
+          href="/login"
+          className="px-8 py-3 rounded-full bg-[#2d5016] text-white font-medium hover:bg-[#3a6b1e] transition-colors"
+        >
+          enter
+        </Link>
+      </div>
+
+      {/* Footer */}
+      <footer className="text-gray-400 text-sm mt-auto pb-8">
+        <a
+          href="mailto:hello.moss.app@gmail.com"
+          className="hover:text-gray-300 transition-colors"
+        >
+          contact: hello.moss.app@gmail.com
+        </a>
+      </footer>
+    </main>
+  )
+}
