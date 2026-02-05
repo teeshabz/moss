@@ -68,6 +68,7 @@ export async function POST(request: Request) {
       coverUrl: body.media.coverUrl,
       source: body.media.source,
       sourceId: body.media.sourceId,
+      metadata: body.media.metadata ?? null,
     })
 
     // Create post

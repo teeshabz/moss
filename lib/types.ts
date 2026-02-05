@@ -2,7 +2,7 @@
  * Shared TypeScript types for Moss API
  */
 
-export type MediaType = 'BOOK' | 'MOVIE' | 'PODCAST' | 'SONG' | 'ALBUM' | 'ARTICLE'
+export type MediaType = 'BOOK' | 'MOVIE' | 'PODCAST' | 'SONG' | 'ALBUM' | 'ARTICLE' | 'SHOW'
 
 export interface User {
   id: string
@@ -105,6 +105,7 @@ export interface CreatePostRequest {
     coverUrl?: string
     source?: string
     sourceId?: string
+    metadata?: Record<string, unknown> | null
   }
   note?: string
 }

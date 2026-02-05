@@ -7,6 +7,7 @@ import {
   MusicIcon,
   DiscIcon,
   PodcastIcon,
+  ShowIcon,
 } from '@/lib/components/SharePageMediaIcons'
 
 export function formatTimeAgo(dateString: string): string {
@@ -61,6 +62,8 @@ export function MediaTypeFilledIcon({
       return <DiscIcon size={size} className={className} style={style} />
     case 'PODCAST':
       return <PodcastIcon size={size} className={className} style={style} />
+    case 'SHOW':
+      return <ShowIcon size={size} className={className} style={style} />
     default:
       return <MusicIcon size={size} className={className} style={style} />
   }

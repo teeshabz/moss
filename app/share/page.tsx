@@ -18,6 +18,7 @@ import {
   MusicIcon,
   DiscIcon,
   PodcastIcon,
+  ShowIcon,
 } from '@/lib/components/SharePageMediaIcons'
 
 interface MediaType {
@@ -44,13 +45,6 @@ const mediaTypes: MediaType[] = [
     icon: 'article',
   },
   {
-    label: 'movie',
-    value: 'movie',
-    color: '#5a7a8c',
-    hoverColor: '#5a7a8c',
-    icon: 'movie',
-  },
-  {
     label: 'song',
     value: 'song',
     color: '#b88b9d',
@@ -70,6 +64,20 @@ const mediaTypes: MediaType[] = [
     color: '#e07a5f',
     hoverColor: '#e07a5f',
     icon: 'podcast',
+  },
+  {
+    label: 'movie',
+    value: 'movie',
+    color: '#5a7a8c',
+    hoverColor: '#5a7a8c',
+    icon: 'movie',
+  },
+  {
+    label: 'show',
+    value: 'show',
+    color: '#6a9a8f',
+    hoverColor: '#6a9a8f',
+    icon: 'show',
   },
 ]
 
@@ -94,6 +102,8 @@ function MediaIcon({ type, color }: { type: string; color: string }) {
       return <DiscIcon {...iconProps} />
     case 'podcast':
       return <PodcastIcon {...iconProps} size={48} />
+    case 'show':
+      return <ShowIcon {...iconProps} />
     default:
       return null
   }
@@ -230,8 +240,12 @@ export default function SharePage() {
         </Link>
       </div>
 
-      {/* Media Types List - Left aligned, lowered */}
-      <div className="flex-1 flex flex-col justify-center px-8 md:px-16 pt-48 md:pt-56 pb-24">
+      {/* Media Types List - Left aligned, lowered; extra padding when search expanded so list stays above bottom bar */}
+      <div
+        className={`flex-1 flex flex-col justify-center px-8 md:px-16 pt-48 md:pt-56 overflow-y-auto min-h-0 ${
+          searchExpanded ? 'pb-52' : 'pb-24'
+        }`}
+      >
         <div className="space-y-6 md:space-y-8">
           {mediaTypes.map((type) => {
             const isHovered = hoveredType === type.value

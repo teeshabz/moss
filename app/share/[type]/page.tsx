@@ -11,10 +11,11 @@ import {
   MusicIcon,
   DiscIcon,
   PodcastIcon,
+  ShowIcon,
 } from '@/lib/components/SharePageMediaIcons'
 import { MossIcon } from '@/lib/components/MossIcon'
 
-const validTypes = ['book', 'article', 'movie', 'song', 'album', 'podcast']
+const validTypes = ['book', 'article', 'movie', 'song', 'album', 'podcast', 'show']
 
 // Media type configuration
 const mediaTypeConfig: Record<
@@ -200,6 +201,33 @@ const mediaTypeConfig: Record<
       },
     ],
   },
+  show: {
+    color: '#6a9a8f',
+    label: 'show',
+    fields: [
+      {
+        label: 'TITLE',
+        name: 'title',
+        placeholder: 'enter show title...',
+        required: true,
+        type: 'text',
+      },
+      {
+        label: 'CREATOR',
+        name: 'creator',
+        placeholder: 'who created it?',
+        required: true,
+        type: 'text',
+      },
+      {
+        label: 'THOUGHTS',
+        name: 'note',
+        placeholder: 'your thoughts...',
+        required: false,
+        type: 'text',
+      },
+    ],
+  },
 }
 
 // Icon component - uses new icon components
@@ -217,6 +245,8 @@ function MediaIcon({ type, color }: { type: string; color: string }) {
       return <DiscIcon size={24} style={{ color }} />
     case 'podcast':
       return <PodcastIcon size={24} style={{ color }} />
+    case 'show':
+      return <ShowIcon size={24} style={{ color }} />
     default:
       return null
   }
@@ -276,6 +306,15 @@ export default function ShareTypePage() {
   const [selectedBook, setSelectedBook] = useState<BookResult | null>(null)
   const bookSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Music search (only used when type === 'song' or type === 'album')
+  type MusicResult = { id: string; title: string; creator: string; albumName?: string; coverUrl?: string; externalUrl?: string; type: 'song' | 'album' }
+  const [musicSearchQuery, setMusicSearchQuery] = useState('')
+  const [musicSearchResults, setMusicSearchResults] = useState<MusicResult[]>([])
+  const [musicSearchLoading, setMusicSearchLoading] = useState(false)
+  const [musicSearchError, setMusicSearchError] = useState<string | null>(null)
+  const [selectedMusic, setSelectedMusic] = useState<MusicResult | null>(null)
+  const musicSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   // Debounced book search when type === 'book'
   useEffect(() => {
     if (type !== 'book') return
@@ -310,6 +349,41 @@ export default function ShareTypePage() {
     }
   }, [type, bookSearchQuery])
 
+  // Debounced music search when type === 'song' or 'album'
+  useEffect(() => {
+    if (type !== 'song' && type !== 'album') return
+    const q = musicSearchQuery.trim()
+    if (q.length < 2) {
+      setMusicSearchResults([])
+      setMusicSearchError(null)
+      return
+    }
+    if (musicSearchDebounceRef.current) clearTimeout(musicSearchDebounceRef.current)
+    musicSearchDebounceRef.current = setTimeout(async () => {
+      setMusicSearchLoading(true)
+      setMusicSearchError(null)
+      try {
+        const res = await fetch(`/api/search/music?q=${encodeURIComponent(q)}&type=${type}`)
+        const data = await res.json()
+        if (!res.ok) {
+          setMusicSearchResults([])
+          setMusicSearchError(data.error || 'Search failed')
+          return
+        }
+        const results = type === 'song' ? (data.songs ?? []) : (data.albums ?? [])
+        setMusicSearchResults(results)
+      } catch {
+        setMusicSearchResults([])
+        setMusicSearchError('Search failed')
+      } finally {
+        setMusicSearchLoading(false)
+      }
+    }, 300)
+    return () => {
+      if (musicSearchDebounceRef.current) clearTimeout(musicSearchDebounceRef.current)
+    }
+  }, [type, musicSearchQuery])
+
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
@@ -323,6 +397,10 @@ export default function ShareTypePage() {
     // If user edits title or author while a book was selected, treat as manual entry
     if (type === 'book' && selectedBook && (name === 'title' || name === 'author')) {
       setSelectedBook(null)
+    }
+    // If user edits title or artist while music was selected, treat as manual entry
+    if ((type === 'song' || type === 'album') && selectedMusic && (name === 'title' || name === 'artist')) {
+      setSelectedMusic(null)
     }
     
     setFormData((prev) => ({ ...prev, [name]: value }))
@@ -384,6 +462,7 @@ export default function ShareTypePage() {
       let coverUrl: string | undefined
 
       let externalUrl: string | undefined
+      let metadata: Record<string, unknown> | undefined = undefined
       if (type === 'book' && selectedBook) {
         title = selectedBook.title
         creator = selectedBook.authors
@@ -391,6 +470,16 @@ export default function ShareTypePage() {
         sourceId = selectedBook.id
         coverUrl = selectedBook.thumbnail
         externalUrl = selectedBook.infoLink?.trim() || undefined
+      } else if ((type === 'song' || type === 'album') && selectedMusic) {
+        title = selectedMusic.title
+        creator = selectedMusic.creator
+        source = 'apple_music'
+        sourceId = selectedMusic.id
+        coverUrl = selectedMusic.coverUrl
+        externalUrl = selectedMusic.externalUrl?.trim() || undefined
+        metadata = type === 'song' && selectedMusic.albumName
+          ? { albumName: selectedMusic.albumName, appleMusicId: selectedMusic.id }
+          : { appleMusicId: selectedMusic.id }
       } else if (type === 'book') {
         creator = formData.author?.trim() || ''
       } else if (type === 'movie') {
@@ -399,6 +488,8 @@ export default function ShareTypePage() {
         creator = formData.artist?.trim() || ''
       } else if (type === 'podcast') {
         creator = formData.host?.trim() || ''
+      } else if (type === 'show') {
+        creator = formData.creator?.trim() || ''
       } else if (type === 'article') {
         creator = formData.author?.trim() || ''
         externalUrl = formData.url?.trim() || undefined
@@ -414,6 +505,7 @@ export default function ShareTypePage() {
           source,
           sourceId,
           coverUrl,
+          metadata,
         },
         note: formData.note?.trim() || undefined,
       }
@@ -584,6 +676,95 @@ export default function ShareTypePage() {
               )}
             </div>
           )}
+          {(type === 'song' || type === 'album') && (
+            <div className="w-full space-y-2">
+              <label
+                htmlFor="music-search"
+                className="text-sm uppercase tracking-wider font-bold block mb-2"
+                style={{ color: config.color }}
+              >
+                search for a {type}
+              </label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-500 pointer-events-none" aria-hidden>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="m21 21-4.35-4.35" />
+                  </svg>
+                </span>
+                <input
+                  id="music-search"
+                  type="text"
+                  value={musicSearchQuery}
+                  onChange={(e) => setMusicSearchQuery(e.target.value)}
+                  placeholder="title or artist..."
+                  className="w-full border-2 rounded-3xl pl-12 pr-4 py-3 text-stone-200 placeholder-stone-500 focus:outline-none transition-all text-lg md:text-xl font-medium"
+                  style={{
+                    background: 'linear-gradient(to bottom, rgba(28, 25, 23, 0.5), rgba(31, 27, 24, 0.5))',
+                    borderColor: config.color,
+                  }}
+                />
+              </div>
+              {selectedMusic ? (
+                <div className="flex items-center gap-2 flex-wrap mt-2">
+                  <span className="text-stone-400 text-sm normal-case">selected: {selectedMusic.title}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedMusic(null)
+                      setFormData((prev) => ({ ...prev, title: '', artist: '' }))
+                    }}
+                    className="text-sm underline hover:no-underline"
+                    style={{ color: config.color }}
+                  >
+                    enter manually
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {musicSearchLoading && <p className="text-stone-500 text-sm mt-1">searching...</p>}
+                  {musicSearchError && <p className="text-red-400 text-sm mt-1">{musicSearchError}</p>}
+                  {musicSearchResults.length > 0 && !musicSearchLoading && (
+                    <ul className="mt-2 border rounded-lg overflow-hidden" style={{ borderColor: config.color }}>
+                      {musicSearchResults.map((item) => (
+                        <li key={item.id}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedMusic(item)
+                              setFormData((prev) => ({
+                                ...prev,
+                                title: item.title,
+                                artist: item.creator,
+                              }))
+                              setMusicSearchResults([])
+                              setMusicSearchQuery('')
+                            }}
+                            className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-stone-800/80 transition-colors"
+                          >
+                            {item.coverUrl && (
+                              <img
+                                src={item.coverUrl}
+                                alt=""
+                                className="w-10 h-10 object-cover rounded flex-shrink-0"
+                              />
+                            )}
+                            <span className="text-stone-200 font-medium truncate flex-1">{item.title}</span>
+                            {item.creator ? (
+                              <span className="text-stone-500 text-sm truncate max-w-[40%]">{item.creator}</span>
+                            ) : null}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {musicSearchQuery.trim().length >= 2 && !musicSearchLoading && musicSearchResults.length === 0 && !musicSearchError && (
+                    <p className="text-stone-500 text-sm mt-1">No results. Enter manually below.</p>
+                  )}
+                </>
+              )}
+            </div>
+          )}
           {config.fields.map((field) => {
             const isNoteField = field.name === 'note'
 
@@ -612,9 +793,9 @@ export default function ShareTypePage() {
                     maxLength={60}
                     rows={4}
                     className={`w-full rounded-lg px-4 py-3 text-stone-200 placeholder-stone-500 focus:outline-none transition-all text-lg md:text-xl font-medium ${
-                      type === 'book' ? 'border' : 'border-2'
-                    } ${errors[field.name] ? 'border-red-500' : type === 'book' ? '' : ''}`}
-                    style={type === 'book' && !errors[field.name]
+                      type === 'book' || type === 'song' || type === 'album' ? 'border' : 'border-2'
+                    } ${errors[field.name] ? 'border-red-500' : type === 'book' || type === 'song' || type === 'album' ? '' : ''}`}
+                    style={(type === 'book' || type === 'song' || type === 'album') && !errors[field.name]
                       ? {
                           background: 'linear-gradient(to bottom, rgba(28, 25, 23, 0.5), rgba(31, 27, 24, 0.5))',
                           borderColor: errors[field.name] ? '#EF4444' : '#71717a',
@@ -642,9 +823,9 @@ export default function ShareTypePage() {
                     required={field.required}
                     {...(type === 'article' && field.name === 'url' ? {} : { maxLength: 60 })}
                     className={`w-full rounded-lg px-4 py-3 text-stone-200 placeholder-stone-500 focus:outline-none transition-all text-lg md:text-xl font-medium ${
-                      type === 'book' ? 'border' : 'border-2'
+                      type === 'book' || type === 'song' || type === 'album' ? 'border' : 'border-2'
                     } ${errors[field.name] ? 'border-red-500' : ''}`}
-                    style={type === 'book' && !errors[field.name]
+                    style={(type === 'book' || type === 'song' || type === 'album') && !errors[field.name]
                       ? {
                           background: 'linear-gradient(to bottom, rgba(28, 25, 23, 0.5), rgba(31, 27, 24, 0.5))',
                           borderColor: errors[field.name] ? '#EF4444' : '#71717a',

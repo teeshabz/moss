@@ -193,83 +193,109 @@ export default function EditProfilePage() {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="w-full space-y-4">
-          {/* USERNAME - locked */}
-          <div className="w-full">
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-[10px] uppercase tracking-wider font-bold text-stone-600">
-                username
-              </label>
-              <LockIcon />
-            </div>
-            <div className="w-full bg-stone-900/30 border-2 border-stone-800/50 rounded-lg px-3 py-2 text-stone-500 text-sm font-medium">
-              {user.username}
-            </div>
-          </div>
+        <form onSubmit={handleSubmit} className="w-full space-y-6">
+          {/* Shared input styles to mimic media share pages */}
+          {(() => {
+            const mossColor = '#2d5016'
+            const inputBase =
+              'w-full rounded-lg px-4 py-3 text-stone-200 placeholder-stone-500 focus:outline-none transition-all text-lg md:text-xl font-medium border-2'
+            const lockedStyle = {
+              background: 'linear-gradient(to bottom, rgba(28, 25, 23, 0.5), rgba(31, 27, 24, 0.5))',
+              borderColor: '#3f3f46',
+            }
+            const editableStyle = (hasValue: boolean) => ({
+              background: 'linear-gradient(to bottom, rgba(28, 25, 23, 0.5), rgba(31, 27, 24, 0.5))',
+              borderColor: hasValue ? mossColor : '#374151',
+              boxShadow: hasValue ? '0 0 12px rgba(45, 80, 22, 0.12)' : 'none',
+            })
 
-          {/* EMAIL - locked */}
-          <div className="w-full">
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-[10px] uppercase tracking-wider font-bold text-stone-600">
-                email
-              </label>
-              <LockIcon />
-            </div>
-            <div className="w-full bg-stone-900/30 border-2 border-stone-800/50 rounded-lg px-3 py-2 text-stone-500 text-sm font-medium">
-              {user.email}
-            </div>
-          </div>
+            return (
+              <>
+                {/* USERNAME - locked */}
+                <div className="w-full">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm uppercase tracking-wider font-bold text-stone-500">
+                      username
+                    </label>
+                    <LockIcon />
+                  </div>
+                  <div
+                    className={`${inputBase} text-stone-500`}
+                    style={lockedStyle}
+                  >
+                    {user.username}
+                  </div>
+                </div>
 
-          {/* PHONE NUMBER */}
-          <div className="w-full">
-            <label htmlFor="phone_number" className="text-[10px] uppercase tracking-wider font-bold text-stone-500 block mb-1">
-              phone number
-            </label>
-            <input
-              id="phone_number"
-              type="text"
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-              placeholder="+1 (555) 000-0000"
-              className="w-full bg-stone-900/30 border-2 border-stone-800 rounded-lg px-3 py-2 text-stone-200 placeholder:text-stone-600 text-sm font-medium focus:border-stone-700 focus:outline-none transition-colors"
-            />
-          </div>
+                {/* EMAIL - locked */}
+                <div className="w-full">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm uppercase tracking-wider font-bold text-stone-500">
+                      email
+                    </label>
+                    <LockIcon />
+                  </div>
+                  <div
+                    className={`${inputBase} text-stone-500`}
+                    style={lockedStyle}
+                  >
+                    {user.email}
+                  </div>
+                </div>
 
-          {/* FIRST NAME - optional */}
-          <div className="w-full">
-            <div className="flex items-center justify-between mb-1">
-              <label htmlFor="first_name" className="text-[10px] uppercase tracking-wider font-bold text-stone-500">
-                first name
-              </label>
-              <span className="text-[9px] uppercase tracking-wider text-stone-600">optional</span>
-            </div>
-            <input
-              id="first_name"
-              type="text"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              placeholder="your first name"
-              className="w-full bg-stone-900/30 border-2 border-stone-800 rounded-lg px-3 py-2 text-stone-200 placeholder:text-stone-600 text-sm font-medium focus:border-stone-700 focus:outline-none transition-colors"
-            />
-          </div>
+                {/* PHONE NUMBER */}
+                <div className="w-full">
+                  <label htmlFor="phone_number" className="text-sm uppercase tracking-wider font-bold text-stone-500 block mb-2">
+                    phone number
+                  </label>
+                  <input
+                    id="phone_number"
+                    type="text"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    className={inputBase}
+                    style={editableStyle(!!phoneNumber.trim())}
+                  />
+                </div>
 
-          {/* LAST NAME - optional */}
-          <div className="w-full">
-            <div className="flex items-center justify-between mb-1">
-              <label htmlFor="last_name" className="text-[10px] uppercase tracking-wider font-bold text-stone-500">
-                last name
-              </label>
-              <span className="text-[9px] uppercase tracking-wider text-stone-600">optional</span>
-            </div>
-            <input
-              id="last_name"
-              type="text"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              placeholder="your last name"
-              className="w-full bg-stone-900/30 border-2 border-stone-800 rounded-lg px-3 py-2 text-stone-200 placeholder:text-stone-600 text-sm font-medium focus:border-stone-700 focus:outline-none transition-colors"
-            />
-          </div>
+                {/* FIRST NAME - optional */}
+                <div className="w-full">
+                  <div className="flex items-center justify-between mb-2">
+                    <label htmlFor="first_name" className="text-sm uppercase tracking-wider font-bold text-stone-500">
+                      first name
+                    </label>
+                    <span className="text-xs uppercase tracking-wider text-stone-600">optional</span>
+                  </div>
+                  <input
+                    id="first_name"
+                    type="text"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className={inputBase}
+                    style={editableStyle(!!firstName.trim())}
+                  />
+                </div>
+
+                {/* LAST NAME - optional */}
+                <div className="w-full">
+                  <div className="flex items-center justify-between mb-2">
+                    <label htmlFor="last_name" className="text-sm uppercase tracking-wider font-bold text-stone-500">
+                      last name
+                    </label>
+                    <span className="text-xs uppercase tracking-wider text-stone-600">optional</span>
+                  </div>
+                  <input
+                    id="last_name"
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className={inputBase}
+                    style={editableStyle(!!lastName.trim())}
+                  />
+                </div>
+              </>
+            )
+          })()}
 
           {error && (
             <div className="text-red-400 text-sm">{error}</div>

@@ -108,3 +108,21 @@ export function PodcastIcon({ size = 24, className, style }: IconProps) {
     </svg>
   )
 }
+
+/** Show - TV/monitor with stand */
+export function ShowIcon({ size = 24, className, style }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      style={style}
+    >
+      <rect x="2" y="4" width="20" height="12" rx="1" />
+      <rect x="4" y="6" width="16" height="8" fill="black" opacity="0.3" />
+      <path d="M8 20h8v2H8z M10 20v-4h4v4" />
+    </svg>
+  )
+}

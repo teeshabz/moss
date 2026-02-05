@@ -9,6 +9,7 @@ export interface MediaData {
   coverUrl?: string
   source?: string
   sourceId?: string
+  metadata?: Record<string, unknown> | null
 }
 
 /**
@@ -27,6 +28,7 @@ export function validateMediaData(mediaType: MediaType, data: Partial<MediaData>
     case 'SONG':
     case 'ALBUM':
     case 'PODCAST':
+    case 'SHOW':
       // These require title and creator
       if (!data.creator || typeof data.creator !== 'string' || data.creator.trim().length === 0) {
         throw new Error('Creator is required')
@@ -70,7 +72,7 @@ export async function findOrCreateMediaItem(
   supabaseAdmin: SupabaseClient,
   mediaData: MediaData
 ): Promise<string> {
-  const { mediaType, title, creator, externalUrl, coverUrl, source, sourceId } = mediaData
+  const { mediaType, title, creator, externalUrl, coverUrl, source, sourceId, metadata } = mediaData
 
   // If source and sourceId are provided (e.g., Google Books), check for existing by source
   if (source && sourceId) {
@@ -124,7 +126,7 @@ export async function findOrCreateMediaItem(
       cover_url: coverUrl || null,
       source: source || null,
       source_id: sourceId || null,
-      metadata: null,
+      metadata: metadata ?? null,
     })
     .select('id')
     .single()

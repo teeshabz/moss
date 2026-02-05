@@ -9,7 +9,8 @@
     "lint": "next lint",
     "test": "jest",
     "test:watch": "jest --watch",
-    "migrate:users": "tsx scripts/migrate-users-to-clerk.ts"
+    "migrate:users": "tsx scripts/migrate-users-to-clerk.ts",
+    "test:apple-music": "tsx scripts/test-apple-music.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.37.1",
@@ -17,13 +18,13 @@
     "@supabase/supabase-js": "^2.39.0",
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
+    "jose": "^6.1.3",
     "next": "^14.2.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",
-    "tsx": "^4.19.0",
     "@types/node": "^20.14.0",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
@@ -34,6 +35,7 @@
     "jest-environment-jsdom": "^29.7.0",
     "postcss": "^8.4.39",
     "tailwindcss": "^3.4.4",
+    "tsx": "^4.19.0",
     "typescript": "^5.5.0"
   }
 }
