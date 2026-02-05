@@ -9,7 +9,7 @@ interface IconProps {
   style?: React.CSSProperties
 }
 
-/** Open book - horizontal rectangle with center spine (black for contrast) */
+/** Book - vertical rectangle with spine on left */
 export function BookIcon({ size = 24, className, style }: IconProps) {
   return (
     <svg
@@ -20,8 +20,8 @@ export function BookIcon({ size = 24, className, style }: IconProps) {
       className={className}
       style={style}
     >
-      <rect x="2" y="5" width="20" height="14" />
-      <rect x="11" y="5" width="2" height="14" fill="black" />
+      <rect x="4" y="2" width="16" height="20" />
+      <rect x="4" y="2" width="3" height="20" fill="black" fillOpacity={0.3} />
     </svg>
   )
 }
@@ -109,7 +109,7 @@ export function PodcastIcon({ size = 24, className, style }: IconProps) {
   )
 }
 
-/** Show - TV/monitor with stand */
+/** Show - TV/monitor shape */
 export function ShowIcon({ size = 24, className, style }: IconProps) {
   return (
     <svg
@@ -120,9 +120,7 @@ export function ShowIcon({ size = 24, className, style }: IconProps) {
       className={className}
       style={style}
     >
-      <rect x="2" y="4" width="20" height="12" rx="1" />
-      <rect x="4" y="6" width="16" height="8" fill="black" opacity="0.3" />
-      <path d="M8 20h8v2H8z M10 20v-4h4v4" />
+      <path d="M4 5 L4 9 A2.5 2.5 0 0 1 4 15 L4 19 L20 19 L20 15 A2.5 2.5 0 0 1 20 9 L20 5 Z" />
     </svg>
   )
 }

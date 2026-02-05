@@ -1,11 +1,21 @@
 'use client'
 
-import { SignIn, SignedIn, SignedOut, SignOutButton } from '@clerk/nextjs'
-import Link from 'next/link'
+import { SignIn, SignedOut, useAuth } from '@clerk/nextjs'
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { MossIcon } from '@/lib/components/MossIcon'
 import { mossClerkAppearance } from '@/lib/clerk-appearance'
 
 export default function LoginPage() {
+  const { isSignedIn } = useAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (isSignedIn) {
+      router.replace('/feed')
+    }
+  }, [isSignedIn, router])
+
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
       {/* Logo and tagline - centered at top */}
@@ -27,29 +37,6 @@ export default function LoginPage() {
         <p className="text-gray-400 text-sm md:text-base">share what moves you</p>
       </div>
 
-      {/* When already signed in: show message + sign out */}
-      <SignedIn>
-        <div className="flex-1 flex flex-col items-center justify-center min-w-0 px-4 sm:px-8 md:px-16 pt-24 md:pt-32 text-center">
-          <p className="text-gray-400 mb-4 lowercase">you&apos;re already signed in</p>
-          <div className="flex flex-wrap gap-3 justify-center">
-            <Link
-              href="/feed"
-              className="px-4 py-2 rounded-full bg-[#2d5016] text-white text-sm font-medium hover:bg-[#3a6b1e] transition-colors"
-            >
-              go to feed
-            </Link>
-            <SignOutButton>
-              <button
-                type="button"
-                className="px-4 py-2 rounded-full border border-gray-600 text-gray-300 text-sm font-medium hover:border-gray-500 hover:text-white transition-colors"
-              >
-                sign out
-              </button>
-            </SignOutButton>
-          </div>
-        </div>
-      </SignedIn>
-
       {/* When signed out: show Clerk SignIn - centered, middle of page */}
       <SignedOut>
         <div className="flex-1 flex items-center justify-center min-w-0 px-4 sm:px-8 md:px-16">
@@ -63,11 +50,6 @@ export default function LoginPage() {
 
       {/* Footer - centered */}
       <div className="absolute bottom-8 left-1/2 -translate-x-1/2 md:bottom-16 text-center">
-        <SignedIn>
-          <Link href="/feed" className="text-gray-400 text-sm hover:text-gray-300 transition-colors">
-            go to feed
-          </Link>
-        </SignedIn>
         <div className="text-gray-500 text-xs mt-2">BETA</div>
       </div>
     </div>

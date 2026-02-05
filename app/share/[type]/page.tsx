@@ -555,14 +555,23 @@ export default function ShareTypePage() {
           ←
         </Link>
         {/* Media type title with icon */}
-        <div className="flex items-center gap-3">
-          <MediaIcon type={type} color={config.color} />
-          <h1
-            className="text-3xl md:text-4xl font-bold"
-            style={{ color: config.color }}
-          >
-            {config.label}
-          </h1>
+        <div className="flex flex-col">
+          <div className="flex items-baseline gap-3">
+            <div className="shrink-0">
+              <MediaIcon type={type} color={config.color} />
+            </div>
+            <h1
+              className="text-3xl md:text-4xl font-bold leading-none"
+              style={{ color: config.color }}
+            >
+              {config.label}
+            </h1>
+          </div>
+          {type === 'show' && (
+            <span className="text-xs text-stone-500 mt-0.5">
+              theater, live performance, concert
+            </span>
+          )}
         </div>
       </div>
 

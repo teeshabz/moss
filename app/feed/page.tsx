@@ -766,7 +766,7 @@ export default function FeedPage() {
           aria-labelledby="about-title"
         >
           <div
-            className="bg-black border border-stone-800 rounded-lg max-w-md w-full p-8 flex flex-col items-center text-center"
+            className="bg-black border border-stone-800 rounded-lg max-w-[420px] w-full p-8 flex flex-col items-center text-center"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-2 mb-6" id="about-title">
