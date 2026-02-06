@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import Link from 'next/link'
 import type {
   FeedResponse,
@@ -417,7 +418,13 @@ export default function FeedPage() {
                           {post.user.username}
                         </Link>
                         <span className="text-stone-700">·</span>
-                        <span className="md:text-sm text-xs text-stone-500">
+                        <span className="text-stone-400 flex items-center gap-1.5 text-sm">
+                          <span className="text-stone-400">
+                            <MediaTypeFilledIcon
+                              mediaType={post.media_item.media_type}
+                              size={12}
+                            />
+                          </span>
                           {getMediaTypeLabel(post.media_item.media_type)}
                         </span>
                         <span className="text-stone-700">·</span>
@@ -444,7 +451,7 @@ export default function FeedPage() {
                     </div>
 
                     {/* Content Row - Text + Thumbnail */}
-                    <div className="flex gap-4 md:pl-11 pl-9">
+                    <div className="flex gap-3 md:pl-11 pl-9">
                       {/* Left: Text content */}
                       <div className="flex-1">
                         {/* Title and Creator */}
@@ -465,14 +472,18 @@ export default function FeedPage() {
                         )}
                       </div>
 
-                      {/* Right: Large media-type icon (sharer's profile color) */}
-                      <div className="flex-shrink-0 mt-0.5 flex items-center justify-center">
-                        <MediaTypeFilledIcon
-                          mediaType={post.media_item.media_type}
-                          color={post.user.avatar_color}
-                          size={48}
-                        />
-                      </div>
+                      {post.media_item.cover_url && (
+                        <div className="md:w-14 md:h-14 w-12 h-12 flex-shrink-0 bg-stone-900 overflow-hidden rounded">
+                          <Image
+                            src={post.media_item.cover_url}
+                            alt=""
+                            className="w-full h-full object-cover"
+                            width={56}
+                            height={56}
+                            sizes="(min-width: 768px) 56px, 48px"
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -494,7 +505,7 @@ export default function FeedPage() {
                       disabled={loading}
                       className="text-[#7a9b6f] hover:text-[#8fb084] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {loading ? 'thinking...' : 'keep scrolling?'}
+                      {loading ? 'thinking...' : 'see more...'}
                     </button>
                   </div>
                 ) : (
@@ -556,7 +567,13 @@ export default function FeedPage() {
                               {post.user.username}
                             </Link>
                             <span className="text-stone-700">·</span>
-                            <span className="md:text-sm text-xs text-stone-500">
+                            <span className="text-stone-400 flex items-center gap-1.5 text-sm">
+                              <span className="text-stone-400">
+                                <MediaTypeFilledIcon
+                                  mediaType={post.media_item.media_type}
+                                  size={12}
+                                />
+                              </span>
                               {getMediaTypeLabel(post.media_item.media_type)}
                             </span>
                             <span className="text-stone-700">·</span>
@@ -578,7 +595,7 @@ export default function FeedPage() {
                         </div>
 
                         {/* Content Row - Text + Thumbnail */}
-                        <div className="flex gap-4 md:pl-11 pl-9">
+                        <div className="flex gap-3 md:pl-11 pl-9">
                           {/* Left: Text content */}
                           <div className="flex-1">
                             {/* Title and Creator */}
@@ -599,14 +616,18 @@ export default function FeedPage() {
                             )}
                           </div>
 
-                          {/* Right: Large media-type icon (sharer's profile color) */}
-                          <div className="flex-shrink-0 mt-0.5 flex items-center justify-center">
-                            <MediaTypeFilledIcon
-                              mediaType={post.media_item.media_type}
-                              color={post.user.avatar_color}
-                              size={48}
-                            />
-                          </div>
+                          {post.media_item.cover_url && (
+                            <div className="md:w-14 md:h-14 w-12 h-12 flex-shrink-0 bg-stone-900 overflow-hidden rounded">
+                              <Image
+                                src={post.media_item.cover_url}
+                                alt=""
+                                className="w-full h-full object-cover"
+                                width={56}
+                                height={56}
+                                sizes="(min-width: 768px) 56px, 48px"
+                              />
+                            </div>
+                          )}
                         </div>
                       </div>
 

@@ -2,6 +2,7 @@
 
 import { useState, FormEvent, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import Image from 'next/image'
 import Link from 'next/link'
 import type { CreatePostRequest, MediaType } from '@/lib/types'
 import {
@@ -666,10 +667,13 @@ export default function ShareTypePage() {
                             className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-stone-800/80 transition-colors"
                           >
                             {book.thumbnail && (
-                              <img
+                              <Image
                                 src={book.thumbnail}
                                 alt=""
                                 className="w-8 h-10 object-cover rounded flex-shrink-0"
+                                width={32}
+                                height={40}
+                                sizes="32px"
                               />
                             )}
                             <span className="text-stone-200 font-medium truncate flex-1">{book.title}</span>
@@ -755,10 +759,13 @@ export default function ShareTypePage() {
                             className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-stone-800/80 transition-colors"
                           >
                             {item.coverUrl && (
-                              <img
+                              <Image
                                 src={item.coverUrl}
                                 alt=""
                                 className="w-10 h-10 object-cover rounded flex-shrink-0"
+                                width={40}
+                                height={40}
+                                sizes="40px"
                               />
                             )}
                             <span className="text-stone-200 font-medium truncate flex-1">{item.title}</span>
