@@ -1,4 +1,5 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
+import { NextResponse } from 'next/server'
 import { createAdminClient } from './supabase/admin'
 
 /**
@@ -8,6 +9,26 @@ import { createAdminClient } from './supabase/admin'
 export async function getClerkUserId(): Promise<string | null> {
   const { userId } = await auth()
   return userId
+}
+
+export type RequireClerkUserIdResult =
+  | { clerkUserId: string }
+  | { response: NextResponse }
+
+/**
+ * Require Clerk authentication and return clerkUserId or a 401 response.
+ */
+export async function requireClerkUserId(): Promise<RequireClerkUserIdResult> {
+  const clerkUserId = await getClerkUserId()
+  if (!clerkUserId) {
+    return {
+      response: NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      ),
+    }
+  }
+  return { clerkUserId }
 }
 
 /**
@@ -29,6 +50,26 @@ export async function getUserId(): Promise<string | null> {
     .single()
 
   return dbUser?.id ?? null
+}
+
+export type RequireUserIdResult =
+  | { userId: string }
+  | { response: NextResponse }
+
+/**
+ * Require authenticated user and return internal userId or a 401 response.
+ */
+export async function requireUserId(): Promise<RequireUserIdResult> {
+  const userId = await getUserId()
+  if (!userId) {
+    return {
+      response: NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      ),
+    }
+  }
+  return { userId }
 }
 
 /**

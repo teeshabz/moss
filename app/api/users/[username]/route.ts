@@ -1,4 +1,4 @@
-import { getUserId } from '@/lib/auth'
+import { requireUserId } from '@/lib/auth'
 import { mapRawPostToPostWithRelations } from '@/lib/api/posts'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
@@ -16,13 +16,11 @@ export async function GET(
   { params }: { params: { username: string } }
 ) {
   try {
-    const userId = await getUserId()
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+    const authResult = await requireUserId()
+    if ('response' in authResult) {
+      return authResult.response
     }
+    const { userId } = authResult
 
     const username = params.username
     if (!username || username.trim().length === 0) {

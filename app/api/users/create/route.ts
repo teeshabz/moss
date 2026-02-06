@@ -1,6 +1,6 @@
 import { currentUser } from '@clerk/nextjs/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getClerkUserId } from '@/lib/auth'
+import { requireClerkUserId } from '@/lib/auth'
 import { NextResponse } from 'next/server'
 import { generateAvatarColor } from '@/lib/utils'
 
@@ -12,13 +12,11 @@ export const dynamic = 'force-dynamic'
  */
 export async function POST(request: Request) {
   try {
-    const clerkUserId = await getClerkUserId()
-    if (!clerkUserId) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+    const authResult = await requireClerkUserId()
+    if ('response' in authResult) {
+      return authResult.response
     }
+    const { clerkUserId } = authResult
 
     const body = await request.json().catch(() => ({}))
     const username = body.username

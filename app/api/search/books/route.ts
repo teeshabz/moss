@@ -1,4 +1,4 @@
-import { getUserId } from '@/lib/auth'
+import { requireUserId } from '@/lib/auth'
 import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
@@ -72,13 +72,11 @@ function scoreBook(book: BookSearchResult, userQuery: string): number {
  */
 export async function GET(request: Request) {
   try {
-    const userId = await getUserId()
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+    const authResult = await requireUserId()
+    if ('response' in authResult) {
+      return authResult.response
     }
+    const { userId } = authResult
 
     const apiKey = process.env.GOOGLE_BOOKS_API_KEY?.trim()
 

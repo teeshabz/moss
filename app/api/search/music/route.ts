@@ -1,4 +1,4 @@
-import { getUserId } from '@/lib/auth'
+import { requireUserId } from '@/lib/auth'
 import { searchAppleMusic } from '@/lib/apple-music'
 import { NextResponse } from 'next/server'
 
@@ -12,13 +12,11 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET(request: Request) {
   try {
-    const userId = await getUserId()
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+    const authResult = await requireUserId()
+    if ('response' in authResult) {
+      return authResult.response
     }
+    const { userId } = authResult
 
     const { searchParams } = new URL(request.url)
     const q = searchParams.get('q')?.trim()

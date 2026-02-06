@@ -256,38 +256,8 @@ export default function ShareTypePage() {
   const params = useParams()
   const router = useRouter()
   const type = params.type as string
-
-  // Redirect to share page if invalid type
-  if (!validTypes.includes(type)) {
-    router.push('/share')
-    return null
-  }
-
-  // Get config for this media type (only book implemented for now)
+  const isValidType = validTypes.includes(type)
   const config = mediaTypeConfig[type]
-
-  // If no config, show placeholder
-  if (!config) {
-    return (
-      <div className="min-h-screen bg-black text-white flex flex-col">
-        <div className="absolute top-8 left-8 md:top-16 md:left-16">
-          <Link
-            href="/share"
-            className="text-white text-2xl hover:text-gray-300 transition-colors"
-            aria-label="Back to share"
-          >
-            ←
-          </Link>
-        </div>
-        <div className="flex-1 flex flex-col items-center justify-center px-8">
-          <h1 className="text-3xl md:text-4xl font-bold mb-4 capitalize">
-            Share {type}
-          </h1>
-          <p className="text-gray-400 text-lg">Coming soon...</p>
-        </div>
-      </div>
-    )
-  }
 
   // Form state
   const [formData, setFormData] = useState<Record<string, string>>({})
@@ -314,6 +284,12 @@ export default function ShareTypePage() {
   const [musicSearchError, setMusicSearchError] = useState<string | null>(null)
   const [selectedMusic, setSelectedMusic] = useState<MusicResult | null>(null)
   const musicSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    if (!isValidType) {
+      router.push('/share')
+    }
+  }, [isValidType, router])
 
   // Debounced book search when type === 'book'
   useEffect(() => {
@@ -541,6 +517,33 @@ export default function ShareTypePage() {
       setLoading(false)
       setButtonClicked(false)
     }
+  }
+
+  if (!isValidType) {
+    return null
+  }
+
+  // If no config, show placeholder
+  if (!config) {
+    return (
+      <div className="min-h-screen bg-black text-white flex flex-col">
+        <div className="absolute top-8 left-8 md:top-16 md:left-16">
+          <Link
+            href="/share"
+            className="text-white text-2xl hover:text-gray-300 transition-colors"
+            aria-label="Back to share"
+          >
+            ←
+          </Link>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center px-8">
+          <h1 className="text-3xl md:text-4xl font-bold mb-4 capitalize">
+            Share {type}
+          </h1>
+          <p className="text-gray-400 text-lg">Coming soon...</p>
+        </div>
+      </div>
+    )
   }
 
   return (

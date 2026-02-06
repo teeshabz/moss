@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type {
@@ -44,24 +44,113 @@ export default function FeedPage() {
   const [aboutOpen, setAboutOpen] = useState(false)
   const router = useRouter()
 
+  const loadFeed = useCallback(async (cursor?: string) => {
+    if (!cursor) backgroundFeedLoadedRef.current = false
+    try {
+      const url = cursor
+        ? `/api/feed?cursor=${encodeURIComponent(cursor)}`
+        : '/api/feed?limit=10'
+      const response = await fetch(url)
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          router.push('/onboarding')
+          return
+        }
+        throw new Error('Failed to load feed')
+      }
+
+      const data: FeedResponse = await response.json()
+
+      if (cursor) {
+        // Append to existing posts (pagination), dedupe by id to avoid duplicate keys
+        setPosts((prev) => {
+          const existingIds = new Set(prev.map((p) => p.id))
+          const newItems = data.items.filter((p) => !existingIds.has(p.id))
+          return [...prev, ...newItems]
+        })
+      } else {
+        // Replace posts (initial load)
+        setPosts(data.items)
+      }
+
+      setNextCursor(data.nextCursor)
+      setHasMore(!!data.nextCursor)
+      setError(null) // Clear any previous errors on success
+      // Load next page in background once so more content appears quickly (initial load only)
+      if (!cursor && data.nextCursor && data.items.length > 0 && !backgroundFeedLoadedRef.current) {
+        backgroundFeedLoadedRef.current = true
+        loadFeed(data.nextCursor)
+      }
+    } catch (error) {
+      console.error('Error loading feed:', error)
+      setError('Failed to load feed. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }, [router])
+
+  const handleLoadMore = () => {
+    if (nextCursor && !loading) {
+      setLoading(true)
+      loadFeed(nextCursor)
+    }
+  }
+
+  const loadSavedPosts = useCallback(async (cursor?: string) => {
+    try {
+      if (!cursor) setSavedLoading(true)
+      const url = cursor
+        ? `/api/users/me/saved?cursor=${encodeURIComponent(cursor)}`
+        : '/api/users/me/saved'
+      const response = await fetch(url)
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          router.push('/onboarding')
+          return
+        }
+        throw new Error('Failed to load saved posts')
+      }
+
+      const data: FeedResponse = await response.json()
+
+      if (cursor) {
+        setSavedPosts((prev) => [...prev, ...data.items])
+      } else {
+        setSavedPosts(data.items)
+        setSavedLoaded(true)
+      }
+
+      setSavedNextCursor(data.nextCursor)
+      setSavedHasMore(!!data.nextCursor)
+    } catch (error) {
+      console.error('Error loading saved posts:', error)
+      setError('Failed to load saved posts. Please try again.')
+    } finally {
+      setSavedLoading(false)
+      if (!cursor) setSavedLoaded(true)
+    }
+  }, [router])
+
   useEffect(() => {
     if (activeTab === 'everyone') {
       loadFeed()
     }
-  }, [activeTab])
+  }, [activeTab, loadFeed])
 
   // Load saved when user clicks the saved tab (if not already loading/loaded)
   useEffect(() => {
     if (activeTab === 'saved' && !savedLoaded && !savedLoading) {
       loadSavedPosts()
     }
-  }, [activeTab, savedLoaded, savedLoading])
+  }, [activeTab, savedLoaded, savedLoading, loadSavedPosts])
 
   // Preload saved posts in background once we have a user, so the tab feels instant
   useEffect(() => {
     if (!currentUser?.user?.id || savedLoaded || savedLoading) return
     loadSavedPosts()
-  }, [currentUser?.user?.id, savedLoaded, savedLoading])
+  }, [currentUser?.user?.id, savedLoaded, savedLoading, loadSavedPosts])
 
   useEffect(() => {
     async function loadUser() {
@@ -113,95 +202,6 @@ export default function FeedPage() {
       }
     }
   }, [searchQuery])
-
-  async function loadFeed(cursor?: string) {
-    if (!cursor) backgroundFeedLoadedRef.current = false
-    try {
-      const url = cursor
-        ? `/api/feed?cursor=${encodeURIComponent(cursor)}`
-        : '/api/feed?limit=10'
-      const response = await fetch(url)
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          router.push('/onboarding')
-          return
-        }
-        throw new Error('Failed to load feed')
-      }
-
-      const data: FeedResponse = await response.json()
-
-      if (cursor) {
-        // Append to existing posts (pagination), dedupe by id to avoid duplicate keys
-        setPosts((prev) => {
-          const existingIds = new Set(prev.map((p) => p.id))
-          const newItems = data.items.filter((p) => !existingIds.has(p.id))
-          return [...prev, ...newItems]
-        })
-      } else {
-        // Replace posts (initial load)
-        setPosts(data.items)
-      }
-
-      setNextCursor(data.nextCursor)
-      setHasMore(!!data.nextCursor)
-      setError(null) // Clear any previous errors on success
-      // Load next page in background once so more content appears quickly (initial load only)
-      if (!cursor && data.nextCursor && data.items.length > 0 && !backgroundFeedLoadedRef.current) {
-        backgroundFeedLoadedRef.current = true
-        loadFeed(data.nextCursor)
-      }
-    } catch (error) {
-      console.error('Error loading feed:', error)
-      setError('Failed to load feed. Please try again.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleLoadMore = () => {
-    if (nextCursor && !loading) {
-      setLoading(true)
-      loadFeed(nextCursor)
-    }
-  }
-
-  const loadSavedPosts = async (cursor?: string) => {
-    try {
-      if (!cursor) setSavedLoading(true)
-      const url = cursor
-        ? `/api/users/me/saved?cursor=${encodeURIComponent(cursor)}`
-        : '/api/users/me/saved'
-      const response = await fetch(url)
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          router.push('/onboarding')
-          return
-        }
-        throw new Error('Failed to load saved posts')
-      }
-
-      const data: FeedResponse = await response.json()
-
-      if (cursor) {
-        setSavedPosts((prev) => [...prev, ...data.items])
-      } else {
-        setSavedPosts(data.items)
-        setSavedLoaded(true)
-      }
-
-      setSavedNextCursor(data.nextCursor)
-      setSavedHasMore(!!data.nextCursor)
-    } catch (error) {
-      console.error('Error loading saved posts:', error)
-      setError('Failed to load saved posts. Please try again.')
-    } finally {
-      setSavedLoading(false)
-      if (!cursor) setSavedLoaded(true)
-    }
-  }
 
   const toggleSave = async (postId: string, post?: PostWithRelations) => {
     const wasSaved = savedIds.has(postId)
@@ -506,9 +506,9 @@ export default function FeedPage() {
                         </div>
                       )}
                       <p className="text-stone-500 text-sm">
-                        that's everything from the past week.
+                        that&apos;s everything from the past week.
                         <br />
-                        to see more, visit a friend's profile.
+                        to see more, visit a friend&apos;s profile.
                       </p>
                     </div>
                   )

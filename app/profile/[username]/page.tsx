@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { SignOutButton } from '@clerk/nextjs'
@@ -97,7 +97,7 @@ export default function ProfilePage() {
     }
   }, [searchQuery])
 
-  async function loadProfile(cursor?: string) {
+  const loadProfile = useCallback(async (cursor?: string) => {
     if (!username) return
     try {
       if (!cursor) setLoading(true)
@@ -118,12 +118,16 @@ export default function ProfilePage() {
         return
       }
       const data: ProfileResponse = await res.json()
-      if (cursor && profile) {
-        setProfile({
-          ...profile,
-          items: [...profile.items, ...data.items],
-          nextCursor: data.nextCursor,
-        })
+      if (cursor) {
+        setProfile((prev) =>
+          prev
+            ? {
+                ...prev,
+                items: [...prev.items, ...data.items],
+                nextCursor: data.nextCursor,
+              }
+            : data
+        )
       } else {
         setProfile(data)
       }
@@ -133,9 +137,9 @@ export default function ProfilePage() {
       setLoading(false)
       setLoadingMore(false)
     }
-  }
+  }, [username])
 
-  async function loadSaved(cursor?: string) {
+  const loadSaved = useCallback(async (cursor?: string) => {
     if (!isOwnProfile) return
     try {
       if (!cursor) setSavedLoading(true)
@@ -168,11 +172,11 @@ export default function ProfilePage() {
       setSavedLoading(false)
       setSavedLoadingMore(false)
     }
-  }
+  }, [isOwnProfile])
 
   useEffect(() => {
     if (username) loadProfile()
-  }, [username])
+  }, [username, loadProfile])
 
   useEffect(() => {
     if (!isOwnProfile && activeTab === 'saved') {
@@ -185,14 +189,14 @@ export default function ProfilePage() {
     if (activeTab === 'saved' && isOwnProfile && !savedLoaded && !savedLoading) {
       loadSaved()
     }
-  }, [activeTab, isOwnProfile, savedLoaded, savedLoading])
+  }, [activeTab, isOwnProfile, savedLoaded, savedLoading, loadSaved])
 
   // Preload saved items in background when viewing own profile, so the tab feels instant
   useEffect(() => {
     if (isOwnProfile && !savedLoaded && !savedLoading) {
       loadSaved()
     }
-  }, [isOwnProfile, savedLoaded, savedLoading])
+  }, [isOwnProfile, savedLoaded, savedLoading, loadSaved])
 
   async function handleDeletePost(postId: string) {
     setDeleteConfirmId(null)

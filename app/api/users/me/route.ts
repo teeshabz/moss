@@ -1,4 +1,4 @@
-import { getCurrentUser, getUserId } from '@/lib/auth'
+import { getCurrentUser, requireUserId } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { countWeeklyPosts } from '@/lib/api/weekly-limit'
@@ -82,13 +82,11 @@ export async function GET(request: Request) {
  */
 export async function PATCH(request: Request) {
   try {
-    const userId = await getUserId()
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+    const authResult = await requireUserId()
+    if ('response' in authResult) {
+      return authResult.response
     }
+    const { userId } = authResult
 
     const body = await request.json().catch(() => ({}))
     const updates: {
