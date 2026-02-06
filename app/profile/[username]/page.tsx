@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import Image from 'next/image'
 import Link from 'next/link'
 import { SignOutButton } from '@clerk/nextjs'
 import type {
@@ -406,7 +407,13 @@ export default function ProfilePage() {
                           {post.user.username}
                         </span>
                         <span className="text-stone-700">·</span>
-                        <span className="md:text-sm text-xs text-stone-500">
+                        <span className="text-stone-400 flex items-center gap-1.5 text-sm">
+                          <span className="text-stone-400">
+                            <MediaTypeFilledIcon
+                              mediaType={post.media_item.media_type}
+                              size={12}
+                            />
+                          </span>
                           {getMediaTypeLabel(post.media_item.media_type)}
                         </span>
                         <span className="text-stone-700">·</span>
@@ -436,7 +443,7 @@ export default function ProfilePage() {
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-4 md:pl-11 pl-9">
+                    <div className="flex gap-3 md:pl-11 pl-9">
                       <div className="flex-1 min-w-0">
                         <div className="md:text-base text-sm text-stone-200 leading-relaxed mb-1 font-medium">
                           <span className="font-bold">
@@ -454,13 +461,18 @@ export default function ProfilePage() {
                           </p>
                         )}
                       </div>
-                      <div className="flex-shrink-0 mt-0.5 flex items-center justify-center">
-                        <MediaTypeFilledIcon
-                          mediaType={post.media_item.media_type}
-                          color={post.user.avatar_color}
-                          size={48}
-                        />
-                      </div>
+                      {post.media_item.cover_url && (
+                        <div className="md:w-14 md:h-14 w-12 h-12 flex-shrink-0 bg-stone-900 overflow-hidden rounded">
+                          <Image
+                            src={post.media_item.cover_url}
+                            alt=""
+                            className="w-full h-full object-cover"
+                            width={56}
+                            height={56}
+                            sizes="(min-width: 768px) 56px, 48px"
+                          />
+                        </div>
+                      )}
                     </div>
                     {index < items.length - 1 && (
                       <div className="mt-6 mb-6 pl-9 md:pl-11">
@@ -572,7 +584,13 @@ export default function ProfilePage() {
                           {post.user.username}
                         </Link>
                         <span className="text-stone-700">·</span>
-                        <span className="md:text-sm text-xs text-stone-500">
+                        <span className="text-stone-400 flex items-center gap-1.5 text-sm">
+                          <span className="text-stone-400">
+                            <MediaTypeFilledIcon
+                              mediaType={post.media_item.media_type}
+                              size={12}
+                            />
+                          </span>
                           {getMediaTypeLabel(post.media_item.media_type)}
                         </span>
                         <span className="text-stone-700">·</span>
@@ -593,7 +611,7 @@ export default function ProfilePage() {
                         </button>
                       </div>
                     </div>
-                    <div className="flex gap-4 md:pl-11 pl-9">
+                    <div className="flex gap-3 md:pl-11 pl-9">
                       <div className="flex-1 min-w-0">
                         <div className="md:text-base text-sm text-stone-200 leading-relaxed mb-1 font-medium">
                           <span className="font-bold">
@@ -611,13 +629,18 @@ export default function ProfilePage() {
                           </p>
                         )}
                       </div>
-                      <div className="flex-shrink-0 mt-0.5 flex items-center justify-center">
-                        <MediaTypeFilledIcon
-                          mediaType={post.media_item.media_type}
-                          color={post.user.avatar_color}
-                          size={48}
-                        />
-                      </div>
+                      {post.media_item.cover_url && (
+                        <div className="md:w-14 md:h-14 w-12 h-12 flex-shrink-0 bg-stone-900 overflow-hidden rounded">
+                          <Image
+                            src={post.media_item.cover_url}
+                            alt=""
+                            className="w-full h-full object-cover"
+                            width={56}
+                            height={56}
+                            sizes="(min-width: 768px) 56px, 48px"
+                          />
+                        </div>
+                      )}
                     </div>
                     {index < savedItems.length - 1 && (
                       <div className="mt-6 mb-6 pl-9 md:pl-11">
