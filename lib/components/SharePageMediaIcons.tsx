@@ -109,8 +109,8 @@ export function PodcastIcon({ size = 24, className, style }: IconProps) {
   )
 }
 
-/** Show - TV/monitor shape */
-export function ShowIcon({ size = 24, className, style }: IconProps) {
+/** Live - TV/monitor shape */
+export function LiveIcon({ size = 24, className, style }: IconProps) {
   return (
     <svg
       width={size}

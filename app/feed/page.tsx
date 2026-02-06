@@ -400,7 +400,7 @@ export default function FeedPage() {
               <>
                 <div>
                   {posts.map((post, index) => (
-                <div key={post.id}>
+                    <div key={post.id}>
                   {/* Post Content */}
                   <div>
                     {/* Header Row - Avatar + Metadata + Diamond */}
@@ -486,8 +486,8 @@ export default function FeedPage() {
                   ))}
                 </div>
 
-                {/* Load More Button */}
-                {hasMore && (
+                {/* Load More Button / End-of-week message */}
+                {hasMore ? (
                   <div className="text-center py-8">
                     <button
                       onClick={handleLoadMore}
@@ -497,6 +497,21 @@ export default function FeedPage() {
                       {loading ? 'thinking...' : 'keep scrolling?'}
                     </button>
                   </div>
+                ) : (
+                  !loading && (
+                    <div className="text-center py-8">
+                      {posts.length > 0 && (
+                        <div className="mb-6 flex justify-center">
+                          <div className="h-px bg-stone-800 w-1/2" />
+                        </div>
+                      )}
+                      <p className="text-stone-500 text-sm">
+                        that's everything from the past week.
+                        <br />
+                        to see more, visit a friend's profile.
+                      </p>
+                    </div>
+                  )
                 )}
               </>
             )}
@@ -629,98 +644,109 @@ export default function FeedPage() {
         <div className="h-px bg-stone-800 flex-shrink-0" />
 
         {searchExpanded ? (
-          /* Full-width search mode */
-          <div className="flex flex-col w-full px-6 md:px-8 py-4">
-            {/* Search results - above input, sizes to 1-3 results */}
-            {searchQuery.trim() && (
-              <div className="pb-4">
-                {searchLoading ? (
-                  <div className="text-stone-500 text-sm py-2">
-                    searching...
-                  </div>
-                ) : searchResults.length > 0 ? (
-                  <div className="space-y-1">
-                    {searchResults.slice(0, 3).map((user) => (
-                      <Link
-                        key={user.id}
-                        href={`/profile/${encodeURIComponent(user.username)}`}
-                        onMouseDown={(e) => e.preventDefault()}
-                        className="flex items-center gap-3 px-2 py-3 rounded-lg hover:bg-stone-800/50 transition-colors group"
-                      >
-                        <div
-                          className="w-8 h-8 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: user.avatar_color }}
-                        />
-                        <span className="md:text-sm text-xs text-stone-200 font-bold lowercase group-hover:text-[#7a9b6f] transition-colors">
-                          {user.username}
-                        </span>
-                      </Link>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-stone-500 text-sm py-2">
-                    no friends found :/
-                  </div>
-                )}
-              </div>
-            )}
+          /* Partial-width search mode with about visible */
+          <div className="flex items-end w-full px-6 md:px-8 py-4 gap-6">
+            <button
+              onClick={() => setAboutOpen(true)}
+              type="button"
+              className="text-white text-xs font-medium hover:text-stone-300 transition-colors lowercase"
+            >
+              about
+            </button>
 
-            {/* Search input - full width */}
-            <div className="relative w-full">
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-500">
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <circle cx="11" cy="11" r="8" />
-                  <path d="m21 21-4.35-4.35" />
-                </svg>
-              </div>
-              <input
-                type="text"
-                placeholder="search friends"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-stone-900 text-stone-200 placeholder-stone-500 pl-11 pr-11 py-3 rounded-full outline-none border border-stone-700 focus:border-stone-600 text-sm h-10"
-                autoFocus
-                onBlur={() => {
-                  setTimeout(() => {
+            <div className="relative w-full max-w-[33%] min-w-[240px] ml-auto">
+              {/* Search results - floating above input */}
+              {searchQuery.trim() && (
+                <div className="absolute bottom-full right-0 mb-3 w-full">
+                  {searchLoading ? (
+                    <div className="text-stone-500 text-sm py-2">
+                      searching...
+                    </div>
+                  ) : searchResults.length > 0 ? (
+                    <div className="border rounded-lg overflow-hidden bg-black border-stone-700">
+                      <div className="space-y-1 p-2">
+                        {searchResults.slice(0, 3).map((user) => (
+                          <Link
+                            key={user.id}
+                            href={`/profile/${encodeURIComponent(user.username)}`}
+                            onMouseDown={(e) => e.preventDefault()}
+                            className="flex items-center gap-3 px-2 py-3 rounded-lg hover:bg-stone-800/50 transition-colors group"
+                          >
+                            <div
+                              className="w-8 h-8 rounded-full flex-shrink-0"
+                              style={{ backgroundColor: user.avatar_color }}
+                            />
+                            <span className="md:text-sm text-xs text-stone-200 font-bold lowercase group-hover:text-[#7a9b6f] transition-colors">
+                              {user.username}
+                            </span>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-stone-500 text-sm py-2">
+                      no friends found :/
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="relative w-full">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-500">
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="m21 21-4.35-4.35" />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  placeholder="search friends"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-stone-900 text-stone-200 placeholder-stone-500 pl-11 pr-11 py-3 rounded-full outline-none border border-stone-700 focus:border-stone-600 text-sm h-10"
+                  autoFocus
+                  onBlur={() => {
+                    setTimeout(() => {
+                      setSearchExpanded(false)
+                      setSearchQuery('')
+                      setSearchResults([])
+                    }, 150)
+                  }}
+                />
+                <button
+                  onMouseDown={(e) => {
+                    e.preventDefault()
                     setSearchExpanded(false)
                     setSearchQuery('')
                     setSearchResults([])
-                  }, 150)
-                }}
-              />
-              <button
-                onMouseDown={(e) => {
-                  e.preventDefault()
-                  setSearchExpanded(false)
-                  setSearchQuery('')
-                  setSearchResults([])
-                }}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-500 hover:text-stone-400"
-                aria-label="Close search"
-              >
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+                  }}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-500 hover:text-stone-400"
+                  aria-label="Close search"
                 >
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
         ) : (

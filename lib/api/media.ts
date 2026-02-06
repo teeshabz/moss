@@ -28,7 +28,7 @@ export function validateMediaData(mediaType: MediaType, data: Partial<MediaData>
     case 'SONG':
     case 'ALBUM':
     case 'PODCAST':
-    case 'SHOW':
+    case 'LIVE':
       // These require title and creator
       if (!data.creator || typeof data.creator !== 'string' || data.creator.trim().length === 0) {
         throw new Error('Creator is required')

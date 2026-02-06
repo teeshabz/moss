@@ -32,6 +32,8 @@ export async function GET(request: NextRequest) {
       50
     )
 
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+
     let query = supabase
       .from('posts')
       .select(`
@@ -60,6 +62,7 @@ export async function GET(request: NextRequest) {
           created_at
         )
       `)
+      .gte('created_at', sevenDaysAgo)
       .order('created_at', { ascending: false })
       .order('id', { ascending: false })
       .limit(limit + 1)

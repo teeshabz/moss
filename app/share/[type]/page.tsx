@@ -11,11 +11,11 @@ import {
   MusicIcon,
   DiscIcon,
   PodcastIcon,
-  ShowIcon,
+  LiveIcon,
 } from '@/lib/components/SharePageMediaIcons'
 import { MossIcon } from '@/lib/components/MossIcon'
 
-const validTypes = ['book', 'article', 'movie', 'song', 'album', 'podcast', 'show']
+const validTypes = ['book', 'article', 'movie', 'song', 'album', 'podcast', 'live']
 
 // Media type configuration
 const mediaTypeConfig: Record<
@@ -201,14 +201,14 @@ const mediaTypeConfig: Record<
       },
     ],
   },
-  show: {
+  live: {
     color: '#6a9a8f',
-    label: 'show',
+    label: 'live',
     fields: [
       {
         label: 'TITLE',
         name: 'title',
-        placeholder: 'enter show title...',
+        placeholder: 'enter live title...',
         required: true,
         type: 'text',
       },
@@ -245,8 +245,8 @@ function MediaIcon({ type, color }: { type: string; color: string }) {
       return <DiscIcon size={24} style={{ color }} />
     case 'podcast':
       return <PodcastIcon size={24} style={{ color }} />
-    case 'show':
-      return <ShowIcon size={24} style={{ color }} />
+    case 'live':
+      return <LiveIcon size={24} style={{ color }} />
     default:
       return null
   }
@@ -488,7 +488,7 @@ export default function ShareTypePage() {
         creator = formData.artist?.trim() || ''
       } else if (type === 'podcast') {
         creator = formData.host?.trim() || ''
-      } else if (type === 'show') {
+      } else if (type === 'live') {
         creator = formData.creator?.trim() || ''
       } else if (type === 'article') {
         creator = formData.author?.trim() || ''
@@ -567,7 +567,7 @@ export default function ShareTypePage() {
               {config.label}
             </h1>
           </div>
-          {type === 'show' && (
+          {type === 'live' && (
             <span className="text-xs text-stone-500 mt-0.5">
               theater, live performance, concert
             </span>

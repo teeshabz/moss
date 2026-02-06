@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { SignOutButton } from '@clerk/nextjs'
@@ -9,6 +9,8 @@ import type {
   ProfileResponse,
   PostWithRelations,
   UserMeResponse,
+  SearchUser,
+  UserSearchResponse,
 } from '@/lib/types'
 import { MossIcon } from '@/lib/components/MossIcon'
 import {
@@ -38,6 +40,11 @@ export default function ProfilePage() {
   const [savedError, setSavedError] = useState<string | null>(null)
   const [savedLoaded, setSavedLoaded] = useState(false)
   const [unsavingId, setUnsavingId] = useState<string | null>(null)
+  const [searchExpanded, setSearchExpanded] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<SearchUser[]>([])
+  const [searchLoading, setSearchLoading] = useState(false)
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const isOwnProfile =
     currentUser?.user?.username?.toLowerCase() === username?.toLowerCase()
@@ -56,6 +63,39 @@ export default function ProfilePage() {
     }
     loadCurrentUser()
   }, [])
+
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([])
+      setSearchLoading(false)
+      return
+    }
+
+    searchDebounceRef.current = setTimeout(async () => {
+      setSearchLoading(true)
+      try {
+        const res = await fetch(
+          `/api/search/users?q=${encodeURIComponent(searchQuery.trim())}`
+        )
+        if (res.ok) {
+          const data: UserSearchResponse = await res.json()
+          setSearchResults(data.users)
+        } else {
+          setSearchResults([])
+        }
+      } catch {
+        setSearchResults([])
+      } finally {
+        setSearchLoading(false)
+      }
+    }, 300)
+
+    return () => {
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current)
+      }
+    }
+  }, [searchQuery])
 
   async function loadProfile(cursor?: string) {
     if (!username) return
@@ -599,22 +639,160 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {/* Bottom bar - own profile only: sign out */}
-      {isOwnProfile && (
-        <div className="fixed bottom-0 left-0 right-0 bg-black z-20">
-          <div className="h-px bg-stone-800 flex-shrink-0" />
-          <div className="max-w-4xl mx-auto px-4 md:px-8 py-3 flex items-center justify-start">
-            <SignOutButton>
-              <button
-                type="button"
-                className="text-white text-xs font-medium hover:text-stone-300 transition-colors lowercase"
-              >
-                sign out
-              </button>
-            </SignOutButton>
+      {/* Bottom bar - search for friends */}
+      <div className="fixed bottom-0 left-0 right-0 bg-black z-20">
+        <div className="h-px bg-stone-800 flex-shrink-0" />
+
+        {searchExpanded ? (
+          <div className="flex items-end w-full max-w-4xl mx-auto px-4 md:px-8 py-4 gap-6">
+            <div className="flex items-center gap-2.5 flex-shrink-0">
+              {isOwnProfile ? (
+                <SignOutButton>
+                  <button
+                    type="button"
+                    className="text-white text-xs font-medium hover:text-stone-300 transition-colors lowercase"
+                  >
+                    sign out
+                  </button>
+                </SignOutButton>
+              ) : (
+                <div className="w-10" />
+              )}
+            </div>
+
+            <div className="relative w-full max-w-[33%] min-w-[240px] ml-auto">
+              {searchQuery.trim() && (
+                <div className="absolute bottom-full right-0 mb-3 w-full">
+                  {searchLoading ? (
+                    <div className="text-stone-500 text-sm py-2">
+                      searching...
+                    </div>
+                  ) : searchResults.length > 0 ? (
+                    <div className="border rounded-lg overflow-hidden bg-black border-stone-700">
+                      <div className="space-y-1 p-2">
+                        {searchResults.slice(0, 3).map((user) => (
+                          <Link
+                            key={user.id}
+                            href={`/profile/${encodeURIComponent(user.username)}`}
+                            onMouseDown={(e) => e.preventDefault()}
+                            className="flex items-center gap-3 px-2 py-3 rounded-lg hover:bg-stone-800/50 transition-colors group"
+                          >
+                            <div
+                              className="w-8 h-8 rounded-full flex-shrink-0"
+                              style={{ backgroundColor: user.avatar_color }}
+                            />
+                            <span className="md:text-sm text-xs text-stone-200 font-bold lowercase group-hover:text-[#7a9b6f] transition-colors">
+                              {user.username}
+                            </span>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-stone-500 text-sm py-2">
+                      no friends found :/
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="relative w-full">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-500">
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="m21 21-4.35-4.35" />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  placeholder="search friends"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-stone-900 text-stone-200 placeholder-stone-500 pl-11 pr-11 py-3 rounded-full outline-none border border-stone-700 focus:border-stone-600 text-sm h-10"
+                  autoFocus
+                  onBlur={() => {
+                    setTimeout(() => {
+                      setSearchExpanded(false)
+                      setSearchQuery('')
+                      setSearchResults([])
+                    }, 150)
+                  }}
+                />
+                <button
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    setSearchExpanded(false)
+                    setSearchQuery('')
+                    setSearchResults([])
+                  }}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-500 hover:text-stone-400"
+                  aria-label="Close search"
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="max-w-4xl mx-auto px-4 md:px-8 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-2.5 flex-shrink-0">
+              {isOwnProfile ? (
+                <SignOutButton>
+                  <button
+                    type="button"
+                    className="text-white text-xs font-medium hover:text-stone-300 transition-colors lowercase"
+                  >
+                    sign out
+                  </button>
+                </SignOutButton>
+              ) : (
+                <div className="w-10" />
+              )}
+            </div>
+
+            <button
+              onClick={() => setSearchExpanded(true)}
+              className="text-stone-400 hover:text-stone-300 transition-colors"
+              aria-label="Search for friends"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.35-4.35" />
+              </svg>
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
