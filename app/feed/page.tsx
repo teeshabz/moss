@@ -7,6 +7,7 @@ import Link from 'next/link'
 import type {
   FeedResponse,
   PostWithRelations,
+  PingsResponse,
   SearchUser,
   UserMeResponse,
   UserSearchResponse,
@@ -29,6 +30,8 @@ export default function FeedPage() {
   const [currentUser, setCurrentUser] = useState<UserMeResponse | null>(null)
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
   const [savingIds, setSavingIds] = useState<Set<string>>(new Set())
+  const [smilingIds, setSmilingIds] = useState<Set<string>>(new Set())
+  const [hasUnreadPings, setHasUnreadPings] = useState(false)
   const [searchExpanded, setSearchExpanded] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchUser[]>([])
@@ -172,6 +175,29 @@ export default function FeedPage() {
   }, [])
 
   useEffect(() => {
+    if (!currentUser?.user?.id) return
+    let isCancelled = false
+
+    async function checkUnreadPings() {
+      try {
+        const res = await fetch('/api/users/me/pings')
+        if (!res.ok) return
+        const data: PingsResponse = await res.json()
+        if (!isCancelled) {
+          setHasUnreadPings(data.items.some((ping) => !ping.seen_at))
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    checkUnreadPings()
+    return () => {
+      isCancelled = true
+    }
+  }, [currentUser?.user?.id])
+
+  useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults([])
       setSearchLoading(false)
@@ -270,6 +296,51 @@ export default function FeedPage() {
     }
   }
 
+  const updateSmileInLists = (postId: string, smiledByCurrentUser: boolean) => {
+    setPosts((prev) =>
+      prev.map((post) =>
+        post.id === postId ? { ...post, smiledByCurrentUser } : post
+      )
+    )
+    setSavedPosts((prev) =>
+      prev.map((post) =>
+        post.id === postId ? { ...post, smiledByCurrentUser } : post
+      )
+    )
+  }
+
+  const handleSmileToggle = async (
+    postId: string,
+    currentValue: boolean
+  ) => {
+    const nextValue = !currentValue
+    updateSmileInLists(postId, nextValue)
+    setSmilingIds((prev) => {
+      const next = new Set(prev)
+      next.add(postId)
+      return next
+    })
+
+    try {
+      const res = await fetch(`/api/posts/${postId}/smile`, {
+        method: nextValue ? 'POST' : 'DELETE',
+      })
+      if (!res.ok) {
+        throw new Error('Failed to smile')
+      }
+    } catch (error) {
+      console.error('Error smiling at post:', error)
+      updateSmileInLists(postId, currentValue)
+      setError('Failed to smile. Please try again.')
+    } finally {
+      setSmilingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(postId)
+        return next
+      })
+    }
+  }
+
   if (loading && posts.length === 0) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
@@ -310,9 +381,13 @@ export default function FeedPage() {
                   className="flex items-center gap-2 hover:opacity-90 transition-opacity min-w-0"
                 >
                   <div
-                    className="w-8 h-8 rounded-full flex-shrink-0 ring-2 ring-stone-400"
+                    className="w-8 h-8 rounded-full flex-shrink-0 ring-2 ring-stone-400 relative"
                     style={{ backgroundColor: currentUser.user.avatar_color }}
-                  />
+                  >
+                    {hasUnreadPings && (
+                      <span className="absolute -top-0.5 -left-0.5 w-2.5 h-2.5 bg-[#2d5016] ring-2 ring-black rounded-full" />
+                    )}
+                  </div>
                   <span className="text-base font-bold lowercase text-stone-200 truncate ml-0.5">
                     {currentUser.user.username}
                   </span>
@@ -406,14 +481,19 @@ export default function FeedPage() {
                   <div>
                     {/* Header Row - Avatar + Metadata + Diamond */}
                     <div className="flex items-center gap-3 mb-3">
-                      <div
-                        className="md:w-8 md:h-8 w-6 h-6 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: post.user.avatar_color }}
-                      />
+                      <Link
+                        href={`/profile/${encodeURIComponent(post.user.username)}`}
+                        className="flex-shrink-0 hover:opacity-90 transition-opacity"
+                      >
+                        <div
+                          className="md:w-8 md:h-8 w-6 h-6 rounded-full"
+                          style={{ backgroundColor: post.user.avatar_color }}
+                        />
+                      </Link>
                       <div className="flex items-baseline gap-2 flex-1">
                         <Link
                           href={`/profile/${encodeURIComponent(post.user.username)}`}
-                          className="md:text-sm text-xs text-stone-200 font-bold lowercase hover:text-[#7a9b6f] transition-colors"
+                          className="md:text-base text-sm text-stone-200 font-bold lowercase hover:text-[#7a9b6f] transition-colors"
                         >
                           {post.user.username}
                         </Link>
@@ -485,11 +565,61 @@ export default function FeedPage() {
                         </div>
                       )}
                     </div>
+
+                    {currentUser?.user?.id !== post.user.id && (
+                      <div
+                        className={`md:pl-11 pl-9 flex items-center w-full ${
+                          post.note ? 'mt-3' : 'mt-2'
+                        }`}
+                      >
+                        <button
+                          onClick={() =>
+                            handleSmileToggle(post.id, post.smiledByCurrentUser)
+                          }
+                          disabled={smilingIds.has(post.id)}
+                          aria-pressed={post.smiledByCurrentUser}
+                          aria-label={
+                            post.smiledByCurrentUser
+                              ? 'Remove smile'
+                              : 'Smile at post'
+                          }
+                          className={`text-[14px] leading-none transition-colors duration-200 ${
+                            post.smiledByCurrentUser
+                              ? 'text-[#7a9b6f]'
+                              : 'text-stone-600 hover:text-stone-400'
+                          } ${smilingIds.has(post.id) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                        >
+                          <span
+                            className={`inline-block transition-transform duration-300 ${
+                              post.smiledByCurrentUser ? 'rotate-0' : '-rotate-90'
+                            }`}
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              viewBox="0 0 16 16"
+                              fill="currentColor"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                              strokeLinecap="round"
+                              aria-hidden="true"
+                            >
+                              <circle cx="5.4" cy="5.9" r="0.6" />
+                              <circle cx="10.6" cy="5.9" r="0.6" />
+                              <path d="M3.8 10.8c2.4 2.4 6.0 2.4 8.4 0" fill="none" />
+                            </svg>
+                          </span>
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {/* Thin divider - between posts (not before first) */}
                   {index < posts.length - 1 && (
-                    <div className="mt-6 mb-6 pl-9 md:pl-11">
+                    <div
+                      className={`mb-6 pl-9 md:pl-11 ${
+                        post.note ? 'mt-5' : 'mt-4'
+                      }`}
+                    >
                       <div className="h-px bg-stone-800" />
                     </div>
                   )}
@@ -554,15 +684,15 @@ export default function FeedPage() {
                             href={`/profile/${encodeURIComponent(post.user.username)}`}
                             className="flex-shrink-0 hover:opacity-90 transition-opacity"
                           >
-                            <div
-                              className="md:w-8 md:h-8 w-6 h-6 rounded-full"
-                              style={{ backgroundColor: post.user.avatar_color }}
-                            />
+                          <div
+                            className="md:w-8 md:h-8 w-6 h-6 rounded-full"
+                            style={{ backgroundColor: post.user.avatar_color }}
+                          />
                           </Link>
                           <div className="flex items-baseline gap-2 flex-1">
                             <Link
                               href={`/profile/${encodeURIComponent(post.user.username)}`}
-                              className="md:text-sm text-xs text-stone-200 font-bold lowercase hover:text-[#7a9b6f] transition-colors"
+                              className="md:text-base text-sm text-stone-200 font-bold lowercase hover:text-[#7a9b6f] transition-colors"
                             >
                               {post.user.username}
                             </Link>
@@ -629,11 +759,16 @@ export default function FeedPage() {
                             </div>
                           )}
                         </div>
+
                       </div>
 
                       {/* Thin divider - between posts (not before first) */}
                       {index < savedPosts.length - 1 && (
-                        <div className="mt-6 mb-6 pl-9 md:pl-11">
+                        <div
+                          className={`mb-6 pl-9 md:pl-11 ${
+                            post.note ? 'mt-5' : 'mt-4'
+                          }`}
+                        >
                           <div className="h-px bg-stone-800" />
                         </div>
                       )}
@@ -670,7 +805,7 @@ export default function FeedPage() {
             <button
               onClick={() => setAboutOpen(true)}
               type="button"
-              className="text-white text-xs font-medium hover:text-stone-300 transition-colors lowercase"
+              className="text-stone-500 text-xs font-medium hover:text-stone-400 transition-colors lowercase"
             >
               about
             </button>
@@ -776,7 +911,7 @@ export default function FeedPage() {
             <button
               onClick={() => setAboutOpen(true)}
               type="button"
-              className="text-white text-xs font-medium hover:text-stone-300 transition-colors lowercase"
+              className="text-stone-500 text-xs font-medium hover:text-stone-400 transition-colors lowercase"
             >
               about
             </button>

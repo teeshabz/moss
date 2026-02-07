@@ -91,8 +91,32 @@ export async function GET(request: NextRequest) {
     const hasNextPage = posts.length > limit
     const items = hasNextPage ? posts.slice(0, limit) : posts
 
+    const postIds = items.map((post: RawPostResult) => post.id)
+    const smiledPostIds = new Set<string>()
+
+    if (postIds.length > 0) {
+      const { data: reactions, error: reactionsError } = await supabase
+        .from('post_reactions')
+        .select('post_id')
+        .eq('user_id', userId)
+        .eq('reaction_type', 'smile')
+        .in('post_id', postIds)
+
+      if (reactionsError) {
+        console.error('Error fetching smile reactions:', reactionsError)
+        return NextResponse.json(
+          { error: 'Failed to fetch feed' },
+          { status: 500 }
+        )
+      }
+
+      for (const reaction of reactions ?? []) {
+        smiledPostIds.add(reaction.post_id as string)
+      }
+    }
+
     const transformedItems = items.map((post: RawPostResult) =>
-      mapRawPostToPostWithRelations(post)
+      mapRawPostToPostWithRelations(post, smiledPostIds.has(post.id))
     )
 
     let nextCursor: string | undefined

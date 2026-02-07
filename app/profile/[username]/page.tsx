@@ -9,6 +9,8 @@ import type {
   FeedResponse,
   ProfileResponse,
   PostWithRelations,
+  PingItem,
+  PingsResponse,
   UserMeResponse,
   SearchUser,
   UserSearchResponse,
@@ -31,7 +33,9 @@ export default function ProfilePage() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notFound, setNotFound] = useState(false)
-  const [activeTab, setActiveTab] = useState<'shared' | 'saved'>('shared')
+  const [activeTab, setActiveTab] = useState<'shared' | 'saved' | 'pings'>(
+    'shared'
+  )
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [savedItems, setSavedItems] = useState<PostWithRelations[]>([])
@@ -41,6 +45,12 @@ export default function ProfilePage() {
   const [savedError, setSavedError] = useState<string | null>(null)
   const [savedLoaded, setSavedLoaded] = useState(false)
   const [unsavingId, setUnsavingId] = useState<string | null>(null)
+  const [smilingIds, setSmilingIds] = useState<Set<string>>(new Set())
+  const [pings, setPings] = useState<PingItem[]>([])
+  const [pingsLoading, setPingsLoading] = useState(false)
+  const [pingsError, setPingsError] = useState<string | null>(null)
+  const [pingsLoaded, setPingsLoaded] = useState(false)
+  const [hasUnreadPings, setHasUnreadPings] = useState(false)
   const [searchExpanded, setSearchExpanded] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchUser[]>([])
@@ -175,12 +185,60 @@ export default function ProfilePage() {
     }
   }, [isOwnProfile])
 
+  const loadPings = useCallback(async () => {
+    if (!isOwnProfile) return
+    try {
+      setPingsLoading(true)
+      setPingsError(null)
+      const res = await fetch('/api/users/me/pings')
+      if (!res.ok) {
+        if (res.status === 401) {
+          setPingsError('Please log in to view pings')
+        } else {
+          setPingsError('Failed to load pings')
+        }
+        return
+      }
+      const data: PingsResponse = await res.json()
+      setPings(data.items)
+      setHasUnreadPings(data.items.some((ping) => !ping.seen_at))
+      setPingsLoaded(true)
+    } catch {
+      setPingsError('Failed to load pings')
+    } finally {
+      setPingsLoading(false)
+    }
+  }, [isOwnProfile])
+
+  useEffect(() => {
+    if (!isOwnProfile) return
+    let isCancelled = false
+
+    async function checkUnreadPings() {
+      try {
+        const res = await fetch('/api/users/me/pings')
+        if (!res.ok) return
+        const data: PingsResponse = await res.json()
+        if (!isCancelled) {
+          setHasUnreadPings(data.items.some((ping) => !ping.seen_at))
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    checkUnreadPings()
+    return () => {
+      isCancelled = true
+    }
+  }, [isOwnProfile])
+
   useEffect(() => {
     if (username) loadProfile()
   }, [username, loadProfile])
 
   useEffect(() => {
-    if (!isOwnProfile && activeTab === 'saved') {
+    if (!isOwnProfile && activeTab !== 'shared') {
       setActiveTab('shared')
     }
   }, [activeTab, isOwnProfile])
@@ -191,6 +249,20 @@ export default function ProfilePage() {
       loadSaved()
     }
   }, [activeTab, isOwnProfile, savedLoaded, savedLoading, loadSaved])
+
+  // Load pings when user clicks the pings tab (if not already loading/loaded)
+  useEffect(() => {
+    if (activeTab === 'pings' && isOwnProfile && !pingsLoaded && !pingsLoading) {
+      loadPings()
+    }
+  }, [activeTab, isOwnProfile, pingsLoaded, pingsLoading, loadPings])
+
+  // Mark pings seen when entering the tab
+  useEffect(() => {
+    if (activeTab !== 'pings' || !isOwnProfile) return
+    fetch('/api/users/me/pings/seen', { method: 'POST' }).catch(() => {})
+    setHasUnreadPings(false)
+  }, [activeTab, isOwnProfile])
 
   // Preload saved items in background when viewing own profile, so the tab feels instant
   useEffect(() => {
@@ -209,6 +281,11 @@ export default function ProfilePage() {
           ...profile,
           items: profile.items.filter((p) => p.id !== postId),
           postCount: Math.max(0, profile.postCount - 1),
+        })
+        setPings((prev) => {
+          const next = prev.filter((ping) => ping.post_id !== postId)
+          setHasUnreadPings(next.some((ping) => !ping.seen_at))
+          return next
         })
       } else {
         setError('Failed to delete post')
@@ -233,6 +310,53 @@ export default function ProfilePage() {
       setSavedError('Failed to remove saved item')
     } finally {
       setUnsavingId(null)
+    }
+  }
+
+  const updateSmileInProfile = (postId: string, smiledByCurrentUser: boolean) => {
+    setProfile((prev) =>
+      prev
+        ? {
+            ...prev,
+            items: prev.items.map((post) =>
+              post.id === postId ? { ...post, smiledByCurrentUser } : post
+            ),
+          }
+        : prev
+    )
+    setSavedItems((prev) =>
+      prev.map((post) =>
+        post.id === postId ? { ...post, smiledByCurrentUser } : post
+      )
+    )
+  }
+
+  const handleSmileToggle = async (postId: string, currentValue: boolean) => {
+    const nextValue = !currentValue
+    updateSmileInProfile(postId, nextValue)
+    setSmilingIds((prev) => {
+      const next = new Set(prev)
+      next.add(postId)
+      return next
+    })
+
+    try {
+      const res = await fetch(`/api/posts/${postId}/smile`, {
+        method: nextValue ? 'POST' : 'DELETE',
+      })
+      if (!res.ok) {
+        throw new Error('Failed to smile')
+      }
+    } catch (error) {
+      console.error('Error smiling at post:', error)
+      updateSmileInProfile(postId, currentValue)
+      setError('Failed to smile. Please try again.')
+    } finally {
+      setSmilingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(postId)
+        return next
+      })
     }
   }
 
@@ -337,20 +461,16 @@ export default function ProfilePage() {
               {user.username}
             </h1>
           </div>
-          {isOwnProfile && (
-            <Link
-              href="/share"
-              className="px-3 py-1.5 text-sm font-bold lowercase tracking-wider transition-colors rounded-md bg-[#2d5016] text-white hover:bg-[#3a6b1e]"
-              aria-label="Share"
-            >
-              share
-            </Link>
-          )}
+          <div className="w-14" />
         </div>
 
         {/* Tabs */}
         <div className="border-b border-stone-700 mb-6">
-          <div className="flex gap-6">
+          <div
+            className={`flex items-center gap-6 ${
+              isOwnProfile ? 'justify-center' : 'justify-start'
+            }`}
+          >
             <button
               onClick={() => setActiveTab('shared')}
               className={`pb-2 text-sm font-bold lowercase tracking-wider border-b-2 transition-colors ${
@@ -371,6 +491,21 @@ export default function ProfilePage() {
                 }`}
               >
                 saved
+              </button>
+            )}
+            {isOwnProfile && (
+              <button
+                onClick={() => setActiveTab('pings')}
+                className={`pb-2 text-sm font-bold lowercase tracking-wider border-b-2 transition-colors ${
+                  activeTab === 'pings'
+                    ? 'text-white border-[#7a9b6f]'
+                    : 'text-stone-500 border-transparent hover:text-stone-400'
+                } mr-2 relative`}
+              >
+                pings
+                {hasUnreadPings && activeTab !== 'pings' && (
+                  <span className="absolute -top-1 -right-2.5 w-2.5 h-2.5 bg-[#2d5016] rounded-full" />
+                )}
               </button>
             )}
           </div>
@@ -403,7 +538,7 @@ export default function ProfilePage() {
                         style={{ backgroundColor: post.user.avatar_color }}
                       />
                       <div className="flex items-baseline gap-2 flex-1 flex-wrap">
-                        <span className="md:text-sm text-xs text-stone-200 font-bold lowercase">
+                        <span className="md:text-base text-sm text-stone-200 font-bold lowercase">
                           {post.user.username}
                         </span>
                         <span className="text-stone-700">·</span>
@@ -474,8 +609,58 @@ export default function ProfilePage() {
                         </div>
                       )}
                     </div>
+
+                    {!isOwnProfile && currentUser?.user?.id !== post.user.id && (
+                      <div
+                        className={`md:pl-11 pl-9 flex items-center w-full ${
+                          post.note ? 'mt-3' : 'mt-2'
+                        }`}
+                      >
+                        <button
+                          onClick={() =>
+                            handleSmileToggle(post.id, post.smiledByCurrentUser)
+                          }
+                          disabled={smilingIds.has(post.id)}
+                          aria-pressed={post.smiledByCurrentUser}
+                          aria-label={
+                            post.smiledByCurrentUser
+                              ? 'Remove smile'
+                              : 'Smile at post'
+                          }
+                          className={`text-[14px] leading-none transition-colors duration-200 ${
+                            post.smiledByCurrentUser
+                              ? 'text-[#7a9b6f]'
+                              : 'text-stone-600 hover:text-stone-400'
+                          } ${smilingIds.has(post.id) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                        >
+                          <span
+                            className={`inline-block transition-transform duration-300 ${
+                              post.smiledByCurrentUser ? 'rotate-0' : '-rotate-90'
+                            }`}
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              viewBox="0 0 16 16"
+                              fill="currentColor"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                              strokeLinecap="round"
+                              aria-hidden="true"
+                            >
+                              <circle cx="5.4" cy="5.9" r="0.6" />
+                              <circle cx="10.6" cy="5.9" r="0.6" />
+                              <path d="M3.8 10.8c2.4 2.4 6.0 2.4 8.4 0" fill="none" />
+                            </svg>
+                          </span>
+                        </button>
+                      </div>
+                    )}
                     {index < items.length - 1 && (
-                      <div className="mt-6 mb-6 pl-9 md:pl-11">
+                      <div
+                        className={`mb-6 pl-9 md:pl-11 ${
+                          post.note ? 'mt-6' : 'mt-5'
+                        }`}
+                      >
                         <div className="h-px bg-stone-800" />
                       </div>
                     )}
@@ -579,7 +764,7 @@ export default function ProfilePage() {
                       <div className="flex items-baseline gap-2 flex-1 flex-wrap">
                         <Link
                           href={`/profile/${encodeURIComponent(post.user.username)}`}
-                          className="md:text-sm text-xs text-stone-200 font-bold lowercase hover:text-[#7a9b6f] transition-colors"
+                            className="md:text-base text-sm text-stone-200 font-bold lowercase hover:text-[#7a9b6f] transition-colors"
                         >
                           {post.user.username}
                         </Link>
@@ -607,7 +792,7 @@ export default function ProfilePage() {
                           }`}
                           aria-label="Unsave post"
                         >
-                          <PlusIcon saved={true} size={14} />
+                          <PlusIcon saved={true} size={18} />
                         </button>
                       </div>
                     </div>
@@ -642,8 +827,13 @@ export default function ProfilePage() {
                         </div>
                       )}
                     </div>
+
                     {index < savedItems.length - 1 && (
-                      <div className="mt-6 mb-6 pl-9 md:pl-11">
+                      <div
+                        className={`mb-6 pl-9 md:pl-11 ${
+                          post.note ? 'mt-6' : 'mt-5'
+                        }`}
+                      >
                         <div className="h-px bg-stone-800" />
                       </div>
                     )}
@@ -663,6 +853,80 @@ export default function ProfilePage() {
               </div>
             )}
           </>
+        )}
+
+        {activeTab === 'pings' && isOwnProfile && (
+          <div>
+            {pingsError && (
+              <div className="mb-4 p-3 bg-red-900/20 border border-red-800 rounded text-red-400 text-sm">
+                {pingsError}
+                <button
+                  onClick={() => setPingsError(null)}
+                  className="ml-2 underline"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+            {pingsLoading && pings.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-stone-500">loading pings...</p>
+              </div>
+            ) : pings.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-stone-500">no pings yet</p>
+              </div>
+            ) : (
+              <div>
+                {pings.map((ping, index) => (
+                  <div key={ping.id}>
+                    <div className={`flex items-center gap-4 ${index === 0 ? 'pt-1 pb-4' : 'py-4'}`}>
+                      <div
+                        className="w-9 h-9 rounded-full flex-shrink-0"
+                        style={{
+                          backgroundColor:
+                            ping.actor?.avatar_color || '#3f3f46',
+                        }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm text-stone-200">
+                          <span className="font-bold lowercase">
+                            {ping.actor?.username || 'someone'}
+                          </span>{' '}
+                          <span className="text-stone-400">
+                            smiled at &quot;{ping.postTitle || 'a post'}&quot;
+                          </span>
+                        </div>
+                        <div className="text-xs text-stone-600 mt-1">
+                          {formatTimeAgo(ping.created_at)}
+                        </div>
+                      </div>
+                      <span className="text-[#7a9b6f] text-[14px] leading-none">
+                        <span className="inline-block rotate-0">
+                          <svg
+                            className="w-4 h-4"
+                            viewBox="0 0 16 16"
+                            fill="currentColor"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                            strokeLinecap="round"
+                            aria-hidden="true"
+                          >
+                            <circle cx="5.4" cy="5.9" r="0.6" />
+                            <circle cx="10.6" cy="5.9" r="0.6" />
+                            <path d="M3.8 10.8c2.4 2.4 6.0 2.4 8.4 0" fill="none" />
+                          </svg>
+                        </span>
+                      </span>
+                    </div>
+                    {index < pings.length - 1 && (
+                      <div className="h-px bg-stone-800" />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
 
@@ -708,7 +972,7 @@ export default function ProfilePage() {
                               className="w-8 h-8 rounded-full flex-shrink-0"
                               style={{ backgroundColor: user.avatar_color }}
                             />
-                            <span className="md:text-sm text-xs text-stone-200 font-bold lowercase group-hover:text-[#7a9b6f] transition-colors">
+                            <span className="md:text-base text-sm text-stone-200 font-bold lowercase group-hover:text-[#7a9b6f] transition-colors">
                               {user.username}
                             </span>
                           </Link>

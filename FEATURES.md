@@ -114,7 +114,26 @@
 
 ---
 
-### 7. Delete Post
+### 7. Smile Reactions & Pings
+
+**Purpose:** Let users privately smile at another user’s post (no public count). Smiles create a ping notification for the post author. Unsmiling removes the reaction and its ping.
+
+**How it works today:**
+
+- **Model:** `post_reactions` with composite PK `(user_id, post_id, reaction_type)` and `reaction_type = 'smile'` only. `pings` rows track recipient, actor, post, type (`'smile'`), timestamps, and `seen_at`. All FKs use `ON DELETE CASCADE`.
+- **APIs:**
+  - `POST /api/posts/[id]/smile`: Creates `post_reactions` and a `pings` row (no-op if already smiled).
+  - `DELETE /api/posts/[id]/smile`: Deletes the reaction and its matching ping.
+  - `GET /api/users/me/pings`: Returns pings for the current user, joined with actor username/avatar and post title.
+  - `POST /api/users/me/pings/seen`: Marks all unseen pings as seen.
+- **Feed/Profile state:** Feed and profile APIs return `smiledByCurrentUser` so the UI can render the active state.
+- **UI:** Smile button shows on the **home feed** and on **other users’ profiles** (not on saved tab, not on your own profile). Clicking toggles local state and hits POST/DELETE. Pings tab lists smile notifications; unread pings show a dot on the feed avatar and on the Pings tab, and disappear when viewing Pings.
+
+**Key files:** `app/api/posts/[id]/smile/route.ts`, `app/api/users/me/pings/route.ts`, `app/api/users/me/pings/seen/route.ts`, `app/feed/page.tsx`, `app/profile/[username]/page.tsx`, `database/migrations/phase5-add-smile-reactions.sql`.
+
+---
+
+### 8. Delete Post
 
 **Purpose:** Let a user delete their own post. Frees a slot for the weekly limit.
 
@@ -127,7 +146,7 @@
 
 ---
 
-### 8. Media Types & Validation
+### 9. Media Types & Validation
 
 **Purpose:** Support seven media types (book, article, movie, song, album, podcast, live) with consistent validation and optional article URL. Reuse existing media items when the same thing is shared again (deduplication).
 
@@ -141,7 +160,7 @@
 
 ---
 
-### 9. Avatar Color
+### 10. Avatar Color
 
 **Purpose:** Give each user a stable, random color for their avatar and for the large media icon on their posts (no image upload in current version).
 
@@ -153,7 +172,7 @@
 
 ---
 
-### 10. UI Consistency (Feed & Profile)
+### 11. UI Consistency (Feed & Profile)
 
 **Purpose:** Same look and feel on feed and profile: thin divider between posts, same spacing, same header/content row layout, same typography and colors.
 
@@ -165,7 +184,7 @@
 
 ---
 
-### 11. Error Handling & Resilience
+### 12. Error Handling & Resilience
 
 **Purpose:** Surface API errors (validation, 409 limit, 404, 500) in the UI and log server-side for debugging.
 
@@ -177,7 +196,7 @@
 
 ---
 
-### 12. Dev / Ops
+### 13. Dev / Ops
 
 **Purpose:** Sanity-check Supabase connectivity and env configuration during development.
 

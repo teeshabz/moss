@@ -39,6 +39,7 @@ export interface Post {
 export interface PostWithRelations extends Post {
   user: User
   media_item: MediaItem
+  smiledByCurrentUser: boolean
 }
 
 /** Raw PostgREST result when selecting post with user and media_item relations (arrays from join) */
@@ -67,6 +68,28 @@ export interface FeedResponse {
 
 export interface SavedIdsResponse {
   postIds: string[]
+}
+
+export interface PingActor {
+  id: string
+  username: string
+  avatar_color: string
+}
+
+export interface PingItem {
+  id: string
+  recipient_user_id: string
+  actor_user_id: string
+  post_id: string
+  type: string
+  created_at: string
+  seen_at: string | null
+  actor: PingActor | null
+  postTitle: string
+}
+
+export interface PingsResponse {
+  items: PingItem[]
 }
 
 export interface SearchUser {
