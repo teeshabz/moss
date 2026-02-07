@@ -511,22 +511,6 @@ export default function FeedPage() {
                         <span className="md:text-sm text-xs text-stone-600">
                           {formatTimeAgo(post.created_at)}
                         </span>
-                        {/* Plus icon (thin when unsaved, bold when saved) */}
-                        {currentUser?.user?.id !== post.user.id && (
-                          <button
-                            onClick={() => toggleSave(post.id, post)}
-                            disabled={savingIds.has(post.id)}
-                            aria-pressed={savedIds.has(post.id)}
-                            aria-label={savedIds.has(post.id) ? 'Unsave post' : 'Save post'}
-                            className={`ml-auto transition-colors duration-200 flex-shrink-0 ${
-                              savedIds.has(post.id)
-                                ? 'text-[#7a9b6f]'
-                                : 'text-stone-600 hover:text-[#7a9b6f]'
-                            } ${savingIds.has(post.id) ? 'opacity-60 cursor-not-allowed' : ''}`}
-                          >
-                            <PlusIcon saved={savedIds.has(post.id)} size={18} />
-                          </button>
-                        )}
                       </div>
                     </div>
 
@@ -608,6 +592,19 @@ export default function FeedPage() {
                               <path d="M3.8 10.8c2.4 2.4 6.0 2.4 8.4 0" fill="none" />
                             </svg>
                           </span>
+                        </button>
+                        <button
+                          onClick={() => toggleSave(post.id, post)}
+                          disabled={savingIds.has(post.id)}
+                          aria-pressed={savedIds.has(post.id)}
+                          aria-label={savedIds.has(post.id) ? 'Unsave post' : 'Save post'}
+                          className={`ml-2.5 -mt-1 transition-colors duration-200 flex-shrink-0 ${
+                            savedIds.has(post.id)
+                              ? 'text-[#7a9b6f]'
+                              : 'text-stone-600 hover:text-[#7a9b6f]'
+                          } ${savingIds.has(post.id) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                        >
+                          <PlusIcon saved={savedIds.has(post.id)} size={18} />
                         </button>
                       </div>
                     )}
