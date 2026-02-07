@@ -124,7 +124,7 @@ export async function GET(request: NextRequest) {
     const transformedItems = pageSaves
       .map((save) => postsById.get(save.post_id))
       .filter((p): p is RawPostResult => !!p)
-      .map(mapRawPostToPostWithRelations)
+      .map((post) => mapRawPostToPostWithRelations(post))
 
     let nextCursor: string | undefined
     if (hasNextPage && saves.length > 0) {
