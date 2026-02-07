@@ -286,6 +286,15 @@ export default function ShareTypePage() {
   const [selectedMusic, setSelectedMusic] = useState<MusicResult | null>(null)
   const musicSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Movie search (only used when type === 'movie')
+  type MovieResult = { id: string; title: string; director: string; thumbnail?: string; externalUrl?: string; genres?: string[] }
+  const [movieSearchQuery, setMovieSearchQuery] = useState('')
+  const [movieSearchResults, setMovieSearchResults] = useState<MovieResult[]>([])
+  const [movieSearchLoading, setMovieSearchLoading] = useState(false)
+  const [movieSearchError, setMovieSearchError] = useState<string | null>(null)
+  const [selectedMovie, setSelectedMovie] = useState<MovieResult | null>(null)
+  const movieSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   useEffect(() => {
     if (!isValidType) {
       router.push('/share')
@@ -361,6 +370,40 @@ export default function ShareTypePage() {
     }
   }, [type, musicSearchQuery])
 
+  // Debounced movie search when type === 'movie'
+  useEffect(() => {
+    if (type !== 'movie') return
+    const q = movieSearchQuery.trim()
+    if (q.length < 2) {
+      setMovieSearchResults([])
+      setMovieSearchError(null)
+      return
+    }
+    if (movieSearchDebounceRef.current) clearTimeout(movieSearchDebounceRef.current)
+    movieSearchDebounceRef.current = setTimeout(async () => {
+      setMovieSearchLoading(true)
+      setMovieSearchError(null)
+      try {
+        const res = await fetch(`/api/search/movies?q=${encodeURIComponent(q)}`)
+        const data = await res.json()
+        if (!res.ok) {
+          setMovieSearchResults([])
+          setMovieSearchError(data.error || 'Search failed')
+          return
+        }
+        setMovieSearchResults(data.movies ?? [])
+      } catch {
+        setMovieSearchResults([])
+        setMovieSearchError('Search failed')
+      } finally {
+        setMovieSearchLoading(false)
+      }
+    }, 300)
+    return () => {
+      if (movieSearchDebounceRef.current) clearTimeout(movieSearchDebounceRef.current)
+    }
+  }, [type, movieSearchQuery])
+
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
@@ -378,6 +421,10 @@ export default function ShareTypePage() {
     // If user edits title or artist while music was selected, treat as manual entry
     if ((type === 'song' || type === 'album') && selectedMusic && (name === 'title' || name === 'artist')) {
       setSelectedMusic(null)
+    }
+    // If user edits title or director while movie was selected, treat as manual entry
+    if (type === 'movie' && selectedMovie && (name === 'title' || name === 'director')) {
+      setSelectedMovie(null)
     }
     
     setFormData((prev) => ({ ...prev, [name]: value }))
@@ -447,6 +494,16 @@ export default function ShareTypePage() {
         sourceId = selectedBook.id
         coverUrl = selectedBook.thumbnail
         externalUrl = selectedBook.infoLink?.trim() || undefined
+      } else if (type === 'movie' && selectedMovie) {
+        title = selectedMovie.title
+        creator = selectedMovie.director
+        source = 'tmdb'
+        sourceId = selectedMovie.id
+        coverUrl = selectedMovie.thumbnail
+        externalUrl = selectedMovie.externalUrl?.trim() || undefined
+        metadata = selectedMovie.genres && selectedMovie.genres.length > 0
+          ? { genres: selectedMovie.genres }
+          : undefined
       } else if ((type === 'song' || type === 'album') && selectedMusic) {
         title = selectedMusic.title
         creator = selectedMusic.creator
@@ -692,6 +749,98 @@ export default function ShareTypePage() {
               )}
             </div>
           )}
+          {type === 'movie' && (
+            <div className="w-full space-y-2">
+              <label
+                htmlFor="movie-search"
+                className="text-sm uppercase tracking-wider font-bold block mb-2"
+                style={{ color: config.color }}
+              >
+                search for a movie
+              </label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-500 pointer-events-none" aria-hidden>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="m21 21-4.35-4.35" />
+                  </svg>
+                </span>
+                <input
+                  id="movie-search"
+                  type="text"
+                  value={movieSearchQuery}
+                  onChange={(e) => setMovieSearchQuery(e.target.value)}
+                  placeholder="title or director..."
+                  className="w-full border-2 rounded-3xl pl-12 pr-4 py-3 text-stone-200 placeholder-stone-500 focus:outline-none transition-all text-lg md:text-xl font-medium"
+                  style={{
+                    background: 'linear-gradient(to bottom, rgba(28, 25, 23, 0.5), rgba(31, 27, 24, 0.5))',
+                    borderColor: config.color,
+                  }}
+                />
+              </div>
+              {selectedMovie ? (
+                <div className="flex items-center gap-2 flex-wrap mt-2">
+                  <span className="text-stone-400 text-sm normal-case">selected: {selectedMovie.title}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedMovie(null)
+                      setFormData((prev) => ({ ...prev, title: '', director: '' }))
+                    }}
+                    className="text-sm underline hover:no-underline"
+                    style={{ color: config.color }}
+                  >
+                    enter manually
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {movieSearchLoading && <p className="text-stone-500 text-sm mt-1">searching...</p>}
+                  {movieSearchError && <p className="text-red-400 text-sm mt-1">{movieSearchError}</p>}
+                  {movieSearchResults.length > 0 && !movieSearchLoading && (
+                    <ul className="mt-2 border rounded-lg overflow-hidden" style={{ borderColor: config.color }}>
+                      {movieSearchResults.map((movie) => (
+                        <li key={movie.id}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedMovie(movie)
+                              setFormData((prev) => ({
+                                ...prev,
+                                title: movie.title,
+                                director: movie.director,
+                              }))
+                              setMovieSearchResults([])
+                              setMovieSearchQuery('')
+                            }}
+                            className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-stone-800/80 transition-colors"
+                          >
+                            {movie.thumbnail && (
+                              <Image
+                                src={movie.thumbnail}
+                                alt=""
+                                className="w-10 h-14 object-cover rounded flex-shrink-0"
+                                width={40}
+                                height={56}
+                                sizes="40px"
+                              />
+                            )}
+                            <span className="text-stone-200 font-medium truncate flex-1">{movie.title}</span>
+                            {movie.director ? (
+                              <span className="text-stone-500 text-sm truncate max-w-[40%]">{movie.director}</span>
+                            ) : null}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {movieSearchQuery.trim().length >= 2 && !movieSearchLoading && movieSearchResults.length === 0 && !movieSearchError && (
+                    <p className="text-stone-500 text-sm mt-1">No results. Enter manually below.</p>
+                  )}
+                </>
+              )}
+            </div>
+          )}
           {(type === 'song' || type === 'album') && (
             <div className="w-full space-y-2">
               <label
@@ -812,9 +961,9 @@ export default function ShareTypePage() {
                     maxLength={60}
                     rows={4}
                     className={`w-full rounded-lg px-4 py-3 text-stone-200 placeholder-stone-500 focus:outline-none transition-all text-lg md:text-xl font-medium ${
-                      type === 'book' || type === 'song' || type === 'album' ? 'border' : 'border-2'
-                    } ${errors[field.name] ? 'border-red-500' : type === 'book' || type === 'song' || type === 'album' ? '' : ''}`}
-                    style={(type === 'book' || type === 'song' || type === 'album') && !errors[field.name]
+                      type === 'book' || type === 'song' || type === 'album' || type === 'movie' ? 'border' : 'border-2'
+                    } ${errors[field.name] ? 'border-red-500' : type === 'book' || type === 'song' || type === 'album' || type === 'movie' ? '' : ''}`}
+                    style={(type === 'book' || type === 'song' || type === 'album' || type === 'movie') && !errors[field.name]
                       ? {
                           background: 'linear-gradient(to bottom, rgba(28, 25, 23, 0.5), rgba(31, 27, 24, 0.5))',
                           borderColor: errors[field.name] ? '#EF4444' : '#71717a',
@@ -842,9 +991,9 @@ export default function ShareTypePage() {
                     required={field.required}
                     {...(type === 'article' && field.name === 'url' ? {} : { maxLength: 60 })}
                     className={`w-full rounded-lg px-4 py-3 text-stone-200 placeholder-stone-500 focus:outline-none transition-all text-lg md:text-xl font-medium ${
-                      type === 'book' || type === 'song' || type === 'album' ? 'border' : 'border-2'
+                      type === 'book' || type === 'song' || type === 'album' || type === 'movie' ? 'border' : 'border-2'
                     } ${errors[field.name] ? 'border-red-500' : ''}`}
-                    style={(type === 'book' || type === 'song' || type === 'album') && !errors[field.name]
+                    style={(type === 'book' || type === 'song' || type === 'album' || type === 'movie') && !errors[field.name]
                       ? {
                           background: 'linear-gradient(to bottom, rgba(28, 25, 23, 0.5), rgba(31, 27, 24, 0.5))',
                           borderColor: errors[field.name] ? '#EF4444' : '#71717a',
