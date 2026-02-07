@@ -56,6 +56,7 @@ export default function ProfilePage() {
   const [pingsError, setPingsError] = useState<string | null>(null)
   const [pingsLoaded, setPingsLoaded] = useState(false)
   const [hasUnreadPings, setHasUnreadPings] = useState(false)
+  const [targetPingPostId, setTargetPingPostId] = useState<string | null>(null)
   const [searchExpanded, setSearchExpanded] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchUser[]>([])
@@ -460,6 +461,11 @@ export default function ProfilePage() {
     setNoteSendError(null)
   }, [])
 
+  const handlePingPostOpen = useCallback((postId: string) => {
+    setActiveTab('shared')
+    setTargetPingPostId(postId)
+  }, [])
+
   const handleSendNote = useCallback(async () => {
     if (!notesDrawerPost) return
     const trimmed = noteInput.trim()
@@ -542,6 +548,28 @@ export default function ProfilePage() {
     : false
   const noteIsValid = noteInput.trim().length >= 1
     && noteInput.trim().length <= NOTE_MAX_LENGTH
+
+  useEffect(() => {
+    if (!targetPingPostId || activeTab !== 'shared' || !profile) return
+    const match = profile.items.find((post) => post.id === targetPingPostId)
+    if (match) {
+      openNotesDrawer(match)
+      setTargetPingPostId(null)
+      return
+    }
+    if (profile.nextCursor && !loadingMore) {
+      loadProfile(profile.nextCursor)
+    } else if (!profile.nextCursor) {
+      setTargetPingPostId(null)
+    }
+  }, [
+    activeTab,
+    targetPingPostId,
+    profile,
+    loadingMore,
+    openNotesDrawer,
+    loadProfile,
+  ])
 
   if (loading && !profile) {
     return (
@@ -713,7 +741,11 @@ export default function ProfilePage() {
               </div>
             ) : (
               <div>
-                {items.map((post: PostWithRelations, index) => (
+                {items.map((post: PostWithRelations, index) => {
+                  const hasNotes =
+                    (notesByPostId[post.id]?.length ?? (post.hasNotes ? 1 : 0)) > 0
+                  const isOwnPost = currentUser?.user?.id === post.user.id
+                  return (
                   <div key={post.id}>
                     <div className="flex items-center gap-3 mb-3">
                       <div
@@ -738,39 +770,6 @@ export default function ProfilePage() {
                         <span className="md:text-sm text-xs text-stone-600">
                           {formatTimeAgo(post.created_at)}
                         </span>
-                        {isOwnProfile && (() => {
-                          const hasNotes = (notesByPostId[post.id]?.length ?? (post.hasNotes ? 1 : 0)) > 0
-                          if (!hasNotes) return null
-                          return (
-                            <button
-                              onClick={() => openNotesDrawer(post)}
-                              aria-label="Open notes"
-                              className="text-stone-600 hover:text-stone-400 transition-opacity duration-200 flex-shrink-0 self-center"
-                            >
-                              <svg
-                                className="w-4 h-4"
-                                viewBox="0 0 16 16"
-                                fill="none"
-                                strokeWidth="1.5"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                aria-hidden="true"
-                              >
-                                <rect
-                                  x="3"
-                                  y="2.5"
-                                  width="10"
-                                  height="11"
-                                  rx="1.5"
-                                  fill="#fff"
-                                  stroke="#fff"
-                                />
-                                <path d="M5.5 6h5" stroke="#000" />
-                                <path d="M5.5 8.5h5" stroke="#000" />
-                              </svg>
-                            </button>
-                          )
-                        })()}
                         {isOwnProfile && (
                           <button
                             onClick={() => setDeleteConfirmId(post.id)}
@@ -832,7 +831,36 @@ export default function ProfilePage() {
                       }`}
                     >
                       <div className="flex items-center">
-                        {currentUser?.user?.id && currentUser.user.id !== post.user.id && (
+                        {hasNotes && (
+                          <button
+                            onClick={() => openNotesDrawer(post)}
+                            aria-label="Open notes"
+                            className="hover:opacity-80 -mt-1 transition-opacity duration-200 flex-shrink-0"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              viewBox="0 0 16 16"
+                              fill="none"
+                              strokeWidth="1.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden="true"
+                            >
+                              <rect
+                                x="3"
+                                y="2.5"
+                                width="10"
+                                height="11"
+                                rx="1.5"
+                                fill="#fff"
+                                stroke="#fff"
+                              />
+                              <path d="M5.5 6h5" stroke="#000" />
+                              <path d="M5.5 8.5h5" stroke="#000" />
+                            </svg>
+                          </button>
+                        )}
+                        {currentUser?.user?.id && !isOwnPost && (
                             <button
                               onClick={() =>
                                 handleSmileToggle(post.id, post.smiledByCurrentUser)
@@ -844,7 +872,7 @@ export default function ProfilePage() {
                                   ? 'Remove smile'
                                   : 'Smile at post'
                               }
-                              className={`text-[14px] leading-none transition-colors duration-200 ${
+                              className={`text-[14px] leading-none transition-colors duration-200 ${hasNotes ? 'ml-2.5' : ''} ${
                                 post.smiledByCurrentUser
                                   ? 'text-[#7a9b6f]'
                                   : 'text-stone-600 hover:text-stone-400'
@@ -871,48 +899,6 @@ export default function ProfilePage() {
                               </span>
                             </button>
                         )}
-                        {(() => {
-                          const hasNotes = (notesByPostId[post.id]?.length ?? (post.hasNotes ? 1 : 0)) > 0
-                          const isOwnPost = currentUser?.user?.id === post.user.id
-                          if (isOwnPost) return null
-                          return (
-                            <button
-                              onClick={() => openNotesDrawer(post)}
-                              aria-label="Open notes"
-                              className={`ml-2.5 -mt-1 transition-opacity duration-200 flex-shrink-0 ${
-                                hasNotes ? 'hover:opacity-80' : 'text-stone-600 hover:text-stone-400'
-                              }`}
-                            >
-                              <svg
-                                className="w-4 h-4"
-                                viewBox="0 0 16 16"
-                                fill="none"
-                                strokeWidth="1.5"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                aria-hidden="true"
-                              >
-                                <rect
-                                  x="3"
-                                  y="2.5"
-                                  width="10"
-                                  height="11"
-                                  rx="1.5"
-                                  fill={hasNotes ? '#fff' : '#000'}
-                                  stroke={hasNotes ? '#fff' : 'currentColor'}
-                                />
-                                <path
-                                  d="M5.5 6h5"
-                                  stroke={hasNotes ? '#000' : 'currentColor'}
-                                />
-                                <path
-                                  d="M5.5 8.5h5"
-                                  stroke={hasNotes ? '#000' : 'currentColor'}
-                                />
-                              </svg>
-                            </button>
-                          )
-                        })()}
                       </div>
                       {currentUser?.user?.id && currentUser.user.id !== post.user.id && (
                         <button
@@ -940,7 +926,8 @@ export default function ProfilePage() {
                       </div>
                     )}
                   </div>
-                ))}
+                )
+                })}
               </div>
             )}
             {nextCursor && (
@@ -1155,7 +1142,12 @@ export default function ProfilePage() {
               <div>
                 {pings.map((ping, index) => (
                   <div key={ping.id}>
-                    <div className={`flex items-center gap-4 ${index === 0 ? 'pt-1 pb-4' : 'py-4'}`}>
+                    <button
+                      type="button"
+                      onClick={() => handlePingPostOpen(ping.post_id)}
+                      className={`w-full text-left flex items-center gap-4 rounded-lg transition-colors hover:bg-stone-900/40 ${index === 0 ? 'pt-1 pb-4' : 'py-4'}`}
+                      aria-label={`Open ${ping.postTitle || 'post'} in shared`}
+                    >
                       <div
                         className="w-9 h-9 rounded-full flex-shrink-0"
                         style={{
@@ -1212,7 +1204,7 @@ export default function ProfilePage() {
                           )}
                         </span>
                       </span>
-                    </div>
+                    </button>
                     {index < pings.length - 1 && (
                       <div className="h-px bg-stone-800" />
                     )}
@@ -1388,9 +1380,29 @@ export default function ProfilePage() {
           aria-modal="true"
         >
           <div
-            className="w-full max-w-2xl bg-black border border-stone-800 rounded-2xl pt-3 pb-6 px-6"
+            className="w-full max-w-2xl bg-black border border-stone-800 rounded-2xl pt-3 pb-6 px-6 relative"
             onClick={(e) => e.stopPropagation()}
           >
+            <button
+              type="button"
+              onClick={closeNotesDrawer}
+              aria-label="Close notes"
+              className="absolute right-4 top-4 text-stone-500 hover:text-stone-300 transition-colors"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
             <div className="mx-auto h-1 w-10 rounded-full bg-stone-700 mb-4" />
             <div className="flex items-start gap-3 mb-4">
               <div
@@ -1487,11 +1499,11 @@ export default function ProfilePage() {
             )}
 
             {notesDrawerPost && currentUser?.user?.id === notesDrawerPost.user.id ? (
-              <p className="text-stone-500 text-sm mt-4 italic">
+              <p className="text-stone-500 text-xs mt-4 italic text-right">
                 you can’t note your own post
               </p>
             ) : hasNoted ? (
-              <p className="text-stone-500 text-sm mt-4 italic">
+              <p className="text-stone-500 text-sm mt-4 italic text-right">
                 you already left a note
               </p>
             ) : (

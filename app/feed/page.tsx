@@ -505,8 +505,16 @@ export default function FeedPage() {
             </Link>
           </div>
 
-          {/* Profile (left) and Share (right) - same level */}
+          {/* Share (left) and Profile (right) - same level */}
           <div className="pb-3 flex items-center justify-between">
+            <Link
+              href="/share"
+              className="px-3 py-1.5 text-sm font-bold lowercase tracking-wider transition-colors rounded-md bg-[#2d5016] text-white hover:bg-[#3a6b1e]"
+              onMouseEnter={() => setShareHovered(true)}
+              onMouseLeave={() => setShareHovered(false)}
+            >
+              share
+            </Link>
             <div className="flex items-center gap-2.5 flex-shrink-0 min-w-0">
               {currentUser?.user?.username ? (
                 <Link
@@ -532,14 +540,6 @@ export default function FeedPage() {
                 </>
               )}
             </div>
-            <Link
-              href="/share"
-              className="px-3 py-1.5 text-sm font-bold lowercase tracking-wider transition-colors rounded-md bg-[#2d5016] text-white hover:bg-[#3a6b1e]"
-              onMouseEnter={() => setShareHovered(true)}
-              onMouseLeave={() => setShareHovered(false)}
-            >
-              share
-            </Link>
           </div>
 
           {/* Tabs */}
@@ -1160,9 +1160,29 @@ export default function FeedPage() {
           aria-modal="true"
         >
           <div
-            className="w-full max-w-2xl bg-black border border-stone-800 rounded-2xl pt-3 pb-6 px-6"
+            className="w-full max-w-2xl bg-black border border-stone-800 rounded-2xl pt-3 pb-6 px-6 relative"
             onClick={(e) => e.stopPropagation()}
           >
+            <button
+              type="button"
+              onClick={closeNotesDrawer}
+              aria-label="Close notes"
+              className="absolute right-4 top-4 text-stone-500 hover:text-stone-300 transition-colors"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
             <div className="mx-auto h-1 w-10 rounded-full bg-stone-700 mb-4" />
             <div className="flex items-start gap-3 mb-4">
               <div
@@ -1259,7 +1279,7 @@ export default function FeedPage() {
             )}
 
             {hasNoted ? (
-              <p className="text-stone-500 text-sm mt-4 italic">
+              <p className="text-stone-500 text-xs mt-6 italic text-right">
                 you already left a note
               </p>
             ) : (
