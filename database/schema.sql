@@ -52,10 +52,25 @@ CREATE TABLE IF NOT EXISTS posts (
   CONSTRAINT fk_media_item FOREIGN KEY (media_item_id) REFERENCES media_items(id) ON DELETE RESTRICT
 );
 
+-- Create post_notes table
+CREATE TABLE IF NOT EXISTS post_notes (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  post_id TEXT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  text TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  
+  -- Constraints
+  CONSTRAINT post_notes_unique_per_user UNIQUE (post_id, user_id),
+  CONSTRAINT post_notes_text_length CHECK (char_length(text) >= 1 AND char_length(text) <= 60)
+);
+
 -- Create indexes for better query performance
 CREATE INDEX IF NOT EXISTS idx_posts_user_created ON posts(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_media_items_source ON media_items(source, source_id) WHERE source IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_post_notes_post_created ON post_notes(post_id, created_at ASC);
+CREATE INDEX IF NOT EXISTS idx_post_notes_user ON post_notes(user_id);
 
 -- Create saves table for post saves
 CREATE TABLE IF NOT EXISTS saves (
@@ -73,12 +88,14 @@ ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE media_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE saves ENABLE ROW LEVEL SECURITY;
+ALTER TABLE post_notes ENABLE ROW LEVEL SECURITY;
 
 -- RLS: Auth is via Clerk; API uses service role (bypasses RLS) and enforces "current user" in code.
 -- No auth.uid() policies; public SELECT only where needed.
 CREATE POLICY "Users are viewable by everyone" ON users FOR SELECT USING (true);
 CREATE POLICY "Media items are viewable by everyone" ON media_items FOR SELECT USING (true);
 CREATE POLICY "Posts are viewable by everyone" ON posts FOR SELECT USING (true);
+CREATE POLICY "Post notes are viewable by everyone" ON post_notes FOR SELECT USING (true);
 -- saves: no per-user policies; API uses service role and filters by Clerk userId
 
 -- Migration for existing projects: add profile columns if users table already exists:

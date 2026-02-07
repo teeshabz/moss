@@ -125,6 +125,7 @@ export async function GET(
 
     const postIds = (items as RawPostResult[]).map((post) => post.id)
     const smiledPostIds = new Set<string>()
+    const notedPostIds = new Set<string>()
 
     if (postIds.length > 0) {
       const { data: reactions, error: reactionsError } = await supabaseAdmin
@@ -145,10 +146,31 @@ export async function GET(
       for (const reaction of reactions ?? []) {
         smiledPostIds.add(reaction.post_id as string)
       }
+
+      const { data: noteRows, error: notesError } = await supabaseAdmin
+        .from('post_notes')
+        .select('post_id')
+        .in('post_id', postIds)
+
+      if (notesError) {
+        console.error('Error fetching profile post notes:', notesError)
+        return NextResponse.json(
+          { error: 'Failed to load posts' },
+          { status: 500 }
+        )
+      }
+
+      for (const note of noteRows ?? []) {
+        notedPostIds.add(note.post_id as string)
+      }
     }
 
     const transformedItems = (items as RawPostResult[]).map((post) =>
-      mapRawPostToPostWithRelations(post, smiledPostIds.has(post.id))
+      mapRawPostToPostWithRelations(
+        post,
+        smiledPostIds.has(post.id),
+        notedPostIds.has(post.id)
+      )
     )
 
     let nextCursor: string | undefined

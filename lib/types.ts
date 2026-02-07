@@ -36,10 +36,23 @@ export interface Post {
   created_at: string
 }
 
+export interface Note {
+  id: string
+  post_id: string
+  user_id: string
+  text: string
+  created_at: string
+}
+
+export interface NoteWithAuthor extends Note {
+  user: Pick<User, 'id' | 'username' | 'avatar_color' | 'created_at'>
+}
+
 export interface PostWithRelations extends Post {
   user: User
   media_item: MediaItem
   smiledByCurrentUser: boolean
+  hasNotes?: boolean
 }
 
 /** Raw PostgREST result when selecting post with user and media_item relations (arrays from join) */
@@ -64,6 +77,11 @@ export interface UserMeResponse {
 export interface FeedResponse {
   items: PostWithRelations[]
   nextCursor?: string
+}
+
+export interface NotesResponse {
+  items: NoteWithAuthor[]
+  hasNoted: boolean
 }
 
 export interface SavedIdsResponse {

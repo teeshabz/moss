@@ -121,10 +121,28 @@ export async function GET(request: NextRequest) {
       postsById.set(p.id, p)
     })
 
+    const notedPostIds = new Set<string>()
+    const { data: noteRows, error: notesError } = await supabase
+      .from('post_notes')
+      .select('post_id')
+      .in('post_id', postIds)
+
+    if (notesError) {
+      console.error('Error fetching saved post notes:', notesError)
+      return NextResponse.json(
+        { error: 'Failed to load saved posts' },
+        { status: 500 }
+      )
+    }
+
+    for (const note of noteRows ?? []) {
+      notedPostIds.add(note.post_id as string)
+    }
+
     const transformedItems = pageSaves
       .map((save) => postsById.get(save.post_id))
       .filter((p): p is RawPostResult => !!p)
-      .map((post) => mapRawPostToPostWithRelations(post))
+      .map((post) => mapRawPostToPostWithRelations(post, false, notedPostIds.has(post.id)))
 
     let nextCursor: string | undefined
     if (hasNextPage && saves.length > 0) {

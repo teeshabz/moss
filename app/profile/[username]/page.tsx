@@ -7,6 +7,8 @@ import Link from 'next/link'
 import { SignOutButton } from '@clerk/nextjs'
 import type {
   FeedResponse,
+  NoteWithAuthor,
+  NotesResponse,
   ProfileResponse,
   PostWithRelations,
   PingItem,
@@ -24,6 +26,7 @@ import {
 } from '@/lib/components/PostHelpers'
 
 export default function ProfilePage() {
+  const NOTE_MAX_LENGTH = 60
   const params = useParams()
   const router = useRouter()
   const username = params.username as string
@@ -45,6 +48,8 @@ export default function ProfilePage() {
   const [savedError, setSavedError] = useState<string | null>(null)
   const [savedLoaded, setSavedLoaded] = useState(false)
   const [unsavingId, setUnsavingId] = useState<string | null>(null)
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
+  const [savingIds, setSavingIds] = useState<Set<string>>(new Set())
   const [smilingIds, setSmilingIds] = useState<Set<string>>(new Set())
   const [pings, setPings] = useState<PingItem[]>([])
   const [pingsLoading, setPingsLoading] = useState(false)
@@ -56,6 +61,15 @@ export default function ProfilePage() {
   const [searchResults, setSearchResults] = useState<SearchUser[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [notesDrawerPost, setNotesDrawerPost] = useState<PostWithRelations | null>(null)
+  const [notesByPostId, setNotesByPostId] = useState<Record<string, NoteWithAuthor[]>>({})
+  const [notesHasNoted, setNotesHasNoted] = useState<Record<string, boolean>>({})
+  const [notesLoading, setNotesLoading] = useState(false)
+  const [notesError, setNotesError] = useState<string | null>(null)
+  const [noteInput, setNoteInput] = useState('')
+  const [noteSending, setNoteSending] = useState(false)
+  const [noteSendError, setNoteSendError] = useState<string | null>(null)
+  const [noteDeletingIds, setNoteDeletingIds] = useState<Set<string>>(new Set())
 
   const isOwnProfile =
     currentUser?.user?.username?.toLowerCase() === username?.toLowerCase()
@@ -67,6 +81,9 @@ export default function ProfilePage() {
         if (res.ok) {
           const data: UserMeResponse = await res.json()
           setCurrentUser(data)
+          if (data.postIds?.length !== undefined) {
+            setSavedIds(new Set(data.postIds))
+          }
         }
       } catch {
         // not required for viewing profile
@@ -313,6 +330,51 @@ export default function ProfilePage() {
     }
   }
 
+  const toggleSave = async (postId: string, post?: PostWithRelations) => {
+    const wasSaved = savedIds.has(postId)
+    setSavingIds((prev) => {
+      const next = new Set(prev)
+      next.add(postId)
+      return next
+    })
+    setSavedIds((prev) => {
+      const next = new Set(prev)
+      if (wasSaved) next.delete(postId)
+      else next.add(postId)
+      return next
+    })
+
+    try {
+      const res = await fetch(`/api/posts/${postId}/save`, {
+        method: wasSaved ? 'DELETE' : 'POST',
+      })
+      if (!res.ok) {
+        throw new Error('Failed to update save')
+      }
+
+      if (wasSaved) {
+        setSavedItems((prev) => prev.filter((item) => item.id !== postId))
+      } else if (post && isOwnProfile) {
+        setSavedItems((prev) => [post, ...prev])
+      }
+    } catch (error) {
+      console.error('Error toggling save:', error)
+      setSavedIds((prev) => {
+        const next = new Set(prev)
+        if (wasSaved) next.add(postId)
+        else next.delete(postId)
+        return next
+      })
+      setError('Failed to update save. Please try again.')
+    } finally {
+      setSavingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(postId)
+        return next
+      })
+    }
+  }
+
   const updateSmileInProfile = (postId: string, smiledByCurrentUser: boolean) => {
     setProfile((prev) =>
       prev
@@ -359,6 +421,127 @@ export default function ProfilePage() {
       })
     }
   }
+
+  const loadNotes = useCallback(async (postId: string) => {
+    try {
+      setNotesLoading(true)
+      setNotesError(null)
+      const response = await fetch(`/api/posts/${postId}/notes`)
+      if (!response.ok) {
+        throw new Error('Failed to load notes')
+      }
+      const data: NotesResponse = await response.json()
+      setNotesByPostId((prev) => ({
+        ...prev,
+        [postId]: data.items,
+      }))
+      setNotesHasNoted((prev) => ({
+        ...prev,
+        [postId]: data.hasNoted,
+      }))
+    } catch (error) {
+      console.error('Error loading notes:', error)
+      setNotesError('Failed to load notes. Please try again.')
+    } finally {
+      setNotesLoading(false)
+    }
+  }, [])
+
+  const openNotesDrawer = useCallback((post: PostWithRelations) => {
+    setNotesDrawerPost(post)
+    setNoteInput('')
+    setNoteSendError(null)
+    loadNotes(post.id)
+  }, [loadNotes])
+
+  const closeNotesDrawer = useCallback(() => {
+    setNotesDrawerPost(null)
+    setNoteInput('')
+    setNoteSendError(null)
+  }, [])
+
+  const handleSendNote = useCallback(async () => {
+    if (!notesDrawerPost) return
+    const trimmed = noteInput.trim()
+    if (trimmed.length < 1 || trimmed.length > NOTE_MAX_LENGTH) return
+
+    try {
+      setNoteSending(true)
+      setNoteSendError(null)
+      const response = await fetch(`/api/posts/${notesDrawerPost.id}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: trimmed }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to send note')
+      }
+
+      const data: { note: NoteWithAuthor } = await response.json()
+      setNotesByPostId((prev) => ({
+        ...prev,
+        [notesDrawerPost.id]: [
+          ...(prev[notesDrawerPost.id] ?? []),
+          data.note,
+        ],
+      }))
+      setNotesHasNoted((prev) => ({
+        ...prev,
+        [notesDrawerPost.id]: true,
+      }))
+      setNoteInput('')
+    } catch (error) {
+      console.error('Error sending note:', error)
+      setNoteSendError('couldn’t send note. try again.')
+    } finally {
+      setNoteSending(false)
+    }
+  }, [noteInput, notesDrawerPost, NOTE_MAX_LENGTH])
+
+  const handleDeleteNote = useCallback(async (noteId: string) => {
+    if (!notesDrawerPost || noteDeletingIds.has(noteId)) return
+
+    setNoteDeletingIds((prev) => new Set(prev).add(noteId))
+    try {
+      const response = await fetch(
+        `/api/posts/${notesDrawerPost.id}/notes/${noteId}`,
+        { method: 'DELETE' }
+      )
+      if (!response.ok) {
+        throw new Error('Failed to delete note')
+      }
+
+      setNotesByPostId((prev) => ({
+        ...prev,
+        [notesDrawerPost.id]: (prev[notesDrawerPost.id] ?? []).filter(
+          (note) => note.id !== noteId
+        ),
+      }))
+      setNotesHasNoted((prev) => ({
+        ...prev,
+        [notesDrawerPost.id]: false,
+      }))
+    } catch (error) {
+      console.error('Error deleting note:', error)
+      setNotesError('Failed to delete note. Please try again.')
+    } finally {
+      setNoteDeletingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(noteId)
+        return next
+      })
+    }
+  }, [notesDrawerPost, noteDeletingIds])
+
+  const activeNotes = notesDrawerPost
+    ? notesByPostId[notesDrawerPost.id] ?? []
+    : []
+  const hasNoted = notesDrawerPost
+    ? notesHasNoted[notesDrawerPost.id] ?? false
+    : false
+  const noteIsValid = noteInput.trim().length >= 1
+    && noteInput.trim().length <= NOTE_MAX_LENGTH
 
   if (loading && !profile) {
     return (
@@ -555,6 +738,39 @@ export default function ProfilePage() {
                         <span className="md:text-sm text-xs text-stone-600">
                           {formatTimeAgo(post.created_at)}
                         </span>
+                        {isOwnProfile && (() => {
+                          const hasNotes = (notesByPostId[post.id]?.length ?? (post.hasNotes ? 1 : 0)) > 0
+                          if (!hasNotes) return null
+                          return (
+                            <button
+                              onClick={() => openNotesDrawer(post)}
+                              aria-label="Open notes"
+                              className="text-stone-600 hover:text-stone-400 transition-opacity duration-200 flex-shrink-0 self-center"
+                            >
+                              <svg
+                                className="w-4 h-4"
+                                viewBox="0 0 16 16"
+                                fill="none"
+                                strokeWidth="1.5"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                aria-hidden="true"
+                              >
+                                <rect
+                                  x="3"
+                                  y="2.5"
+                                  width="10"
+                                  height="11"
+                                  rx="1.5"
+                                  fill="#fff"
+                                  stroke="#fff"
+                                />
+                                <path d="M5.5 6h5" stroke="#000" />
+                                <path d="M5.5 8.5h5" stroke="#000" />
+                              </svg>
+                            </button>
+                          )
+                        })()}
                         {isOwnProfile && (
                           <button
                             onClick={() => setDeleteConfirmId(post.id)}
@@ -610,51 +826,110 @@ export default function ProfilePage() {
                       )}
                     </div>
 
-                    {!isOwnProfile && currentUser?.user?.id !== post.user.id && (
-                      <div
-                        className={`md:pl-11 pl-9 flex items-center w-full ${
-                          post.note ? 'mt-3' : 'mt-2'
-                        }`}
-                      >
-                        <button
-                          onClick={() =>
-                            handleSmileToggle(post.id, post.smiledByCurrentUser)
-                          }
-                          disabled={smilingIds.has(post.id)}
-                          aria-pressed={post.smiledByCurrentUser}
-                          aria-label={
-                            post.smiledByCurrentUser
-                              ? 'Remove smile'
-                              : 'Smile at post'
-                          }
-                          className={`text-[14px] leading-none transition-colors duration-200 ${
-                            post.smiledByCurrentUser
-                              ? 'text-[#7a9b6f]'
-                              : 'text-stone-600 hover:text-stone-400'
-                          } ${smilingIds.has(post.id) ? 'opacity-60 cursor-not-allowed' : ''}`}
-                        >
-                          <span
-                            className={`inline-block transition-transform duration-300 ${
-                              post.smiledByCurrentUser ? 'rotate-0' : '-rotate-90'
-                            }`}
-                          >
-                            <svg
-                              className="w-4 h-4"
-                              viewBox="0 0 16 16"
-                              fill="currentColor"
-                              stroke="currentColor"
-                              strokeWidth="1.8"
-                              strokeLinecap="round"
-                              aria-hidden="true"
+                    <div
+                      className={`md:pl-11 pl-9 flex items-center w-full justify-between ${
+                        post.note ? 'mt-3' : 'mt-2'
+                      }`}
+                    >
+                      <div className="flex items-center">
+                        {currentUser?.user?.id && currentUser.user.id !== post.user.id && (
+                            <button
+                              onClick={() =>
+                                handleSmileToggle(post.id, post.smiledByCurrentUser)
+                              }
+                              disabled={smilingIds.has(post.id)}
+                              aria-pressed={post.smiledByCurrentUser}
+                              aria-label={
+                                post.smiledByCurrentUser
+                                  ? 'Remove smile'
+                                  : 'Smile at post'
+                              }
+                              className={`text-[14px] leading-none transition-colors duration-200 ${
+                                post.smiledByCurrentUser
+                                  ? 'text-[#7a9b6f]'
+                                  : 'text-stone-600 hover:text-stone-400'
+                              } ${smilingIds.has(post.id) ? 'opacity-60 cursor-not-allowed' : ''}`}
                             >
-                              <circle cx="5.4" cy="5.9" r="0.6" />
-                              <circle cx="10.6" cy="5.9" r="0.6" />
-                              <path d="M3.8 10.8c2.4 2.4 6.0 2.4 8.4 0" fill="none" />
-                            </svg>
-                          </span>
-                        </button>
+                              <span
+                                className={`inline-block transition-transform duration-300 ${
+                                  post.smiledByCurrentUser ? 'rotate-0' : '-rotate-90'
+                                }`}
+                              >
+                                <svg
+                                  className="w-4 h-4"
+                                  viewBox="0 0 16 16"
+                                  fill="currentColor"
+                                  stroke="currentColor"
+                                  strokeWidth="1.8"
+                                  strokeLinecap="round"
+                                  aria-hidden="true"
+                                >
+                                  <circle cx="5.4" cy="5.9" r="0.6" />
+                                  <circle cx="10.6" cy="5.9" r="0.6" />
+                                  <path d="M3.8 10.8c2.4 2.4 6.0 2.4 8.4 0" fill="none" />
+                                </svg>
+                              </span>
+                            </button>
+                        )}
+                        {(() => {
+                          const hasNotes = (notesByPostId[post.id]?.length ?? (post.hasNotes ? 1 : 0)) > 0
+                          const isOwnPost = currentUser?.user?.id === post.user.id
+                          if (isOwnPost) return null
+                          return (
+                            <button
+                              onClick={() => openNotesDrawer(post)}
+                              aria-label="Open notes"
+                              className={`ml-2.5 -mt-1 transition-opacity duration-200 flex-shrink-0 ${
+                                hasNotes ? 'hover:opacity-80' : 'text-stone-600 hover:text-stone-400'
+                              }`}
+                            >
+                              <svg
+                                className="w-4 h-4"
+                                viewBox="0 0 16 16"
+                                fill="none"
+                                strokeWidth="1.5"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                aria-hidden="true"
+                              >
+                                <rect
+                                  x="3"
+                                  y="2.5"
+                                  width="10"
+                                  height="11"
+                                  rx="1.5"
+                                  fill={hasNotes ? '#fff' : '#000'}
+                                  stroke={hasNotes ? '#fff' : 'currentColor'}
+                                />
+                                <path
+                                  d="M5.5 6h5"
+                                  stroke={hasNotes ? '#000' : 'currentColor'}
+                                />
+                                <path
+                                  d="M5.5 8.5h5"
+                                  stroke={hasNotes ? '#000' : 'currentColor'}
+                                />
+                              </svg>
+                            </button>
+                          )
+                        })()}
                       </div>
-                    )}
+                      {currentUser?.user?.id && currentUser.user.id !== post.user.id && (
+                        <button
+                          onClick={() => toggleSave(post.id, post)}
+                          disabled={savingIds.has(post.id)}
+                          aria-pressed={savedIds.has(post.id)}
+                          aria-label={savedIds.has(post.id) ? 'Unsave post' : 'Save post'}
+                          className={`-mt-1 transition-colors duration-200 flex-shrink-0 ${
+                            savedIds.has(post.id)
+                              ? 'text-[#7a9b6f]'
+                              : 'text-stone-600 hover:text-[#7a9b6f]'
+                          } ${savingIds.has(post.id) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                        >
+                          <PlusIcon saved={savedIds.has(post.id)} size={18} />
+                        </button>
+                      )}
+                    </div>
                     {index < items.length - 1 && (
                       <div
                         className={`mb-6 pl-9 md:pl-11 ${
@@ -894,7 +1169,9 @@ export default function ProfilePage() {
                             {ping.actor?.username || 'someone'}
                           </span>{' '}
                           <span className="text-stone-400">
-                            smiled at &quot;{ping.postTitle || 'a post'}&quot;
+                            {ping.type === 'note'
+                              ? `added a note to "${ping.postTitle || 'a post'}"`
+                              : `smiled at "${ping.postTitle || 'a post'}"`}
                           </span>
                         </div>
                         <div className="text-xs text-stone-600 mt-1">
@@ -903,19 +1180,36 @@ export default function ProfilePage() {
                       </div>
                       <span className="text-[#7a9b6f] text-[14px] leading-none">
                         <span className="inline-block rotate-0">
-                          <svg
-                            className="w-4 h-4"
-                            viewBox="0 0 16 16"
-                            fill="currentColor"
-                            stroke="currentColor"
-                            strokeWidth="1.8"
-                            strokeLinecap="round"
-                            aria-hidden="true"
-                          >
-                            <circle cx="5.4" cy="5.9" r="0.6" />
-                            <circle cx="10.6" cy="5.9" r="0.6" />
-                            <path d="M3.8 10.8c2.4 2.4 6.0 2.4 8.4 0" fill="none" />
-                          </svg>
+                          {ping.type === 'note' ? (
+                            <svg
+                              className="w-4 h-4"
+                              viewBox="0 0 16 16"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden="true"
+                            >
+                              <rect x="3" y="2.5" width="10" height="11" rx="1.5" />
+                              <path d="M5.5 6h5" />
+                              <path d="M5.5 8.5h5" />
+                            </svg>
+                          ) : (
+                            <svg
+                              className="w-4 h-4"
+                              viewBox="0 0 16 16"
+                              fill="currentColor"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                              strokeLinecap="round"
+                              aria-hidden="true"
+                            >
+                              <circle cx="5.4" cy="5.9" r="0.6" />
+                              <circle cx="10.6" cy="5.9" r="0.6" />
+                              <path d="M3.8 10.8c2.4 2.4 6.0 2.4 8.4 0" fill="none" />
+                            </svg>
+                          )}
                         </span>
                       </span>
                     </div>
@@ -1084,6 +1378,169 @@ export default function ProfilePage() {
           </div>
         )}
       </div>
+
+      {/* Notes drawer */}
+      {notesDrawerPost && (
+        <div
+          className="fixed inset-0 z-40 flex items-end justify-center bg-black/70 px-4 pb-4"
+          onClick={closeNotesDrawer}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="w-full max-w-2xl bg-black border border-stone-800 rounded-2xl pt-3 pb-6 px-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto h-1 w-10 rounded-full bg-stone-700 mb-4" />
+            <div className="flex items-start gap-3 mb-4">
+              <div
+                className="w-9 h-9 rounded-full flex-shrink-0"
+                style={{ backgroundColor: notesDrawerPost.user.avatar_color }}
+              />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 text-xs text-stone-500">
+                  <span className="text-stone-200 font-bold lowercase">
+                    {notesDrawerPost.user.username}
+                  </span>
+                  <span className="text-stone-700">·</span>
+                  <span className="flex items-center gap-1.5 text-stone-500">
+                    <MediaTypeFilledIcon
+                      mediaType={notesDrawerPost.media_item.media_type}
+                      size={12}
+                    />
+                    {getMediaTypeLabel(notesDrawerPost.media_item.media_type)}
+                  </span>
+                </div>
+                <div className="text-stone-200 text-base font-medium mt-1">
+                  <span className="font-bold">{notesDrawerPost.media_item.title}</span>
+                  {notesDrawerPost.media_item.creator && (
+                    <span className="text-stone-500 ml-1">
+                      by {notesDrawerPost.media_item.creator}
+                    </span>
+                  )}
+                </div>
+                {notesDrawerPost.note && (
+                  <p className="text-stone-500 text-sm mt-1">
+                    {notesDrawerPost.note}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="h-px bg-stone-800 mb-4" />
+
+            <div className="text-xs uppercase tracking-wider text-stone-500 mb-2">
+              notes
+            </div>
+
+            {notesLoading ? (
+              <p className="text-stone-500 text-sm">loading notes...</p>
+            ) : notesError ? (
+              <p className="text-red-400 text-sm">{notesError}</p>
+            ) : activeNotes.length === 0 ? (
+              <p className="text-stone-500 text-sm">no notes yet</p>
+            ) : (
+              <div className="space-y-4">
+                {activeNotes.map((note) => (
+                  <div key={note.id} className="flex items-start gap-3">
+                    <div
+                      className="w-7 h-7 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: note.user.avatar_color }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 text-xs text-stone-500">
+                        <div className="flex items-center gap-2">
+                          <span className="text-stone-200 font-bold lowercase">
+                            {note.user.username}
+                          </span>
+                          <span className="text-stone-700">·</span>
+                          <span>{formatTimeAgo(note.created_at)}</span>
+                        </div>
+                        {currentUser?.user?.id === note.user_id && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteNote(note.id)}
+                            disabled={noteDeletingIds.has(note.id)}
+                            className="text-stone-500 hover:text-stone-300 transition-colors disabled:opacity-50"
+                            aria-label="Delete note"
+                          >
+                            <svg
+                              width="12"
+                              height="12"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M18 6L6 18M6 6l12 12" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-stone-300 text-sm mt-1">{note.text}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {notesDrawerPost && currentUser?.user?.id === notesDrawerPost.user.id ? (
+              <p className="text-stone-500 text-sm mt-4 italic">
+                you can’t note your own post
+              </p>
+            ) : hasNoted ? (
+              <p className="text-stone-500 text-sm mt-4 italic">
+                you already left a note
+              </p>
+            ) : (
+              <form
+                className="mt-4"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  if (noteIsValid && !noteSending) {
+                    handleSendNote()
+                  }
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-7 h-7 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: currentUser?.user.avatar_color ?? '#3f3f46' }}
+                  />
+                  <input
+                    type="text"
+                    value={noteInput}
+                    onChange={(e) => {
+                      if (e.target.value.length <= NOTE_MAX_LENGTH) {
+                        setNoteInput(e.target.value)
+                      }
+                    }}
+                    maxLength={NOTE_MAX_LENGTH}
+                    placeholder="leave a note..."
+                    className="flex-1 bg-stone-900 text-stone-200 placeholder-stone-500 px-4 py-2 rounded-full outline-none border border-stone-800 focus:border-stone-700 text-sm"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!noteIsValid || noteSending}
+                    className={`text-sm font-medium transition-colors ${
+                      noteIsValid && !noteSending
+                        ? 'text-[#7a9b6f] hover:text-[#8fb084]'
+                        : 'text-stone-600 cursor-not-allowed'
+                    }`}
+                  >
+                    {noteSending ? 'sending...' : 'send'}
+                  </button>
+                </div>
+                {noteSendError && (
+                  <p className="text-red-400 text-xs mt-2">{noteSendError}</p>
+                )}
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

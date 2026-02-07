@@ -5,7 +5,8 @@ import type { RawPostResult, PostWithRelations } from '@/lib/types'
  */
 export function mapRawPostToPostWithRelations(
   raw: RawPostResult,
-  smiledByCurrentUser = false
+  smiledByCurrentUser = false,
+  hasNotes = false
 ): PostWithRelations {
   return {
     id: raw.id,
@@ -16,5 +17,6 @@ export function mapRawPostToPostWithRelations(
     user: Array.isArray(raw.user) ? raw.user[0] : raw.user,
     media_item: Array.isArray(raw.media_item) ? raw.media_item[0] : raw.media_item,
     smiledByCurrentUser,
+    hasNotes,
   }
 }

@@ -93,6 +93,7 @@ export async function GET(request: NextRequest) {
 
     const postIds = items.map((post: RawPostResult) => post.id)
     const smiledPostIds = new Set<string>()
+    const notedPostIds = new Set<string>()
 
     if (postIds.length > 0) {
       const { data: reactions, error: reactionsError } = await supabase
@@ -113,10 +114,31 @@ export async function GET(request: NextRequest) {
       for (const reaction of reactions ?? []) {
         smiledPostIds.add(reaction.post_id as string)
       }
+
+      const { data: noteRows, error: notesError } = await supabase
+        .from('post_notes')
+        .select('post_id')
+        .in('post_id', postIds)
+
+      if (notesError) {
+        console.error('Error fetching post notes:', notesError)
+        return NextResponse.json(
+          { error: 'Failed to fetch feed' },
+          { status: 500 }
+        )
+      }
+
+      for (const note of noteRows ?? []) {
+        notedPostIds.add(note.post_id as string)
+      }
     }
 
     const transformedItems = items.map((post: RawPostResult) =>
-      mapRawPostToPostWithRelations(post, smiledPostIds.has(post.id))
+      mapRawPostToPostWithRelations(
+        post,
+        smiledPostIds.has(post.id),
+        notedPostIds.has(post.id)
+      )
     )
 
     let nextCursor: string | undefined
