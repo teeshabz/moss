@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
+import { Analytics } from "@vercel/analytics/react";
 import { ErrorBoundaryWrapper } from "@/lib/components/ErrorBoundaryWrapper";
 import { mossClerkAppearance } from "@/lib/clerk-appearance";
 
@@ -49,6 +50,7 @@ export default function RootLayout({
       <html lang="en">
         <body>
           <ErrorBoundaryWrapper>{children}</ErrorBoundaryWrapper>
+          <Analytics />
         </body>
       </html>
     </ClerkProvider>
