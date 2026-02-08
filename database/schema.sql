@@ -83,12 +83,27 @@ CREATE TABLE IF NOT EXISTS saves (
 -- Index for listing saved posts per user
 CREATE INDEX IF NOT EXISTS idx_saves_user_created ON saves(user_id, created_at DESC);
 
+-- Create follows table for user follow relationships
+CREATE TABLE IF NOT EXISTS follows (
+  follower_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  following_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (follower_id, following_id),
+  CONSTRAINT follows_no_self CHECK (follower_id <> following_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_follows_follower_created
+  ON follows(follower_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_follows_following_created
+  ON follows(following_id, created_at DESC);
+
 -- Enable Row Level Security (RLS) - we'll configure policies later
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE media_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE saves ENABLE ROW LEVEL SECURITY;
 ALTER TABLE post_notes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE follows ENABLE ROW LEVEL SECURITY;
 
 -- RLS: Auth is via Clerk; API uses service role (bypasses RLS) and enforces "current user" in code.
 -- No auth.uid() policies; public SELECT only where needed.
@@ -96,7 +111,34 @@ CREATE POLICY "Users are viewable by everyone" ON users FOR SELECT USING (true);
 CREATE POLICY "Media items are viewable by everyone" ON media_items FOR SELECT USING (true);
 CREATE POLICY "Posts are viewable by everyone" ON posts FOR SELECT USING (true);
 CREATE POLICY "Post notes are viewable by everyone" ON post_notes FOR SELECT USING (true);
+CREATE POLICY "Follows are viewable by everyone" ON follows FOR SELECT USING (true);
 -- saves: no per-user policies; API uses service role and filters by Clerk userId
+
+-- Create pings table
+CREATE TABLE IF NOT EXISTS pings (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  recipient_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  actor_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  post_id TEXT REFERENCES posts(id) ON DELETE CASCADE,
+  type TEXT NOT NULL DEFAULT 'smile',
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  seen_at TIMESTAMP WITH TIME ZONE,
+  CONSTRAINT pings_type_check CHECK (type IN ('smile', 'note', 'follow'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_pings_recipient_created
+  ON pings(recipient_user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_pings_recipient_unseen
+  ON pings(recipient_user_id)
+  WHERE seen_at IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pings_unique_smile
+  ON pings(recipient_user_id, actor_user_id, post_id, type);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pings_unique_follow
+  ON pings(recipient_user_id, actor_user_id, type)
+  WHERE type = 'follow';
+
+-- Enable RLS (API uses service role; policies can be added later)
+ALTER TABLE pings ENABLE ROW LEVEL SECURITY;
 
 -- Migration for existing projects: add profile columns if users table already exists:
 -- ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_number TEXT;

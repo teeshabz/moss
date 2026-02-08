@@ -53,20 +53,58 @@ export async function GET(
       )
     }
 
-    const { count, error: countError } = await supabaseAdmin
-      .from('posts')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', profileUser.id)
+    const [
+      { count: postCount, error: countError },
+      { count: followerCount, error: followerCountError },
+      { count: followingCount, error: followingCountError },
+      { data: followRow, error: followError },
+      { data: followedByRow, error: followedByError },
+    ] = await Promise.all([
+      supabaseAdmin
+        .from('posts')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', profileUser.id),
+      supabaseAdmin
+        .from('follows')
+        .select('*', { count: 'exact', head: true })
+        .eq('following_id', profileUser.id),
+      supabaseAdmin
+        .from('follows')
+        .select('*', { count: 'exact', head: true })
+        .eq('follower_id', profileUser.id),
+      supabaseAdmin
+        .from('follows')
+        .select('follower_id')
+        .eq('follower_id', userId)
+        .eq('following_id', profileUser.id)
+        .maybeSingle(),
+      supabaseAdmin
+        .from('follows')
+        .select('follower_id')
+        .eq('follower_id', profileUser.id)
+        .eq('following_id', userId)
+        .maybeSingle(),
+    ])
 
-    if (countError) {
-      console.error('Error counting posts:', countError)
+    if (countError || followerCountError || followingCountError || followError || followedByError) {
+      console.error('Error loading profile stats:', {
+        countError,
+        followerCountError,
+        followingCountError,
+        followError,
+        followedByError,
+      })
       return NextResponse.json(
         { error: 'Failed to load profile' },
         { status: 500 }
       )
     }
 
-    const postCount = count ?? 0
+    const safePostCount = postCount ?? 0
+    const safeFollowerCount = followerCount ?? 0
+    const safeFollowingCount = followingCount ?? 0
+    const isFollowing = Boolean(followRow)
+    const isFollowedBy = Boolean(followedByRow)
 
     let query = supabaseAdmin
       .from('posts')
@@ -185,8 +223,12 @@ export async function GET(
         username: profileUser.username,
         avatar_color: profileUser.avatar_color ?? '',
         created_at: profileUser.created_at,
+        followerCount: safeFollowerCount,
+        followingCount: safeFollowingCount,
+        isFollowing,
+        isFollowedBy,
       },
-      postCount,
+      postCount: safePostCount,
       items: transformedItems,
       ...(nextCursor && { nextCursor }),
     }

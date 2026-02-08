@@ -64,7 +64,7 @@ export async function GET(_request: NextRequest) {
         id: row.id as string,
         recipient_user_id: row.recipient_user_id as string,
         actor_user_id: row.actor_user_id as string,
-        post_id: row.post_id as string,
+        post_id: (row.post_id as string | null) ?? null,
         type: row.type as string,
         created_at: row.created_at as string,
         seen_at: (row.seen_at as string | null) ?? null,
@@ -75,7 +75,7 @@ export async function GET(_request: NextRequest) {
               avatar_color: (actor.avatar_color as string) ?? '',
             }
           : null,
-        postTitle: (mediaItem?.title as string) ?? '',
+        postTitle: row.type === 'follow' ? '' : (mediaItem?.title as string) ?? '',
       }
     })
 

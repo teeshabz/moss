@@ -71,6 +71,7 @@ export default function ProfilePage() {
   const [noteSending, setNoteSending] = useState(false)
   const [noteSendError, setNoteSendError] = useState<string | null>(null)
   const [noteDeletingIds, setNoteDeletingIds] = useState<Set<string>>(new Set())
+  const [followUpdating, setFollowUpdating] = useState(false)
 
   const isOwnProfile =
     currentUser?.user?.username?.toLowerCase() === username?.toLowerCase()
@@ -245,9 +246,12 @@ export default function ProfilePage() {
       }
     }
 
-    checkUnreadPings()
+    const timeoutId = setTimeout(() => {
+      checkUnreadPings()
+    }, 800)
     return () => {
       isCancelled = true
+      clearTimeout(timeoutId)
     }
   }, [isOwnProfile])
 
@@ -549,6 +553,57 @@ export default function ProfilePage() {
   const noteIsValid = noteInput.trim().length >= 1
     && noteInput.trim().length <= NOTE_MAX_LENGTH
 
+  const isFollowing = Boolean(profile?.user.isFollowing)
+
+  const handleFollowToggle = useCallback(async () => {
+    if (!profile || isOwnProfile || followUpdating) return
+    const nextValue = !isFollowing
+    setFollowUpdating(true)
+    setProfile((prev) =>
+      prev
+        ? {
+            ...prev,
+            user: {
+              ...prev.user,
+              isFollowing: nextValue,
+              followerCount: Math.max(
+                0,
+                (prev.user.followerCount ?? 0) + (nextValue ? 1 : -1)
+              ),
+            },
+          }
+        : prev
+    )
+    try {
+      const res = await fetch(`/api/users/${encodeURIComponent(username)}/follow`, {
+        method: nextValue ? 'POST' : 'DELETE',
+      })
+      if (!res.ok) {
+        throw new Error('Failed to update follow')
+      }
+    } catch (error) {
+      console.error('Error updating follow:', error)
+      setProfile((prev) =>
+        prev
+          ? {
+              ...prev,
+              user: {
+                ...prev.user,
+                isFollowing: !nextValue,
+                followerCount: Math.max(
+                  0,
+                  (prev.user.followerCount ?? 0) + (nextValue ? -1 : 1)
+                ),
+              },
+            }
+          : prev
+      )
+      setError('Failed to update follow. Please try again.')
+    } finally {
+      setFollowUpdating(false)
+    }
+  }, [profile, isOwnProfile, followUpdating, isFollowing, username])
+
   useEffect(() => {
     if (!targetPingPostId || activeTab !== 'shared' || !profile) return
     const match = profile.items.find((post) => post.id === targetPingPostId)
@@ -610,7 +665,7 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-black text-white pb-24">
-      {/* Header: back + logo */}
+      {/* Header: back + logo + profile header + tabs */}
       <div className="sticky top-0 bg-black/90 backdrop-blur-sm z-10">
         <div className="max-w-4xl mx-auto px-4 md:px-8 pt-6 pb-4 flex items-center justify-between">
           <Link href="/feed" className="text-white text-2xl hover:text-gray-300">
@@ -632,11 +687,10 @@ export default function ProfilePage() {
           </Link>
           <div className="w-8" />
         </div>
-      </div>
 
-      <div className="max-w-2xl mx-auto px-4 md:px-8 py-6">
-        {/* Profile header: avatar, username, settings */}
-        <div className="flex items-center gap-4 mb-4">
+        <div className="max-w-2xl mx-auto px-4 md:px-8 pb-4">
+          {/* Profile header: avatar, username, settings */}
+          <div className="flex items-center gap-4 mb-2">
           {isOwnProfile ? (
             <Link
               href="/edit-profile"
@@ -668,59 +722,94 @@ export default function ProfilePage() {
             />
           )}
           <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-bold lowercase truncate">
+            <h1
+              className={`font-bold lowercase truncate ${
+                isOwnProfile ? 'text-2xl' : 'text-lg'
+              }`}
+            >
               {user.username}
             </h1>
           </div>
-          <div className="w-14" />
+          {isOwnProfile ? (
+            <div className="w-14" />
+          ) : (
+            <button
+              type="button"
+              onClick={handleFollowToggle}
+              disabled={followUpdating}
+              className={`rounded-full px-5 py-2 text-sm font-bold lowercase transition-colors ${
+                isFollowing
+                  ? 'bg-stone-800 text-stone-400 hover:bg-stone-700'
+                  : 'bg-[#2d5016] text-white hover:bg-[#3d6a1e]'
+              } ${followUpdating ? 'opacity-60 cursor-not-allowed' : ''}`}
+            >
+              {isFollowing ? 'following' : 'follow'}
+            </button>
+          )}
         </div>
 
-        {/* Tabs */}
-        <div className="border-b border-stone-700 mb-6">
-          <div
-            className={`flex items-center gap-6 ${
-              isOwnProfile ? 'justify-center' : 'justify-start'
-            }`}
-          >
-            <button
-              onClick={() => setActiveTab('shared')}
-              className={`pb-2 text-sm font-bold lowercase tracking-wider border-b-2 transition-colors ${
-                activeTab === 'shared'
-                  ? 'text-white border-[#7a9b6f]'
-                  : 'text-stone-500 border-transparent hover:text-stone-400'
+          {isOwnProfile && (
+            <Link
+              href="/your-people"
+              className="inline-block mt-2 text-stone-500 text-xs font-medium lowercase hover:text-stone-300 transition-colors relative z-10 pointer-events-auto"
+            >
+              your people →
+            </Link>
+          )}
+
+          {/* Tabs */}
+          <div className={`border-b border-stone-700 ${isOwnProfile ? 'mt-4' : 'mt-2'}`}>
+            <div
+              className={`flex items-center gap-6 ${
+                isOwnProfile ? 'justify-center' : 'justify-start'
               }`}
             >
-              shared
-            </button>
-            {isOwnProfile && (
               <button
-                onClick={() => setActiveTab('saved')}
+                onClick={() => setActiveTab('shared')}
                 className={`pb-2 text-sm font-bold lowercase tracking-wider border-b-2 transition-colors ${
-                  activeTab === 'saved'
+                  activeTab === 'shared'
                     ? 'text-white border-[#7a9b6f]'
                     : 'text-stone-500 border-transparent hover:text-stone-400'
                 }`}
               >
-                saved
+                shared
               </button>
-            )}
-            {isOwnProfile && (
-              <button
-                onClick={() => setActiveTab('pings')}
-                className={`pb-2 text-sm font-bold lowercase tracking-wider border-b-2 transition-colors ${
-                  activeTab === 'pings'
-                    ? 'text-white border-[#7a9b6f]'
-                    : 'text-stone-500 border-transparent hover:text-stone-400'
-                } mr-2 relative`}
-              >
-                pings
-                {hasUnreadPings && activeTab !== 'pings' && (
-                  <span className="absolute -top-1 -right-2.5 w-2.5 h-2.5 bg-[#2d5016] rounded-full" />
-                )}
-              </button>
-            )}
+              {isOwnProfile && (
+                <button
+                  onClick={() => setActiveTab('saved')}
+                  className={`pb-2 text-sm font-bold lowercase tracking-wider border-b-2 transition-colors ${
+                    activeTab === 'saved'
+                      ? 'text-white border-[#7a9b6f]'
+                      : 'text-stone-500 border-transparent hover:text-stone-400'
+                  }`}
+                >
+                  saved
+                </button>
+              )}
+              {isOwnProfile && (
+                <button
+                  onClick={() => {
+                    setActiveTab('pings')
+                    setHasUnreadPings(false)
+                  }}
+                  className={`pb-2 text-sm font-bold lowercase tracking-wider border-b-2 transition-colors ${
+                    activeTab === 'pings'
+                      ? 'text-white border-[#7a9b6f]'
+                      : 'text-stone-500 border-transparent hover:text-stone-400'
+                  } mr-2 relative`}
+                >
+                  pings
+                  {hasUnreadPings && activeTab !== 'pings' && (
+                    <span className="absolute -top-1 -right-2.5 w-2.5 h-2.5 bg-[#2d5016] rounded-full" />
+                  )}
+                </button>
+              )}
+            </div>
           </div>
         </div>
+      </div>
+
+      <div className="max-w-2xl mx-auto px-4 md:px-8 pt-2 pb-6">
 
         {activeTab === 'shared' && (
           <div className="relative">
@@ -806,7 +895,7 @@ export default function ProfilePage() {
                           )}
                         </div>
                         {post.note && (
-                          <p className="md:text-sm text-xs text-stone-400 leading-relaxed line-clamp-3 mt-1 font-medium">
+                          <p className="md:text-sm text-xs text-stone-400 leading-relaxed line-clamp-3 mt-1 font-medium w-full text-left">
                             {post.note}
                           </p>
                         )}
@@ -826,41 +915,13 @@ export default function ProfilePage() {
                     </div>
 
                     <div
-                      className={`md:pl-11 pl-9 flex items-center w-full justify-between ${
-                        post.note ? 'mt-3' : 'mt-2'
+                      className={`md:pl-11 pl-9 flex gap-3 ${
+                        post.note ? 'mt-1.5' : 'mt-1'
                       }`}
                     >
-                      <div className="flex items-center">
-                        {hasNotes && (
-                          <button
-                            onClick={() => openNotesDrawer(post)}
-                            aria-label="Open notes"
-                            className="hover:opacity-80 -mt-1 transition-opacity duration-200 flex-shrink-0"
-                          >
-                            <svg
-                              className="w-4 h-4"
-                              viewBox="0 0 16 16"
-                              fill="none"
-                              strokeWidth="1.5"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              aria-hidden="true"
-                            >
-                              <rect
-                                x="3"
-                                y="2.5"
-                                width="10"
-                                height="11"
-                                rx="1.5"
-                                fill="#fff"
-                                stroke="#fff"
-                              />
-                              <path d="M5.5 6h5" stroke="#000" />
-                              <path d="M5.5 8.5h5" stroke="#000" />
-                            </svg>
-                          </button>
-                        )}
-                        {currentUser?.user?.id && !isOwnPost && (
+                      <div className="flex-1 flex items-center justify-between">
+                        <div className="flex items-center">
+                          {currentUser?.user?.id && !isOwnPost && (
                             <button
                               onClick={() =>
                                 handleSmileToggle(post.id, post.smiledByCurrentUser)
@@ -872,7 +933,7 @@ export default function ProfilePage() {
                                   ? 'Remove smile'
                                   : 'Smile at post'
                               }
-                              className={`text-[14px] leading-none transition-colors duration-200 ${hasNotes ? 'ml-2.5' : ''} ${
+                              className={`text-[14px] leading-none transition-colors duration-200 ${
                                 post.smiledByCurrentUser
                                   ? 'text-[#7a9b6f]'
                                   : 'text-stone-600 hover:text-stone-400'
@@ -898,29 +959,70 @@ export default function ProfilePage() {
                                 </svg>
                               </span>
                             </button>
+                          )}
+                          {(() => {
+                            const hasNotes =
+                              (notesByPostId[post.id]?.length ?? (post.hasNotes ? 1 : 0)) > 0
+                            return (
+                              <button
+                                onClick={() => openNotesDrawer(post)}
+                                aria-label="Open notes"
+                                className={`ml-2.5 -mt-1 transition-opacity duration-200 flex-shrink-0 ${
+                                  hasNotes ? 'hover:opacity-80' : 'text-stone-600 hover:text-stone-400'
+                                }`}
+                              >
+                                <svg
+                                  className="w-4 h-4"
+                                  viewBox="0 0 16 16"
+                                  fill="none"
+                                  strokeWidth="1.5"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  aria-hidden="true"
+                                >
+                                  <rect
+                                    x="3"
+                                    y="2.5"
+                                    width="10"
+                                    height="11"
+                                    rx="1.5"
+                                    fill={hasNotes ? '#fff' : '#000'}
+                                    stroke={hasNotes ? '#fff' : 'currentColor'}
+                                  />
+                                  <path
+                                    d="M5.5 6h5"
+                                    stroke={hasNotes ? '#000' : 'currentColor'}
+                                  />
+                                  <path
+                                    d="M5.5 8.5h5"
+                                    stroke={hasNotes ? '#000' : 'currentColor'}
+                                  />
+                                </svg>
+                              </button>
+                            )
+                          })()}
+                        </div>
+                        {currentUser?.user?.id && currentUser.user.id !== post.user.id && (
+                          <button
+                            onClick={() => toggleSave(post.id, post)}
+                            disabled={savingIds.has(post.id)}
+                            aria-pressed={savedIds.has(post.id)}
+                            aria-label={savedIds.has(post.id) ? 'Unsave post' : 'Save post'}
+                            className={`-mt-1 transition-colors duration-200 flex-shrink-0 ${
+                              savedIds.has(post.id)
+                                ? 'text-[#7a9b6f]'
+                                : 'text-stone-600 hover:text-[#7a9b6f]'
+                            } ${savingIds.has(post.id) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                          >
+                            <PlusIcon saved={savedIds.has(post.id)} size={18} />
+                          </button>
                         )}
                       </div>
-                      {currentUser?.user?.id && currentUser.user.id !== post.user.id && (
-                        <button
-                          onClick={() => toggleSave(post.id, post)}
-                          disabled={savingIds.has(post.id)}
-                          aria-pressed={savedIds.has(post.id)}
-                          aria-label={savedIds.has(post.id) ? 'Unsave post' : 'Save post'}
-                          className={`-mt-1 transition-colors duration-200 flex-shrink-0 ${
-                            savedIds.has(post.id)
-                              ? 'text-[#7a9b6f]'
-                              : 'text-stone-600 hover:text-[#7a9b6f]'
-                          } ${savingIds.has(post.id) ? 'opacity-60 cursor-not-allowed' : ''}`}
-                        >
-                          <PlusIcon saved={savedIds.has(post.id)} size={18} />
-                        </button>
-                      )}
+                      <div className="md:w-14 md:h-14 w-12 h-12 flex-shrink-0" aria-hidden="true" />
                     </div>
                     {index < items.length - 1 && (
                       <div
-                        className={`mb-6 pl-9 md:pl-11 ${
-                          post.note ? 'mt-6' : 'mt-5'
-                        }`}
+                        className="mb-2 pl-9 md:pl-11 mt-1.5"
                       >
                         <div className="h-px bg-stone-800" />
                       </div>
@@ -942,9 +1044,8 @@ export default function ProfilePage() {
               </div>
             )}
 
-            {/* Delete confirmation modal */}
             {deleteConfirmId && (
-              <div className="absolute inset-0 z-50 flex items-end justify-center pb-4 pt-24">
+              <div className="fixed inset-0 z-50 flex items-center justify-center">
                 <div className="bg-stone-950 border border-stone-700 max-w-[220px] w-full p-4 shadow-2xl relative">
                   <button
                     onClick={() => setDeleteConfirmId(null)}
@@ -984,11 +1085,12 @@ export default function ProfilePage() {
                 </div>
               </div>
             )}
+
           </div>
         )}
 
         {activeTab === 'saved' && isOwnProfile && (
-          <>
+          <div className="mt-0">
             {savedError && (
               <div className="mb-4 p-3 bg-red-900/20 border border-red-800 rounded text-red-400 text-sm">
                 {savedError}
@@ -1091,11 +1193,7 @@ export default function ProfilePage() {
                     </div>
 
                     {index < savedItems.length - 1 && (
-                      <div
-                        className={`mb-6 pl-9 md:pl-11 ${
-                          post.note ? 'mt-6' : 'mt-5'
-                        }`}
-                      >
+                      <div className="mb-2 pl-9 md:pl-11 mt-2">
                         <div className="h-px bg-stone-800" />
                       </div>
                     )}
@@ -1114,7 +1212,7 @@ export default function ProfilePage() {
                 </button>
               </div>
             )}
-          </>
+          </div>
         )}
 
         {activeTab === 'pings' && isOwnProfile && (
@@ -1144,9 +1242,17 @@ export default function ProfilePage() {
                   <div key={ping.id}>
                     <button
                       type="button"
-                      onClick={() => handlePingPostOpen(ping.post_id)}
+                      onClick={() => {
+                        if (ping.type !== 'follow' && ping.post_id) {
+                          handlePingPostOpen(ping.post_id)
+                        }
+                      }}
                       className={`w-full text-left flex items-center gap-4 rounded-lg transition-colors hover:bg-stone-900/40 ${index === 0 ? 'pt-1 pb-4' : 'py-4'}`}
-                      aria-label={`Open ${ping.postTitle || 'post'} in shared`}
+                      aria-label={
+                        ping.type === 'follow'
+                          ? `View ${ping.actor?.username || 'user'} profile`
+                          : `Open ${ping.postTitle || 'post'} in shared`
+                      }
                     >
                       <div
                         className="w-9 h-9 rounded-full flex-shrink-0"
@@ -1163,47 +1269,51 @@ export default function ProfilePage() {
                           <span className="text-stone-400">
                             {ping.type === 'note'
                               ? `added a note to "${ping.postTitle || 'a post'}"`
-                              : `smiled at "${ping.postTitle || 'a post'}"`}
+                              : ping.type === 'follow'
+                                ? 'followed you'
+                                : `smiled at "${ping.postTitle || 'a post'}"`}
                           </span>
                         </div>
                         <div className="text-xs text-stone-600 mt-1">
                           {formatTimeAgo(ping.created_at)}
                         </div>
                       </div>
-                      <span className="text-[#7a9b6f] text-[14px] leading-none">
-                        <span className="inline-block rotate-0">
-                          {ping.type === 'note' ? (
-                            <svg
-                              className="w-4 h-4"
-                              viewBox="0 0 16 16"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="1.5"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              aria-hidden="true"
-                            >
-                              <rect x="3" y="2.5" width="10" height="11" rx="1.5" />
-                              <path d="M5.5 6h5" />
-                              <path d="M5.5 8.5h5" />
-                            </svg>
-                          ) : (
-                            <svg
-                              className="w-4 h-4"
-                              viewBox="0 0 16 16"
-                              fill="currentColor"
-                              stroke="currentColor"
-                              strokeWidth="1.8"
-                              strokeLinecap="round"
-                              aria-hidden="true"
-                            >
-                              <circle cx="5.4" cy="5.9" r="0.6" />
-                              <circle cx="10.6" cy="5.9" r="0.6" />
-                              <path d="M3.8 10.8c2.4 2.4 6.0 2.4 8.4 0" fill="none" />
-                            </svg>
-                          )}
+                      {ping.type !== 'follow' && (
+                        <span className="text-[#7a9b6f] text-[14px] leading-none">
+                          <span className="inline-block rotate-0">
+                            {ping.type === 'note' ? (
+                              <svg
+                                className="w-4 h-4"
+                                viewBox="0 0 16 16"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.5"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                aria-hidden="true"
+                              >
+                                <rect x="3" y="2.5" width="10" height="11" rx="1.5" />
+                                <path d="M5.5 6h5" />
+                                <path d="M5.5 8.5h5" />
+                              </svg>
+                            ) : (
+                              <svg
+                                className="w-4 h-4"
+                                viewBox="0 0 16 16"
+                                fill="currentColor"
+                                stroke="currentColor"
+                                strokeWidth="1.8"
+                                strokeLinecap="round"
+                                aria-hidden="true"
+                              >
+                                <circle cx="5.4" cy="5.9" r="0.6" />
+                                <circle cx="10.6" cy="5.9" r="0.6" />
+                                <path d="M3.8 10.8c2.4 2.4 6.0 2.4 8.4 0" fill="none" />
+                              </svg>
+                            )}
+                          </span>
                         </span>
-                      </span>
+                      )}
                     </button>
                     {index < pings.length - 1 && (
                       <div className="h-px bg-stone-800" />

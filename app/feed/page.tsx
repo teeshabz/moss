@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import type {
@@ -22,12 +22,25 @@ import {
   PlusIcon,
 } from '@/lib/components/PostHelpers'
 
-export default function FeedPage() {
+function FeedPageContent() {
   const NOTE_MAX_LENGTH = 60
-  const [posts, setPosts] = useState<PostWithRelations[]>([])
+  const [postsByTab, setPostsByTab] = useState<{
+    community: PostWithRelations[]
+    following: PostWithRelations[]
+  }>({ community: [], following: [] })
+  const [nextCursorByTab, setNextCursorByTab] = useState<{
+    community?: string
+    following?: string
+  }>({})
+  const [hasMoreByTab, setHasMoreByTab] = useState<{
+    community: boolean
+    following: boolean
+  }>({ community: false, following: false })
+  const [hasLoadedByTab, setHasLoadedByTab] = useState<{
+    community: boolean
+    following: boolean
+  }>({ community: false, following: false })
   const [loading, setLoading] = useState(true)
-  const [nextCursor, setNextCursor] = useState<string | undefined>()
-  const [hasMore, setHasMore] = useState(false)
   const [shareHovered, setShareHovered] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [currentUser, setCurrentUser] = useState<UserMeResponse | null>(null)
@@ -40,14 +53,8 @@ export default function FeedPage() {
   const [searchResults, setSearchResults] = useState<SearchUser[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const backgroundFeedLoadedRef = useRef(false)
-  const [activeTab, setActiveTab] = useState<'everyone' | 'saved'>('everyone')
-  const [savedPosts, setSavedPosts] = useState<PostWithRelations[]>([])
-  const [savedNextCursor, setSavedNextCursor] = useState<string | undefined>()
-  const [savedHasMore, setSavedHasMore] = useState(false)
-  const [savedLoading, setSavedLoading] = useState(false)
-  const [savedLoaded, setSavedLoaded] = useState(false)
-  const [unsavingId, setUnsavingId] = useState<string | null>(null)
+  const backgroundFeedLoadedRef = useRef({ community: false, following: false })
+  const [activeTab, setActiveTab] = useState<'community' | 'following'>('following')
   const [aboutOpen, setAboutOpen] = useState(false)
   const [notesDrawerPost, setNotesDrawerPost] = useState<PostWithRelations | null>(null)
   const [notesByPostId, setNotesByPostId] = useState<Record<string, NoteWithAuthor[]>>({})
@@ -59,13 +66,28 @@ export default function FeedPage() {
   const [noteSendError, setNoteSendError] = useState<string | null>(null)
   const [noteDeletingIds, setNoteDeletingIds] = useState<Set<string>>(new Set())
   const router = useRouter()
+  const searchParams = useSearchParams()
+  useEffect(() => {
+    const tabParam = searchParams.get('tab')
+    if (tabParam === 'following') {
+      setActiveTab('following')
+    } else if (tabParam === 'community') {
+      setActiveTab('community')
+    }
+  }, [searchParams])
 
-  const loadFeed = useCallback(async (cursor?: string) => {
-    if (!cursor) backgroundFeedLoadedRef.current = false
+  const loadFeed = useCallback(async (
+    mode: 'community' | 'following',
+    cursor?: string
+  ) => {
+    if (!cursor) {
+      backgroundFeedLoadedRef.current[mode] = false
+    }
     try {
+      const modeParam = mode === 'following' ? '&mode=following' : ''
       const url = cursor
-        ? `/api/feed?cursor=${encodeURIComponent(cursor)}`
-        : '/api/feed?limit=10'
+        ? `/api/feed?cursor=${encodeURIComponent(cursor)}${modeParam}`
+        : `/api/feed?limit=10${modeParam}`
       const response = await fetch(url)
 
       if (!response.ok) {
@@ -80,74 +102,47 @@ export default function FeedPage() {
 
       if (cursor) {
         // Append to existing posts (pagination), dedupe by id to avoid duplicate keys
-        setPosts((prev) => {
-          const existingIds = new Set(prev.map((p) => p.id))
+        setPostsByTab((prev) => {
+          const existingIds = new Set(prev[mode].map((p) => p.id))
           const newItems = data.items.filter((p) => !existingIds.has(p.id))
-          return [...prev, ...newItems]
+          return { ...prev, [mode]: [...prev[mode], ...newItems] }
         })
       } else {
         // Replace posts (initial load)
-        setPosts(data.items)
+        setPostsByTab((prev) => ({ ...prev, [mode]: data.items }))
       }
 
-      setNextCursor(data.nextCursor)
-      setHasMore(!!data.nextCursor)
+      setNextCursorByTab((prev) => ({ ...prev, [mode]: data.nextCursor }))
+      setHasMoreByTab((prev) => ({ ...prev, [mode]: !!data.nextCursor }))
       setError(null) // Clear any previous errors on success
       // Load next page in background once so more content appears quickly (initial load only)
-      if (!cursor && data.nextCursor && data.items.length > 0 && !backgroundFeedLoadedRef.current) {
-        backgroundFeedLoadedRef.current = true
-        loadFeed(data.nextCursor)
+      if (
+        !cursor &&
+        data.nextCursor &&
+        data.items.length > 0 &&
+        !backgroundFeedLoadedRef.current[mode]
+      ) {
+        backgroundFeedLoadedRef.current[mode] = true
+        loadFeed(mode, data.nextCursor)
       }
     } catch (error) {
       console.error('Error loading feed:', error)
       setError('Failed to load feed. Please try again.')
     } finally {
       setLoading(false)
+      if (!cursor) {
+        setHasLoadedByTab((prev) => ({ ...prev, [mode]: true }))
+      }
     }
   }, [router])
 
   const handleLoadMore = () => {
-    if (nextCursor && !loading) {
+    const cursor = nextCursorByTab[activeTab]
+    if (cursor && !loading) {
       setLoading(true)
-      loadFeed(nextCursor)
+      loadFeed(activeTab, cursor)
     }
   }
-
-  const loadSavedPosts = useCallback(async (cursor?: string) => {
-    try {
-      if (!cursor) setSavedLoading(true)
-      const url = cursor
-        ? `/api/users/me/saved?cursor=${encodeURIComponent(cursor)}`
-        : '/api/users/me/saved'
-      const response = await fetch(url)
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          router.push('/onboarding')
-          return
-        }
-        throw new Error('Failed to load saved posts')
-      }
-
-      const data: FeedResponse = await response.json()
-
-      if (cursor) {
-        setSavedPosts((prev) => [...prev, ...data.items])
-      } else {
-        setSavedPosts(data.items)
-        setSavedLoaded(true)
-      }
-
-      setSavedNextCursor(data.nextCursor)
-      setSavedHasMore(!!data.nextCursor)
-    } catch (error) {
-      console.error('Error loading saved posts:', error)
-      setError('Failed to load saved posts. Please try again.')
-    } finally {
-      setSavedLoading(false)
-      if (!cursor) setSavedLoaded(true)
-    }
-  }, [router])
 
   const loadNotes = useCallback(async (postId: string) => {
     try {
@@ -271,23 +266,14 @@ export default function FeedPage() {
     && noteInput.trim().length <= NOTE_MAX_LENGTH
 
   useEffect(() => {
-    if (activeTab === 'everyone') {
-      loadFeed()
+    if (!hasLoadedByTab[activeTab]) {
+      setError(null)
+      setLoading(true)
+      loadFeed(activeTab)
+    } else {
+      setLoading(false)
     }
-  }, [activeTab, loadFeed])
-
-  // Load saved when user clicks the saved tab (if not already loading/loaded)
-  useEffect(() => {
-    if (activeTab === 'saved' && !savedLoaded && !savedLoading) {
-      loadSavedPosts()
-    }
-  }, [activeTab, savedLoaded, savedLoading, loadSavedPosts])
-
-  // Preload saved posts in background once we have a user, so the tab feels instant
-  useEffect(() => {
-    if (!currentUser?.user?.id || savedLoaded || savedLoading) return
-    loadSavedPosts()
-  }, [currentUser?.user?.id, savedLoaded, savedLoading, loadSavedPosts])
+  }, [activeTab, hasLoadedByTab, loadFeed])
 
   useEffect(() => {
     async function loadUser() {
@@ -324,9 +310,12 @@ export default function FeedPage() {
       }
     }
 
-    checkUnreadPings()
+    const timeoutId = setTimeout(() => {
+      checkUnreadPings()
+    }, 800)
     return () => {
       isCancelled = true
+      clearTimeout(timeoutId)
     }
   }, [currentUser?.user?.id])
 
@@ -385,11 +374,6 @@ export default function FeedPage() {
         throw new Error('Failed to update save')
       }
 
-      if (wasSaved) {
-        setSavedPosts((prev) => prev.filter((p) => p.id !== postId))
-      } else if (post) {
-        setSavedPosts((prev) => [post, ...prev])
-      }
     } catch (error) {
       console.error('Error toggling save:', error)
       setSavedIds((prev) => {
@@ -408,38 +392,15 @@ export default function FeedPage() {
     }
   }
 
-  const handleUnsave = async (postId: string) => {
-    setUnsavingId(postId)
-    try {
-      const res = await fetch(`/api/posts/${postId}/save`, { method: 'DELETE' })
-      if (res.ok) {
-        setSavedPosts((prev) => prev.filter((item) => item.id !== postId))
-        setSavedIds((prev) => {
-          const next = new Set(prev)
-          next.delete(postId)
-          return next
-        })
-      } else {
-        setError('Failed to remove saved item')
-      }
-    } catch {
-      setError('Failed to remove saved item')
-    } finally {
-      setUnsavingId(null)
-    }
-  }
-
   const updateSmileInLists = (postId: string, smiledByCurrentUser: boolean) => {
-    setPosts((prev) =>
-      prev.map((post) =>
+    setPostsByTab((prev) => ({
+      community: prev.community.map((post) =>
         post.id === postId ? { ...post, smiledByCurrentUser } : post
-      )
-    )
-    setSavedPosts((prev) =>
-      prev.map((post) =>
+      ),
+      following: prev.following.map((post) =>
         post.id === postId ? { ...post, smiledByCurrentUser } : post
-      )
-    )
+      ),
+    }))
   }
 
   const handleSmileToggle = async (
@@ -474,6 +435,19 @@ export default function FeedPage() {
     }
   }
 
+  const posts = postsByTab[activeTab]
+  const nextCursor = nextCursorByTab[activeTab]
+  const hasMore = hasMoreByTab[activeTab]
+  const onlyOwnPosts =
+    activeTab === 'following' &&
+    posts.length > 0 &&
+    !!currentUser?.user?.id &&
+    posts.every((post) => post.user.id === currentUser.user.id)
+  const showFollowingEmptyState =
+    activeTab === 'following' && !loading && (posts.length === 0 || onlyOwnPosts)
+  const showEmptyState =
+    !loading && (activeTab === 'following' ? showFollowingEmptyState : posts.length === 0)
+
   if (loading && posts.length === 0) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
@@ -506,7 +480,7 @@ export default function FeedPage() {
           </div>
 
           {/* Share (left) and Profile (right) - same level */}
-          <div className="pb-3 flex items-center justify-between">
+          <div className="mt-4 pb-3 flex items-center justify-between">
             <Link
               href="/share"
               className="px-3 py-1.5 text-sm font-bold lowercase tracking-wider transition-colors rounded-md bg-[#2d5016] text-white hover:bg-[#3a6b1e]"
@@ -543,27 +517,27 @@ export default function FeedPage() {
           </div>
 
           {/* Tabs */}
-          <div className="border-b border-stone-700">
+          <div className="border-b border-stone-700 mt-4">
             <div className="flex gap-6 justify-center">
               <button
-                onClick={() => setActiveTab('everyone')}
+                onClick={() => setActiveTab('community')}
                 className={`pb-2 text-sm font-bold lowercase tracking-wider border-b-2 transition-colors ${
-                  activeTab === 'everyone'
+                  activeTab === 'community'
                     ? 'text-white border-[#7a9b6f]'
                     : 'text-stone-500 border-transparent hover:text-stone-400'
                 }`}
               >
-                home
+                everyone
               </button>
               <button
-                onClick={() => setActiveTab('saved')}
+                onClick={() => setActiveTab('following')}
                 className={`pb-2 text-sm font-bold lowercase tracking-wider border-b-2 transition-colors ${
-                  activeTab === 'saved'
+                  activeTab === 'following'
                     ? 'text-white border-[#7a9b6f]'
                     : 'text-stone-500 border-transparent hover:text-stone-400'
                 }`}
               >
-                saved
+                friends
               </button>
             </div>
           </div>
@@ -572,18 +546,13 @@ export default function FeedPage() {
 
       {/* Feed Content */}
       <div className="max-w-2xl mx-auto px-6 md:px-8 mt-6">
-
         {error && (
           <div className="mb-6 p-4 bg-red-900/20 border border-red-800 rounded text-red-400 text-sm">
             <p>{error}</p>
             <button
               onClick={() => {
                 setError(null)
-                if (activeTab === 'everyone') {
-                  loadFeed()
-                } else {
-                  loadSavedPosts()
-                }
+                loadFeed(activeTab)
               }}
               className="mt-2 text-red-300 hover:text-red-200 underline"
             >
@@ -592,18 +561,32 @@ export default function FeedPage() {
           </div>
         )}
 
-        {/* Home Tab Content */}
-        {activeTab === 'everyone' && (
-          <>
-            {posts.length === 0 && !loading ? (
+        <>
+            {showEmptyState ? (
               <div className="text-center py-16">
-                <p className="text-stone-500 text-lg mb-4">No posts yet</p>
-                <Link
-                  href="/share"
-                  className="text-[#7a9b6f] hover:text-[#8fb084] transition-colors"
-                >
-                  Share something →
-                </Link>
+                {activeTab === 'following' ? (
+                  <>
+                    <p className="text-stone-500 text-lg mb-4">
+                      you&apos;re not following anyone yet
+                    </p>
+                    <Link
+                      href="/find-friends"
+                      className="inline-flex items-center px-5 py-2 rounded-full bg-[#2d5016] text-white text-sm font-bold lowercase hover:bg-[#3d6a1e] transition-colors"
+                    >
+                      find friends
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-stone-500 text-lg mb-4">No posts yet</p>
+                    <Link
+                      href="/share"
+                      className="text-[#7a9b6f] hover:text-[#8fb084] transition-colors"
+                    >
+                      Share something →
+                    </Link>
+                  </>
+                )}
               </div>
             ) : (
               <>
@@ -683,104 +666,146 @@ export default function FeedPage() {
                       )}
                     </div>
 
-                    {currentUser?.user?.id !== post.user.id && (
+                    {currentUser?.user?.id && (
                       <div
-                        className={`md:pl-11 pl-9 flex items-center w-full justify-between ${
-                          post.note ? 'mt-3' : 'mt-2'
+                        className={`md:pl-11 pl-9 flex gap-3 ${
+                          post.note ? 'mt-1.5' : 'mt-1'
                         }`}
                       >
-                        <div className="flex items-center">
-                          <button
-                            onClick={() =>
-                              handleSmileToggle(post.id, post.smiledByCurrentUser)
-                            }
-                            disabled={smilingIds.has(post.id)}
-                            aria-pressed={post.smiledByCurrentUser}
-                            aria-label={
-                              post.smiledByCurrentUser
-                                ? 'Remove smile'
-                                : 'Smile at post'
-                            }
-                            className={`text-[14px] leading-none transition-colors duration-200 ${
-                              post.smiledByCurrentUser
-                                ? 'text-[#7a9b6f]'
-                                : 'text-stone-600 hover:text-stone-400'
-                            } ${smilingIds.has(post.id) ? 'opacity-60 cursor-not-allowed' : ''}`}
-                          >
-                            <span
-                              className={`inline-block transition-transform duration-300 ${
-                                post.smiledByCurrentUser ? 'rotate-0' : '-rotate-90'
-                              }`}
-                            >
-                              <svg
-                                className="w-4 h-4"
-                                viewBox="0 0 16 16"
-                                fill="currentColor"
-                                stroke="currentColor"
-                                strokeWidth="1.8"
-                                strokeLinecap="round"
-                                aria-hidden="true"
-                              >
-                                <circle cx="5.4" cy="5.9" r="0.6" />
-                                <circle cx="10.6" cy="5.9" r="0.6" />
-                                <path d="M3.8 10.8c2.4 2.4 6.0 2.4 8.4 0" fill="none" />
-                              </svg>
-                            </span>
-                          </button>
-                          {(() => {
-                            const hasNotes = (notesByPostId[post.id]?.length ?? (post.hasNotes ? 1 : 0)) > 0
+                        {(() => {
+                          const isOwnPost = currentUser.user.id === post.user.id
+                          const hasNotes =
+                            (notesByPostId[post.id]?.length ?? (post.hasNotes ? 1 : 0)) > 0
+
+                          if (isOwnPost) {
                             return (
-                              <button
-                            onClick={() => openNotesDrawer(post)}
-                            aria-label="Open notes"
-                            className={`ml-2.5 -mt-1 transition-opacity duration-200 flex-shrink-0 ${
-                              hasNotes ? 'hover:opacity-80' : 'text-stone-600 hover:text-stone-400'
-                            }`}
-                          >
-                            <svg
-                              className="w-4 h-4"
-                              viewBox="0 0 16 16"
-                              fill="none"
-                              strokeWidth="1.5"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              aria-hidden="true"
-                            >
-                              <rect
-                                x="3"
-                                y="2.5"
-                                width="10"
-                                height="11"
-                                rx="1.5"
-                                fill={hasNotes ? '#fff' : '#000'}
-                                stroke={hasNotes ? '#fff' : 'currentColor'}
-                              />
-                              <path
-                                d="M5.5 6h5"
-                                stroke={hasNotes ? '#000' : 'currentColor'}
-                              />
-                              <path
-                                d="M5.5 8.5h5"
-                                stroke={hasNotes ? '#000' : 'currentColor'}
-                              />
-                            </svg>
-                          </button>
+                              <div className="flex-1 flex items-center">
+                                {hasNotes && (
+                                  <button
+                                    onClick={() => openNotesDrawer(post)}
+                                    aria-label="Open notes"
+                                    className="text-stone-600 hover:text-stone-400 -mt-1 transition-opacity duration-200 flex-shrink-0"
+                                  >
+                                    <svg
+                                      className="w-4 h-4"
+                                      viewBox="0 0 16 16"
+                                      fill="none"
+                                      strokeWidth="1.5"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      aria-hidden="true"
+                                    >
+                                      <rect
+                                        x="3"
+                                        y="2.5"
+                                        width="10"
+                                        height="11"
+                                        rx="1.5"
+                                        fill="#fff"
+                                        stroke="#fff"
+                                      />
+                                      <path d="M5.5 6h5" stroke="#000" />
+                                      <path d="M5.5 8.5h5" stroke="#000" />
+                                    </svg>
+                                  </button>
+                                )}
+                              </div>
                             )
-                          })()}
-                        </div>
-                        <button
-                          onClick={() => toggleSave(post.id, post)}
-                          disabled={savingIds.has(post.id)}
-                          aria-pressed={savedIds.has(post.id)}
-                          aria-label={savedIds.has(post.id) ? 'Unsave post' : 'Save post'}
-                          className={`-mt-1 transition-colors duration-200 flex-shrink-0 ${
-                            savedIds.has(post.id)
-                              ? 'text-[#7a9b6f]'
-                              : 'text-stone-600 hover:text-[#7a9b6f]'
-                          } ${savingIds.has(post.id) ? 'opacity-60 cursor-not-allowed' : ''}`}
-                        >
-                          <PlusIcon saved={savedIds.has(post.id)} size={18} />
-                        </button>
+                          }
+
+                          return (
+                            <div className="flex-1 flex items-center justify-between">
+                              <div className="flex items-center">
+                                <button
+                                  onClick={() =>
+                                    handleSmileToggle(post.id, post.smiledByCurrentUser)
+                                  }
+                                  disabled={smilingIds.has(post.id)}
+                                  aria-pressed={post.smiledByCurrentUser}
+                                  aria-label={
+                                    post.smiledByCurrentUser
+                                      ? 'Remove smile'
+                                      : 'Smile at post'
+                                  }
+                                  className={`text-[14px] leading-none transition-colors duration-200 ${
+                                    post.smiledByCurrentUser
+                                      ? 'text-[#7a9b6f]'
+                                      : 'text-stone-600 hover:text-stone-400'
+                                  } ${smilingIds.has(post.id) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                >
+                                  <span
+                                    className={`inline-block transition-transform duration-300 ${
+                                      post.smiledByCurrentUser ? 'rotate-0' : '-rotate-90'
+                                    }`}
+                                  >
+                                    <svg
+                                      className="w-4 h-4"
+                                      viewBox="0 0 16 16"
+                                      fill="currentColor"
+                                      stroke="currentColor"
+                                      strokeWidth="1.8"
+                                      strokeLinecap="round"
+                                      aria-hidden="true"
+                                    >
+                                      <circle cx="5.4" cy="5.9" r="0.6" />
+                                      <circle cx="10.6" cy="5.9" r="0.6" />
+                                      <path d="M3.8 10.8c2.4 2.4 6.0 2.4 8.4 0" fill="none" />
+                                    </svg>
+                                  </span>
+                                </button>
+                                <button
+                                  onClick={() => openNotesDrawer(post)}
+                                  aria-label="Open notes"
+                                  className={`ml-2.5 -mt-1 transition-opacity duration-200 flex-shrink-0 ${
+                                    hasNotes ? 'hover:opacity-80' : 'text-stone-600 hover:text-stone-400'
+                                  }`}
+                                >
+                                  <svg
+                                    className="w-4 h-4"
+                                    viewBox="0 0 16 16"
+                                    fill="none"
+                                    strokeWidth="1.5"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    aria-hidden="true"
+                                  >
+                                    <rect
+                                      x="3"
+                                      y="2.5"
+                                      width="10"
+                                      height="11"
+                                      rx="1.5"
+                                      fill={hasNotes ? '#fff' : '#000'}
+                                      stroke={hasNotes ? '#fff' : 'currentColor'}
+                                    />
+                                    <path
+                                      d="M5.5 6h5"
+                                      stroke={hasNotes ? '#000' : 'currentColor'}
+                                    />
+                                    <path
+                                      d="M5.5 8.5h5"
+                                      stroke={hasNotes ? '#000' : 'currentColor'}
+                                    />
+                                  </svg>
+                                </button>
+                              </div>
+                              <button
+                                onClick={() => toggleSave(post.id, post)}
+                                disabled={savingIds.has(post.id)}
+                                aria-pressed={savedIds.has(post.id)}
+                                aria-label={savedIds.has(post.id) ? 'Unsave post' : 'Save post'}
+                                className={`-mt-1 transition-colors duration-200 flex-shrink-0 ${
+                                  savedIds.has(post.id)
+                                    ? 'text-[#7a9b6f]'
+                                    : 'text-stone-600 hover:text-[#7a9b6f]'
+                                } ${savingIds.has(post.id) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                              >
+                                <PlusIcon saved={savedIds.has(post.id)} size={18} />
+                              </button>
+                            </div>
+                          )
+                        })()}
+                        <div className="md:w-14 md:h-14 w-12 h-12 flex-shrink-0" aria-hidden="true" />
                       </div>
                     )}
                   </div>
@@ -788,8 +813,8 @@ export default function FeedPage() {
                   {/* Thin divider - between posts (not before first) */}
                   {index < posts.length - 1 && (
                     <div
-                      className={`mb-6 pl-9 md:pl-11 ${
-                        post.note ? 'mt-5' : 'mt-4'
+                      className={`mb-2 pl-9 md:pl-11 ${
+                        post.note ? 'mt-1' : 'mt-0.5'
                       }`}
                     >
                       <div className="h-px bg-stone-800" />
@@ -828,142 +853,8 @@ export default function FeedPage() {
                 )}
               </>
             )}
-          </>
-        )}
+        </>
 
-        {/* Saved Tab Content */}
-        {activeTab === 'saved' && (
-          <>
-            {savedLoading && savedPosts.length === 0 ? (
-              <div className="text-center py-16">
-                <div className="text-stone-500">thinking...</div>
-              </div>
-            ) : savedPosts.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-stone-500">no saved posts yet</p>
-                <p className="text-stone-600 text-xs mt-1">tap the + on any post to save it</p>
-              </div>
-            ) : (
-              <>
-                <div>
-                  {savedPosts.map((post, index) => (
-                    <div key={post.id}>
-                      {/* Post Content */}
-                      <div>
-                        {/* Header Row - Avatar + Metadata + Unsave */}
-                        <div className="flex items-center gap-3 mb-3">
-                          <Link
-                            href={`/profile/${encodeURIComponent(post.user.username)}`}
-                            className="flex-shrink-0 hover:opacity-90 transition-opacity"
-                          >
-                          <div
-                            className="md:w-8 md:h-8 w-6 h-6 rounded-full"
-                            style={{ backgroundColor: post.user.avatar_color }}
-                          />
-                          </Link>
-                          <div className="flex items-baseline gap-2 flex-1">
-                            <Link
-                              href={`/profile/${encodeURIComponent(post.user.username)}`}
-                              className="md:text-base text-sm text-stone-200 font-bold lowercase hover:text-[#7a9b6f] transition-colors"
-                            >
-                              {post.user.username}
-                            </Link>
-                            <span className="text-stone-700">·</span>
-                            <span className="text-stone-400 flex items-center gap-1.5 text-sm">
-                              <span className="text-stone-400">
-                                <MediaTypeFilledIcon
-                                  mediaType={post.media_item.media_type}
-                                  size={12}
-                                />
-                              </span>
-                              {getMediaTypeLabel(post.media_item.media_type)}
-                            </span>
-                            <span className="text-stone-700">·</span>
-                            <span className="md:text-sm text-xs text-stone-600">
-                              {formatTimeAgo(post.created_at)}
-                            </span>
-                            {/* Unsave button (bold plus) */}
-                            <button
-                              onClick={() => handleUnsave(post.id)}
-                              disabled={unsavingId === post.id}
-                              aria-label="Unsave post"
-                              className={`ml-auto transition-colors duration-200 flex-shrink-0 text-[#7a9b6f] hover:text-[#8fb084] ${
-                                unsavingId === post.id ? 'opacity-60 cursor-not-allowed' : ''
-                              }`}
-                            >
-                              <PlusIcon saved={true} size={18} />
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Content Row - Text + Thumbnail */}
-                        <div className="flex gap-3 md:pl-11 pl-9">
-                          {/* Left: Text content */}
-                          <div className="flex-1">
-                            {/* Title and Creator */}
-                            <div className="md:text-base text-sm text-stone-200 leading-relaxed mb-1 font-medium">
-                              <span className="font-bold">{post.media_item.title}</span>
-                              {post.media_item.creator && (
-                                <span className="text-stone-500 ml-1">
-                                  by {post.media_item.creator}
-                                </span>
-                              )}
-                            </div>
-
-                            {/* Note */}
-                            {post.note && (
-                              <p className="md:text-sm text-xs text-stone-400 leading-relaxed line-clamp-3 mt-1 font-medium">
-                                {post.note}
-                              </p>
-                            )}
-                          </div>
-
-                          {post.media_item.cover_url && (
-                            <div className="md:w-14 md:h-14 w-12 h-12 flex-shrink-0 bg-stone-900 overflow-hidden rounded">
-                              <Image
-                                src={post.media_item.cover_url}
-                                alt=""
-                                className="w-full h-full object-cover"
-                                width={56}
-                                height={56}
-                                sizes="(min-width: 768px) 56px, 48px"
-                              />
-                            </div>
-                          )}
-                        </div>
-
-                      </div>
-
-                      {/* Thin divider - between posts (not before first) */}
-                      {index < savedPosts.length - 1 && (
-                        <div
-                          className={`mb-6 pl-9 md:pl-11 ${
-                            post.note ? 'mt-5' : 'mt-4'
-                          }`}
-                        >
-                          <div className="h-px bg-stone-800" />
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Load More Button */}
-                {savedHasMore && (
-                  <div className="text-center py-8">
-                    <button
-                      onClick={() => loadSavedPosts(savedNextCursor)}
-                      disabled={savedLoading}
-                      className="text-[#7a9b6f] hover:text-[#8fb084] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {savedLoading ? 'thinking...' : 'load more →'}
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
-          </>
-        )}
       </div>
 
       {/* Bottom Bar - Fixed */}
@@ -1330,5 +1221,19 @@ export default function FeedPage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function FeedPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-black text-white flex items-center justify-center">
+          <div className="text-stone-500">thinking...</div>
+        </div>
+      }
+    >
+      <FeedPageContent />
+    </Suspense>
   )
 }

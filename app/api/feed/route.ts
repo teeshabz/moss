@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 /**
  * GET /api/feed
  * Returns paginated feed of posts
- * Query params: cursor (optional), limit (optional, default 20, max 50)
+ * Query params: cursor (optional), limit (optional, default 20, max 50), mode (optional: "community" | "following")
  */
 export async function GET(request: NextRequest) {
   try {
@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const cursor = searchParams.get('cursor')
     const limitParam = searchParams.get('limit')
+    const mode = searchParams.get('mode')?.toLowerCase()
     const limit = Math.min(
       limitParam ? parseInt(limitParam, 10) : 20,
       50
@@ -64,6 +65,30 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false })
       .order('id', { ascending: false })
       .limit(limit + 1)
+
+    if (mode === 'following') {
+      const { data: followRows, error: followError } = await supabase
+        .from('follows')
+        .select('following_id')
+        .eq('follower_id', userId)
+
+      if (followError) {
+        console.error('Error fetching follow list:', followError)
+        return NextResponse.json(
+          { error: 'Failed to fetch feed' },
+          { status: 500 }
+        )
+      }
+
+      const userIds = new Set<string>([userId])
+      for (const row of followRows ?? []) {
+        if (row.following_id) {
+          userIds.add(row.following_id as string)
+        }
+      }
+
+      query = query.in('user_id', Array.from(userIds))
+    }
 
     if (cursor) {
       const [createdAt, id] = cursor.split(',')

@@ -15,6 +15,12 @@ export interface User {
   created_at: string
 }
 
+export interface Follow {
+  follower_id: string
+  following_id: string
+  created_at: string
+}
+
 export interface MediaItem {
   id: string
   media_type: MediaType
@@ -98,7 +104,7 @@ export interface PingItem {
   id: string
   recipient_user_id: string
   actor_user_id: string
-  post_id: string
+  post_id: string | null
   type: string
   created_at: string
   seen_at: string | null
@@ -116,8 +122,27 @@ export interface SearchUser {
   avatar_color: string
 }
 
+export interface FollowListUser {
+  id: string
+  username: string
+  avatar_color: string
+  created_at: string
+  isFollowing?: boolean
+  isFollowedBy?: boolean
+}
+
+export interface FollowListResponse {
+  users: FollowListUser[]
+  nextCursor?: string
+}
+
 export interface UserSearchResponse {
   users: SearchUser[]
+}
+
+export interface PaginatedUserResponse {
+  users: SearchUser[]
+  nextCursor?: string
 }
 
 export interface ProfileUser {
@@ -128,6 +153,10 @@ export interface ProfileUser {
   first_name?: string | null
   last_name?: string | null
   created_at: string
+  followerCount?: number
+  followingCount?: number
+  isFollowing?: boolean
+  isFollowedBy?: boolean
 }
 
 export interface ProfileResponse {
