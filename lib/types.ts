@@ -110,6 +110,8 @@ export interface PingItem {
   seen_at: string | null
   actor: PingActor | null
   postTitle: string
+  /** Whether the current user follows the actor (for follow pings). */
+  actorIsFollowing?: boolean
 }
 
 export interface PingsResponse {

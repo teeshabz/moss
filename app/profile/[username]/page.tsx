@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { SignOutButton } from '@clerk/nextjs'
@@ -29,6 +29,7 @@ export default function ProfilePage() {
   const NOTE_MAX_LENGTH = 60
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const username = params.username as string
   const [profile, setProfile] = useState<ProfileResponse | null>(null)
   const [currentUser, setCurrentUser] = useState<UserMeResponse | null>(null)
@@ -56,7 +57,9 @@ export default function ProfilePage() {
   const [pingsError, setPingsError] = useState<string | null>(null)
   const [pingsLoaded, setPingsLoaded] = useState(false)
   const [hasUnreadPings, setHasUnreadPings] = useState(false)
-  const [targetPingPostId, setTargetPingPostId] = useState<string | null>(null)
+  const [postSliderPost, setPostSliderPost] = useState<PostWithRelations | null>(null)
+  const [postSliderLoading, setPostSliderLoading] = useState(false)
+  const [postSliderError, setPostSliderError] = useState<string | null>(null)
   const [searchExpanded, setSearchExpanded] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchUser[]>([])
@@ -72,6 +75,8 @@ export default function ProfilePage() {
   const [noteSendError, setNoteSendError] = useState<string | null>(null)
   const [noteDeletingIds, setNoteDeletingIds] = useState<Set<string>>(new Set())
   const [followUpdating, setFollowUpdating] = useState(false)
+  const [pingsFollowByActorId, setPingsFollowByActorId] = useState<Record<string, boolean>>({})
+  const [pingsFollowUpdatingActorId, setPingsFollowUpdatingActorId] = useState<string | null>(null)
 
   const isOwnProfile =
     currentUser?.user?.username?.toLowerCase() === username?.toLowerCase()
@@ -293,6 +298,13 @@ export default function ProfilePage() {
     }
   }, [isOwnProfile, savedLoaded, savedLoading, loadSaved])
 
+  // Open pings tab when returning from a ping link (e.g. back from another user's profile)
+  useEffect(() => {
+    if (searchParams.get('tab') === 'pings' && isOwnProfile) {
+      setActiveTab('pings')
+    }
+  }, [searchParams, isOwnProfile])
+
   async function handleDeletePost(postId: string) {
     setDeleteConfirmId(null)
     setDeletingId(postId)
@@ -465,9 +477,37 @@ export default function ProfilePage() {
     setNoteSendError(null)
   }, [])
 
-  const handlePingPostOpen = useCallback((postId: string) => {
-    setActiveTab('shared')
-    setTargetPingPostId(postId)
+  const openPostInSlider = useCallback(
+    async (postId: string) => {
+      const inProfile = profile?.items.find((p) => p.id === postId)
+      if (inProfile) {
+        setPostSliderPost(inProfile)
+        setPostSliderError(null)
+        return
+      }
+      setPostSliderLoading(true)
+      setPostSliderError(null)
+      try {
+        const res = await fetch(`/api/posts/${postId}`)
+        if (!res.ok) {
+          if (res.status === 404) throw new Error('Post not found')
+          throw new Error('Failed to load post')
+        }
+        const post: PostWithRelations = await res.json()
+        setPostSliderPost(post)
+      } catch (e) {
+        setPostSliderError(e instanceof Error ? e.message : 'Failed to load post')
+        setPostSliderPost(null)
+      } finally {
+        setPostSliderLoading(false)
+      }
+    },
+    [profile?.items]
+  )
+
+  const closePostSlider = useCallback(() => {
+    setPostSliderPost(null)
+    setPostSliderError(null)
   }, [])
 
   const handleSendNote = useCallback(async () => {
@@ -604,27 +644,29 @@ export default function ProfilePage() {
     }
   }, [profile, isOwnProfile, followUpdating, isFollowing, username])
 
-  useEffect(() => {
-    if (!targetPingPostId || activeTab !== 'shared' || !profile) return
-    const match = profile.items.find((post) => post.id === targetPingPostId)
-    if (match) {
-      openNotesDrawer(match)
-      setTargetPingPostId(null)
-      return
-    }
-    if (profile.nextCursor && !loadingMore) {
-      loadProfile(profile.nextCursor)
-    } else if (!profile.nextCursor) {
-      setTargetPingPostId(null)
-    }
-  }, [
-    activeTab,
-    targetPingPostId,
-    profile,
-    loadingMore,
-    openNotesDrawer,
-    loadProfile,
-  ])
+  const handlePingFollowToggle = useCallback(
+    async (ping: PingItem) => {
+      if (!ping.actor?.username || pingsFollowUpdatingActorId) return
+      const actorId = ping.actor_user_id
+      const current = pingsFollowByActorId[actorId] ?? ping.actorIsFollowing ?? false
+      const nextValue = !current
+      setPingsFollowUpdatingActorId(actorId)
+      setPingsFollowByActorId((prev) => ({ ...prev, [actorId]: nextValue }))
+      try {
+        const res = await fetch(
+          `/api/users/${encodeURIComponent(ping.actor.username)}/follow`,
+          { method: nextValue ? 'POST' : 'DELETE' }
+        )
+        if (!res.ok) throw new Error('Failed to update follow')
+      } catch (error) {
+        console.error('Error updating follow from ping:', error)
+        setPingsFollowByActorId((prev) => ({ ...prev, [actorId]: current }))
+      } finally {
+        setPingsFollowUpdatingActorId(null)
+      }
+    },
+    [pingsFollowByActorId, pingsFollowUpdatingActorId]
+  )
 
   if (loading && !profile) {
     return (
@@ -668,9 +710,20 @@ export default function ProfilePage() {
       {/* Header: back + logo + profile header + tabs */}
       <div className="sticky top-0 bg-black/90 backdrop-blur-sm z-10">
         <div className="max-w-4xl mx-auto px-4 md:px-8 pt-6 pb-4 flex items-center justify-between">
-          <Link href="/feed" className="text-white text-2xl hover:text-gray-300">
-            ←
-          </Link>
+          {searchParams.get('from') === 'pings' &&
+          currentUser?.user?.username &&
+          !isOwnProfile ? (
+            <Link
+              href={`/profile/${encodeURIComponent(currentUser.user.username)}?tab=pings`}
+              className="text-white text-2xl hover:text-gray-300"
+            >
+              ←
+            </Link>
+          ) : (
+            <Link href="/feed" className="text-white text-2xl hover:text-gray-300">
+              ←
+            </Link>
+          )}
           <Link href="/feed" className="flex items-center gap-2">
             <MossIcon color="#2d5016" size={26} />
             <span
@@ -1238,20 +1291,26 @@ export default function ProfilePage() {
               </div>
             ) : (
               <div>
-                {pings.map((ping, index) => (
+                {pings.map((ping, index) => {
+                  const actorUsername = ping.actor?.username
+                  const profileHref = actorUsername ? `/profile/${encodeURIComponent(actorUsername)}` : null
+                  const isPostPing = (ping.type === 'smile' || ping.type === 'note') && ping.post_id
+                  return (
                   <div key={ping.id}>
                     <button
                       type="button"
                       onClick={() => {
-                        if (ping.type !== 'follow' && ping.post_id) {
-                          handlePingPostOpen(ping.post_id)
+                        if (isPostPing) {
+                          openPostInSlider(ping.post_id!)
+                        } else if (ping.type === 'follow' && profileHref) {
+                          router.push(`${profileHref}?from=pings`)
                         }
                       }}
                       className={`w-full text-left flex items-center gap-4 rounded-lg transition-colors hover:bg-stone-900/40 ${index === 0 ? 'pt-1 pb-4' : 'py-4'}`}
                       aria-label={
                         ping.type === 'follow'
                           ? `View ${ping.actor?.username || 'user'} profile`
-                          : `Open ${ping.postTitle || 'post'} in shared`
+                          : `Open ${ping.postTitle || 'post'}`
                       }
                     >
                       <div
@@ -1278,6 +1337,25 @@ export default function ProfilePage() {
                           {formatTimeAgo(ping.created_at)}
                         </div>
                       </div>
+                      {ping.type === 'follow' && ping.actor?.username && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handlePingFollowToggle(ping)
+                          }}
+                          disabled={pingsFollowUpdatingActorId === ping.actor_user_id}
+                          className={`rounded-full px-4 py-1.5 text-xs font-bold lowercase transition-colors flex-shrink-0 ${
+                            pingsFollowByActorId[ping.actor_user_id] ?? ping.actorIsFollowing
+                              ? 'bg-stone-800 text-stone-400 hover:bg-stone-700'
+                              : 'bg-[#2d5016] text-white hover:bg-[#3d6a1e]'
+                          } ${pingsFollowUpdatingActorId === ping.actor_user_id ? 'opacity-60 cursor-not-allowed' : ''}`}
+                        >
+                          {pingsFollowByActorId[ping.actor_user_id] ?? ping.actorIsFollowing
+                            ? 'following'
+                            : 'follow'}
+                        </button>
+                      )}
                       {ping.type !== 'follow' && (
                         <span className="text-[#7a9b6f] text-[14px] leading-none">
                           <span className="inline-block rotate-0">
@@ -1319,7 +1397,8 @@ export default function ProfilePage() {
                       <div className="h-px bg-stone-800" />
                     )}
                   </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>
@@ -1549,7 +1628,9 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            <div className="h-px bg-stone-800 mb-4" />
+            {activeNotes.length > 0 && (
+              <div className="h-px bg-stone-800 mb-4" />
+            )}
 
             <div className="text-xs uppercase tracking-wider text-stone-500 mb-2">
               notes
@@ -1660,6 +1741,158 @@ export default function ProfilePage() {
                 )}
               </form>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Post slider (from pings: smile/note) - same slide-up as notes drawer */}
+      {(postSliderPost || postSliderLoading || postSliderError) && (
+        <div
+          className="fixed inset-0 z-40 flex items-end justify-center bg-black/70 px-4 pb-4"
+          onClick={closePostSlider}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Post"
+        >
+          <div
+            className="w-full max-w-2xl bg-black border border-stone-800 rounded-2xl pt-3 pb-6 px-6 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={closePostSlider}
+              aria-label="Close"
+              className="absolute right-4 top-4 text-stone-500 hover:text-stone-300 transition-colors"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
+            <div className="mx-auto h-1 w-10 rounded-full bg-stone-700 mb-4" />
+            <div>
+              {postSliderLoading && (
+                <div className="py-12 text-center text-stone-500">loading post...</div>
+              )}
+              {postSliderError && (
+                <div className="py-8 text-center">
+                  <p className="text-red-400 text-sm mb-4">{postSliderError}</p>
+                  <button
+                    type="button"
+                    onClick={closePostSlider}
+                    className="text-[#7a9b6f] hover:text-[#8fb084] text-sm font-medium"
+                  >
+                    close
+                  </button>
+                </div>
+              )}
+              {postSliderPost && !postSliderLoading && (
+                <div>
+                  <div className="flex items-center gap-3 mb-3">
+                    <div
+                      className="w-8 h-8 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: postSliderPost.user.avatar_color }}
+                    />
+                    <div className="flex items-baseline gap-2 flex-1 flex-wrap min-w-0">
+                      <span className="text-sm text-stone-200 font-bold lowercase">
+                        {postSliderPost.user.username}
+                      </span>
+                      <span className="text-stone-700">·</span>
+                      <span className="text-stone-400 flex items-center gap-1.5 text-xs">
+                        <MediaTypeFilledIcon
+                          mediaType={postSliderPost.media_item.media_type}
+                          size={12}
+                        />
+                        {getMediaTypeLabel(postSliderPost.media_item.media_type)}
+                      </span>
+                      <span className="text-stone-700">·</span>
+                      <span className="text-xs text-stone-600">
+                        {formatTimeAgo(postSliderPost.created_at)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-base text-stone-200 leading-relaxed font-medium">
+                        <span className="font-bold">{postSliderPost.media_item.title}</span>
+                        {postSliderPost.media_item.creator && (
+                          <span className="text-stone-500 ml-1">
+                            by {postSliderPost.media_item.creator}
+                          </span>
+                        )}
+                      </div>
+                      {postSliderPost.note && (
+                        <p className="text-sm text-stone-400 leading-relaxed mt-1">
+                          {postSliderPost.note}
+                        </p>
+                      )}
+                    </div>
+                    {postSliderPost.media_item.cover_url && (
+                      <div className="w-14 h-14 flex-shrink-0 bg-stone-900 overflow-hidden rounded">
+                        <Image
+                          src={postSliderPost.media_item.cover_url}
+                          alt=""
+                          className="w-full h-full object-cover"
+                          width={56}
+                          height={56}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-4 mt-4 pt-3">
+                    {currentUser?.user?.id && currentUser.user.id !== postSliderPost.user.id && (
+                      <>
+                        <button
+                          onClick={() =>
+                            handleSmileToggle(postSliderPost.id, postSliderPost.smiledByCurrentUser)
+                          }
+                          disabled={smilingIds.has(postSliderPost.id)}
+                          aria-pressed={postSliderPost.smiledByCurrentUser}
+                          className={`text-sm transition-colors ${
+                            postSliderPost.smiledByCurrentUser
+                              ? 'text-[#7a9b6f]'
+                              : 'text-stone-600 hover:text-stone-400'
+                          }`}
+                        >
+                          <span className={postSliderPost.smiledByCurrentUser ? '' : 'inline-block -rotate-90'}>
+                            <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+                              <circle cx="5.4" cy="5.9" r="0.6" />
+                              <circle cx="10.6" cy="5.9" r="0.6" />
+                              <path d="M3.8 10.8c2.4 2.4 6.0 2.4 8.4 0" fill="none" />
+                            </svg>
+                          </span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            closePostSlider()
+                            openNotesDrawer(postSliderPost)
+                          }}
+                          aria-label="Open notes"
+                          className="text-stone-600 hover:text-stone-400 transition-colors"
+                        >
+                          <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="2.5" width="10" height="11" rx="1.5" />
+                            <path d="M5.5 6h5" />
+                            <path d="M5.5 8.5h5" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => toggleSave(postSliderPost.id, postSliderPost)}
+                          disabled={savingIds.has(postSliderPost.id)}
+                          aria-pressed={savedIds.has(postSliderPost.id)}
+                          className={`transition-colors ${
+                            savedIds.has(postSliderPost.id)
+                              ? 'text-[#7a9b6f]'
+                              : 'text-stone-600 hover:text-[#7a9b6f]'
+                          }`}
+                        >
+                          <PlusIcon saved={savedIds.has(postSliderPost.id)} size={18} />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

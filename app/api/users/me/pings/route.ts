@@ -51,7 +51,23 @@ export async function GET(_request: NextRequest) {
       )
     }
 
-    const items = (data ?? []).map((row) => {
+    const rows = data ?? []
+    const actorIds = [...new Set(rows.map((r) => r.actor_user_id as string).filter(Boolean))]
+    let followingSet = new Set<string>()
+    if (actorIds.length > 0) {
+      const { data: followRows, error: followError } = await supabase
+        .from('follows')
+        .select('following_id')
+        .eq('follower_id', userId)
+        .in('following_id', actorIds)
+      if (!followError && followRows) {
+        for (const r of followRows) {
+          if (r.following_id) followingSet.add(r.following_id as string)
+        }
+      }
+    }
+
+    const items = rows.map((row) => {
       const actor = Array.isArray(row.actor) ? row.actor[0] : row.actor
       const post = Array.isArray(row.post) ? row.post[0] : row.post
       const mediaItem = post
@@ -76,6 +92,7 @@ export async function GET(_request: NextRequest) {
             }
           : null,
         postTitle: row.type === 'follow' ? '' : (mediaItem?.title as string) ?? '',
+        actorIsFollowing: followingSet.has(row.actor_user_id as string),
       }
     })
 
