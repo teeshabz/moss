@@ -164,13 +164,25 @@ All feed and post behavior goes through these REST endpoints. The web app calls 
 
 - **Success**: JSON body with `data` (or `items` for lists). Use standard status codes: `200`, `201`, `204`.
 - **Errors**: JSON `{ "error": "human-readable message", "code": "optional_code" }`. Use `400` (validation), `401` (unauthenticated), `403` (forbidden), `404` (not found), `409` (e.g. weekly limit exceeded).
-- **Pagination**: Cursor-based using composite cursor (`createdAt + id`); response includes `nextCursor` (omit when no more pages). Request uses `cursor` and `limit` query params.
+- **Pagination**: For **list endpoints that paginate** (e.g. profile posts, saved posts, user search), use a composite cursor (`createdAt + id` or username-based where noted); response includes `nextCursor` when more pages exist. Request uses `cursor` and `limit` as documented per route. **Exception:** `GET /api/feed` returns a **fixed window** with **no** `nextCursor`.
 
 ### `GET /api/feed`
 
-- **Query**: `cursor` (optional, base64-encoded `{createdAt, id}`), `limit` (optional, default 20, cap e.g. 50).
-- **Logic**: Order `posts` by `createdAt DESC, id DESC`. Use composite cursor-based pagination. Return `{ items, nextCursor }` with each item including `post`, `user` (id, username, avatarColor), `mediaItem`.
-- **Auth**: Required. Feed is logged-in only.
+- **Query**: `mode` (optional): omit for **everyone** (all authors); `following` for posts by the current user and users they follow only.
+- **Logic**: Order `posts` by `created_at DESC, id DESC`. **No date filter.** Return at most **`FEED_POST_LIMIT` (30)** rows joined with `users` and `media_items`. Response: `{ items }` (same post + user + media_item shape as profile feed items; includes smile/save-related flags) — **no `nextCursor`**; not paginated.
+- **Auth**: Required (internal user id). Feed is logged-in only.
+
+### `GET /api/search/users`
+
+- **Query**: `q` (required), `cursor` (optional, `username,id` composite), `limit` (optional, default 20, max 50).
+- **Logic**: Search `users.username` with `ilike '%q%'`; exclude current user; order `username ASC, id ASC`; `nextCursor` when more matches exist.
+- **Auth**: Required.
+
+### `GET /api/users/suggestions`
+
+- **Query**: `limit` (optional, default 20, max 50). Find friends uses **30**.
+- **Logic**: Distinct users ordered by **most recent post** (scan `posts` newest-first in batches until enough unique authors). Users with no posts are not included. **No** `nextCursor` (single page).
+- **Auth**: Required.
 
 ### `POST /api/posts`
 
@@ -235,16 +247,17 @@ All feed and post behavior goes through these REST endpoints. The web app calls 
 
 ## Pagination: Composite Cursor
 
-- **Strategy**: Composite cursor using `createdAt + id`
-- **Order by**: `createdAt DESC, id DESC` (newest first, then by ID for tie-breaking)
-- **Cursor format**: Base64-encoded JSON `{createdAt: "2024-01-25T10:30:00Z", id: "abc123"}`
-- **Query pattern**: `WHERE (createdAt < cursorTime) OR (createdAt = cursorTime AND id < cursorId) ORDER BY createdAt DESC, id DESC LIMIT 20`
-- **Response**: `{ items: [...], nextCursor: "base64string" }` (omit `nextCursor` when no more pages)
-- **Default limit**: 20 items per page (configurable via `limit` query param, max 50)
+Used by **profile timelines**, **saved posts**, **user search**, and similar list endpoints—not by the **home feed** (`GET /api/feed`), which returns a fixed cap of recent posts with no `nextCursor`.
+
+- **Strategy**: Composite cursor using `createdAt + id` (or username + id for search)
+- **Order by**: `createdAt DESC, id DESC` (newest first, then by ID for tie-breaking) where applicable
+- **Cursor format**: Implementation uses comma-separated or encoded values per route; see route handlers.
+- **Response**: `{ items: [...], nextCursor?: ... }` (omit `nextCursor` when no more pages)
+- **Default limit**: Often 20 items per page (configurable via `limit`, max 50 where enforced)
 
 This ensures:
 - Stable ordering even if posts have identical timestamps
-- Works with time-ordered feeds (newest first)
+- Works with time-ordered lists (newest first)
 - Standard pattern for cursor pagination
 
 ---
@@ -410,7 +423,7 @@ This ensures:
 7. **User profile updates**: Can users update their `avatarColor` after onboarding, or is it set once?
 
 ### API Details
-8. **Default pagination limit**: What should the default `limit` be for feed pagination? (Currently mentioned as 20, but should we confirm?)
+8. **Home feed size**: The feed uses a **fixed cap** (`FEED_POST_LIMIT`, currently 30), not cursor pagination. Default `limit` for **other** list APIs (search, profile, saved) remains typically 20 unless overridden.
 
 9. **Empty states**: The doc mentions empty states in polish phase. Should we define what these look like now, or handle later?
 
@@ -431,7 +444,7 @@ This ensures:
 
 - **Visibility**: Feed and profiles **logged-in only**. No invite-only.
 
-- **APIs**: `GET /api/feed`, `POST /api/posts`, `DELETE /api/posts/[id]`, `GET /api/search/books?q=`, `GET /api/users/[username]`, `GET /api/users/me`. Composite cursor pagination everywhere. Stable JSON contracts; errors as `{ error, code }`.
+- **APIs**: `GET /api/feed` (fixed recent window, no cursor), `POST /api/posts`, `DELETE /api/posts/[id]`, `GET /api/search/books?q=`, `GET /api/search/users`, `GET /api/users/suggestions`, `GET /api/users/[username]`, `GET /api/users/me`. Cursor pagination on profile/saved/search lists as implemented. Stable JSON contracts; errors as `{ error, code }`.
 
 - **Weekly limit**: UTC `created_at`; America/New_York week via `date-fns-tz`; count on each create; reject if `>= 3`; delete frees slot.
 

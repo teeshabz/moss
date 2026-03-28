@@ -5,10 +5,14 @@ import type { PaginatedUserResponse, SearchUser } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
 
+const BATCH = 200
+const MAX_BATCHES = 40
+
 /**
  * GET /api/users/suggestions
- * Returns a list of recently active users based on recent posts.
- * Query params: limit (optional, default 20, max 50), cursor (optional)
+ * Returns distinct users ordered by most recent post (latest activity first).
+ * Scans recent posts in batches until `limit` users are found or posts are exhausted.
+ * Query params: limit (optional, default 20, max 50). Cursor is ignored (single-page list).
  */
 export async function GET(request: NextRequest) {
   try {
@@ -20,78 +24,81 @@ export async function GET(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams
     const limitParam = searchParams.get('limit')
-    const cursor = searchParams.get('cursor')
-    const limit = Math.min(limitParam ? parseInt(limitParam, 10) : 20, 50)
-    const fetchLimit = Math.min(limit * 5, 100)
+    const userLimit = Math.min(limitParam ? parseInt(limitParam, 10) : 20, 50)
 
     const supabase = createAdminClient()
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+    const users: SearchUser[] = []
+    const seenUserIds = new Set<string>()
+    let postCursor: string | undefined
 
-    let query = supabase
-      .from('posts')
-      .select(
-        `
+    for (let batch = 0; batch < MAX_BATCHES && users.length < userLimit; batch++) {
+      let query = supabase
+        .from('posts')
+        .select(
+          `
         id,
         created_at,
+        user_id,
         user:users!posts_user_id_fkey (
           id,
           username,
           avatar_color
         )
       `
-      )
-      .gte('created_at', thirtyDaysAgo)
-      .order('created_at', { ascending: false })
-      .order('id', { ascending: false })
-      .limit(fetchLimit + 1)
+        )
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
+        .limit(BATCH + 1)
 
-    if (cursor) {
-      const [createdAt, postId] = cursor.split(',')
-      if (createdAt && postId) {
-        query = query.or(
-          `created_at.lt.${createdAt},and(created_at.eq.${createdAt},id.lt.${postId})`
+      if (postCursor) {
+        const [createdAt, postId] = postCursor.split(',')
+        if (createdAt && postId) {
+          query = query.or(
+            `created_at.lt.${createdAt},and(created_at.eq.${createdAt},id.lt.${postId})`
+          )
+        }
+      }
+
+      const { data: rows, error } = await query
+
+      if (error) {
+        console.error('Error fetching user suggestions:', error)
+        return NextResponse.json(
+          { error: 'Failed to load suggestions' },
+          { status: 500 }
         )
       }
-    }
 
-    const { data: rows, error } = await query
+      if (!rows?.length) break
 
-    if (error) {
-      console.error('Error fetching user suggestions:', error)
-      return NextResponse.json(
-        { error: 'Failed to load suggestions' },
-        { status: 500 }
-      )
-    }
+      const hasMorePosts = rows.length > BATCH
+      const slice = hasMorePosts ? rows.slice(0, BATCH) : rows
 
-    const hasNextPage = rows ? rows.length > fetchLimit : false
-    const items = hasNextPage && rows ? rows.slice(0, fetchLimit) : rows ?? []
-    const seen = new Set<string>()
-    const users: SearchUser[] = []
+      for (const row of slice) {
+        const uid = row.user_id as string | undefined
+        if (!uid || uid === userId) continue
+        if (seenUserIds.has(uid)) continue
 
-    for (const row of items) {
-      const user = Array.isArray(row.user) ? row.user[0] : row.user
-      if (!user) continue
-      if (user.id === userId) continue
-      if (seen.has(user.id as string)) continue
-      seen.add(user.id as string)
-      users.push({
-        id: user.id as string,
-        username: user.username as string,
-        avatar_color: (user.avatar_color ?? '') as string,
-      })
-      if (users.length >= limit) break
-    }
+        const u = Array.isArray(row.user) ? row.user[0] : row.user
+        if (!u) continue
 
-    let nextCursor: string | undefined
-    if (hasNextPage && items.length > 0) {
-      const lastItem = items[items.length - 1]
-      nextCursor = `${lastItem.created_at},${lastItem.id}`
+        seenUserIds.add(uid)
+        users.push({
+          id: u.id as string,
+          username: u.username as string,
+          avatar_color: (u.avatar_color ?? '') as string,
+        })
+        if (users.length >= userLimit) break
+      }
+
+      if (!hasMorePosts) break
+      const last = slice[slice.length - 1]
+      postCursor = `${last.created_at},${last.id}`
+      if (users.length >= userLimit) break
     }
 
     const response: PaginatedUserResponse = {
       users,
-      ...(nextCursor && { nextCursor }),
     }
     return NextResponse.json(response)
   } catch (error) {

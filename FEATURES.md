@@ -2,7 +2,7 @@
 
 ## High-Level Purpose
 
-**Moss** is a social app where users share what they're reading, watching, and listening to. The goal is to "share what moves you"—recommendations as simple posts: a media item (book, article, movie, song, album, podcast, or live) plus an optional short note. There are no passwords: sign-up and login use Clerk (email magic links, OAuth, etc.). Sharing is intentionally limited (3 posts per week) to keep the feed focused and thoughtful. Users can save others' posts for later and view their own profile (shared items and saved items) with the same layout and divider style as the main feed.
+**Moss** is a social app where users share what they're reading, watching, and listening to. The goal is to "share what moves you"—recommendations as simple posts: a media item (book, article, movie, song, album, podcast, or live) plus an optional short note. There are no passwords: sign-up and login use Clerk (email magic links, OAuth, etc.). Sharing is intentionally limited (3 posts per week) to keep the feed focused and thoughtful. The **home feed** shows a **fixed cap** of the newest posts (everyone or friends) so scrolling stays bounded; older items are visible on profiles. Users can save others' posts for later and view profiles (shared, saved, pings) with the same layout and divider style as the main feed.
 
 ---
 
@@ -48,19 +48,34 @@
 
 ### 3. Feed
 
-**Purpose:** Show a chronological list of posts from all users (newest first) for the past rolling 7 days. Each post shows who shared it, the media type, title, creator, optional note, and a large media-type icon in the sharer’s avatar color. Authenticated users can save others’ posts (plus icon; bold when saved).
+**Purpose:** Show a **short, intentional** list of the most recent posts (newest first)—capped so the home feed does not scroll forever. Users switch between **everyone** (all authors) and **friends** (self + people they follow). Each post shows who shared it, the media type, title, creator, optional note, cover thumbnail when present, and reaction/save affordances. Authenticated users can save others’ posts (plus icon; bold when saved).
 
 **How it works today:**
 
-- **Page:** `app/feed/page.tsx`. Sticky header: moss icon only (left, links to feed), "share" + star icon (center, links to `/share`), current user’s profile avatar (right, no username). Client-side fetch to `GET /api/feed` (with optional `cursor` and `limit`). Renders a list of posts; each post has header row (avatar, username link to profile, media type, relative time, save button for non-own posts) and content row (title, creator, note, large media-type icon). Thin 1px divider (`h-px bg-stone-800`) between posts with `mt-6 mb-6 pl-9 md:pl-11`. When the 7-day window is exhausted, the feed shows a centered message: "that's everything from the past week. to see more, visit a friend's profile." with a centered half-width divider above it. Bottom bar includes "about" on the left and a friend search on the right.
-- **API:** `GET /api/feed`. Requires auth (internal user from `getUserId()`; 401 if signed in with Clerk but no row in `public.users`). Reads `posts` joined with `users` and `media_items`, ordered by `created_at DESC, id DESC`, and **filters to the last 7 days**. Returns `{ items: PostWithRelations[], nextCursor? }` using composite cursor pagination (cursor = base64 of `{ created_at, id }`). Default limit 20, max 50. On 401, feed page redirects to `/onboarding`.
-- **Save state:** On load, feed also fetches `GET /api/users/me/saved-ids` to get the current user’s saved post IDs. Toggling save calls `POST /api/posts/[id]/save` or `DELETE /api/posts/[id]/save`. Save button is a plus icon (thin when unsaved, bold when saved); only shown for posts not authored by the current user.
+- **Page:** `app/feed/page.tsx`. Sticky header: **moss** logo centered (links to `/feed`); row below with **share** button (left, green pill, links to `/share`) and current user’s **profile** (avatar + username, right; ping unread dot on avatar when applicable). Tabs: **everyone** / **friends** (`community` vs `following`). Client fetches `GET /api/feed` or `GET /api/feed?mode=following` once per tab (no “load more”). Post rows: header (avatar, username, media type, relative time), content (title, creator, note, thumbnail), thin `h-px bg-stone-800` dividers between posts. After the list, a centered footer (with a short divider when there are posts): **“that’s the latest.”** / **“to see more, visit a friend’s profile.”** Bottom bar: **about** and friend search (debounced `GET /api/search/users`); empty **friends** tab links to **find friends**.
+- **API:** `GET /api/feed`. Requires auth (`getUserId()`; 401 → onboarding if no internal user). Returns up to **`FEED_POST_LIMIT` (30)** posts, `created_at DESC, id DESC`, **no date cutoff**. Optional query **`mode=following`**: restrict to posts whose `user_id` is the current user or someone they follow. Response shape `{ items: PostWithRelations[] }` — **no `nextCursor`** (home feed is not paginated). Reactions/smile state is included per item.
+- **Save state:** On load, feed also fetches `GET /api/users/me/saved-ids`. Toggling save calls `POST` / `DELETE` `/api/posts/[id]/save`. Save/plus only for posts not authored by the current user.
 
 **Key files:** `app/feed/page.tsx`, `app/api/feed/route.ts`, `app/api/users/me/saved-ids/route.ts`, `app/api/posts/[id]/save/route.ts`.
 
 ---
 
-### 4. Share Flow (Media Type Selection + Per-Type Forms)
+### 4. Find friends
+
+**Purpose:** Help users discover accounts to follow: **suggested “active” users** when the search box is empty, and **username search** when typing.
+
+**How it works today:**
+
+- **Page:** `app/find-friends/page.tsx`. Search input (debounced). **Suggestions** (no query): `GET /api/users/suggestions?limit=30` — up to **30 distinct users** who have at least one post, ordered by **most recent post first** (server scans recent `posts` in batches until enough unique authors are found). **Search:** `GET /api/search/users?q=...&limit=20` with optional **`cursor`** for infinite scroll (composite cursor on username + id). Each row: avatar, username (opens profile), follow / following toggle via `/api/users/[username]/follow`. Bottom **go to feed** (following tab). Suggestions are a **single response** (no suggestion pagination).
+- **APIs:**
+  - `GET /api/users/suggestions?limit=` — optional limit (default 20, max 50); find-friends uses **30**. No `nextCursor`.
+  - `GET /api/search/users?q=` — required `q`; optional `cursor`, `limit` (default 20, max 50). Excludes current user; `ilike` on username.
+
+**Key files:** `app/find-friends/page.tsx`, `app/api/users/suggestions/route.ts`, `app/api/search/users/route.ts`.
+
+---
+
+### 5. Share Flow (Media Type Selection + Per-Type Forms)
 
 **Purpose:** Let users create a new post by choosing a media type (book, article, movie, song, album, podcast, live) and filling a small form (title, creator, optional note; article also has required URL). Enforce a weekly post limit (3 per week in America/New_York) and deduplicate media items where appropriate.
 
@@ -82,13 +97,13 @@
 
 ---
 
-### 5. Profile (Shared & Saved Tabs)
+### 6. Profile (Shared, Saved & Pings)
 
-**Purpose:** Show a user’s public profile: username, avatar color, and two tabs—**Shared** (posts they created) and **Saved** (posts they saved). Same divider and post spacing as the feed. Owner can delete their own shared posts and unsave saved ones.
+**Purpose:** Show a user’s public profile: username, avatar color, and tabs for **Shared** (posts they created), **Saved** (posts they saved—owner only), and **Pings** (smile notifications—owner only). Same divider and post spacing as the feed. Owner can delete their own shared posts and unsave saved ones.
 
 **How it works today:**
 
-- **Page:** `app/profile/[username]/page.tsx`. Fetches `GET /api/users/[username]` for profile + paginated shared posts. If viewing own profile, "Saved" tab fetches `GET /api/users/me/saved` (paginated). Shared tab: each post has header row (avatar, username, media type, time, delete button if own) and content row (title, creator, note, large media-type icon). Same thin divider between posts (`mt-6 mb-6 pl-9 md:pl-11`, `h-px bg-stone-800`). Saved tab: same layout; unsave button (plus icon, bold) calls `DELETE /api/posts/[id]/save`. Bottom bar includes friend search on all profiles; own profile also shows "sign out" on the left.
+- **Page:** `app/profile/[username]/page.tsx`. Fetches `GET /api/users/[username]` for profile + paginated shared posts. If viewing own profile, **Saved** and **Pings** tabs; **Saved** uses `GET /api/users/me/saved` (paginated). **Own profile:** link **your people →** under the header to `/your-people`; avatar links to **edit profile**. Shared tab: header row (avatar, username, media type, time, delete if own) and content row (title, creator, note, thumbnail / media icon). Same thin divider between posts (`mt-6 mb-6 pl-9 md:pl-11`, `h-px bg-stone-800`). Saved tab: unsave via `DELETE /api/posts/[id]/save`. Bottom bar: friend search; own profile also **sign out** on the left.
 - **APIs:**
   - `GET /api/users/[username]`: Returns profile user (id, username, avatar_color) and post count; returns paginated posts (same shape as feed items) with `nextCursor`.
   - `GET /api/users/me/saved`: Returns paginated list of saved posts (full post + user + media_item) for the current user.
@@ -97,7 +112,7 @@
 
 ---
 
-### 6. Save / Unsave Posts
+### 7. Save / Unsave Posts
 
 **Purpose:** Let users save other users’ posts for later and unsave them. Saved posts appear on the profile "Saved" tab and can be used for future features (e.g. reading list).
 
@@ -114,7 +129,7 @@
 
 ---
 
-### 7. Smile Reactions & Pings
+### 8. Smile Reactions & Pings
 
 **Purpose:** Let users privately smile at another user’s post (no public count). Smiles create a ping notification for the post author. Unsmiling removes the reaction and its ping.
 
@@ -133,7 +148,7 @@
 
 ---
 
-### 8. Delete Post
+### 9. Delete Post
 
 **Purpose:** Let a user delete their own post. Frees a slot for the weekly limit.
 
@@ -146,7 +161,7 @@
 
 ---
 
-### 9. Media Types & Validation
+### 10. Media Types & Validation
 
 **Purpose:** Support seven media types (book, article, movie, song, album, podcast, live) with consistent validation and optional article URL. Reuse existing media items when the same thing is shared again (deduplication).
 
@@ -160,7 +175,7 @@
 
 ---
 
-### 10. Avatar Color
+### 11. Avatar Color
 
 **Purpose:** Give each user a stable, random color for their avatar and for the large media icon on their posts (no image upload in current version).
 
@@ -172,19 +187,19 @@
 
 ---
 
-### 11. UI Consistency (Feed & Profile)
+### 12. UI Consistency (Feed & Profile)
 
 **Purpose:** Same look and feel on feed and profile: thin divider between posts, same spacing, same header/content row layout, same typography and colors.
 
 **How it works today:**
 
-- **Feed and profile (Shared & Saved):** Header row: avatar (`md:w-8 md:h-8 w-6 h-6`), metadata with bullets `text-stone-700`, responsive text `md:text-sm text-xs`. Content row: `md:pl-11 pl-9`, `gap-4`, title `md:text-base text-sm`, note `md:text-sm text-xs line-clamp-3`. Divider between posts: wrapper `mt-6 mb-6 pl-9 md:pl-11`, line `h-px bg-stone-800`. Large media-type icon on the right, colored by post author’s `avatar_color`. Save/unsave control is a plus icon (thin when unsaved, bold when saved).
+- **Feed and profile (Shared & Saved):** Header row: avatar (`md:w-8 md:h-8 w-6 h-6`), metadata with bullets `text-stone-700`, responsive text `md:text-sm text-xs`. Content row: `md:pl-11 pl-9`, `gap-4`, title `md:text-base text-sm`, note `md:text-sm text-xs line-clamp-3`. Divider between posts: wrapper `mt-6 mb-6 pl-9 md:pl-11`, line `h-px bg-stone-800`. Optional **cover thumbnail** on the right when `cover_url` is set; otherwise media-type treatment as today. Save/unsave control is a plus icon (thin when unsaved, bold when saved).
 
 **Key files:** `app/feed/page.tsx`, `app/profile/[username]/page.tsx`.
 
 ---
 
-### 12. Error Handling & Resilience
+### 13. Error Handling & Resilience
 
 **Purpose:** Surface API errors (validation, 409 limit, 404, 500) in the UI and log server-side for debugging.
 
@@ -196,7 +211,7 @@
 
 ---
 
-### 13. Dev / Ops
+### 14. Dev / Ops
 
 **Purpose:** Sanity-check Supabase connectivity and env configuration during development.
 
@@ -220,7 +235,7 @@
 
 ## What’s Not Implemented (or Optional) Today
 
-- **Cover images:** `cover_url` exists on media_items and is stored when sharing from Google Books, but is not displayed in the feed/profile (large media-type icon is used instead).
+- **Cover images:** When `cover_url` is set (e.g. Google Books, Apple Music), feed and profile show a **small thumbnail** next to the title; the large colored media-type icon is still used in the metadata row.
 - **Username changes:** No ability to change username; edit profile only updates phone/first/last name and avatar color.
 - **Public feed:** Feed and profile require authentication; there is no public view.
 

@@ -22,8 +22,6 @@ export default function FindFriendsPage() {
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [suggestedUsers, setSuggestedUsers] = useState<SearchUser[]>([])
   const [suggestedLoading, setSuggestedLoading] = useState(false)
-  const [suggestedCursor, setSuggestedCursor] = useState<string | undefined>()
-  const [suggestedHasMore, setSuggestedHasMore] = useState(true)
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set())
   const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set())
   const sentinelRef = useRef<HTMLDivElement | null>(null)
@@ -73,33 +71,23 @@ export default function FindFriendsPage() {
     loadFollowing()
   }, [currentUser?.user?.username])
 
-  const loadSuggestions = useCallback(async (cursor?: string) => {
+  const loadSuggestions = useCallback(async () => {
     if (suggestedLoadingRef.current) return
-    const requestKey = cursor ?? 'start'
+    const requestKey = 'suggestions'
     if (suggestionRequestRef.current === requestKey) return
     suggestionRequestRef.current = requestKey
     try {
       suggestedLoadingRef.current = true
       setSuggestedLoading(true)
-      const cursorParam = cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''
-      const res = await fetch(`/api/users/suggestions?limit=20${cursorParam}`)
+      const res = await fetch('/api/users/suggestions?limit=30')
       if (!res.ok) {
-        if (!cursor) setSuggestedUsers([])
-        setSuggestedHasMore(false)
+        setSuggestedUsers([])
         return
       }
       const data: PaginatedUserResponse = await res.json()
-      setSuggestedUsers((prev) => {
-        if (!cursor) return data.users
-        const existingIds = new Set(prev.map((user) => user.id))
-        const newItems = data.users.filter((user) => !existingIds.has(user.id))
-        return [...prev, ...newItems]
-      })
-      setSuggestedCursor(data.nextCursor)
-      setSuggestedHasMore(Boolean(data.nextCursor))
+      setSuggestedUsers(data.users)
     } catch {
-      if (!cursor) setSuggestedUsers([])
-      setSuggestedHasMore(false)
+      setSuggestedUsers([])
     } finally {
       suggestedLoadingRef.current = false
       setSuggestedLoading(false)
@@ -184,25 +172,13 @@ export default function FindFriendsPage() {
           if (searchHasMore && !searchLoading && searchCursor) {
             loadSearchResults(query, searchCursor)
           }
-        } else if (suggestedHasMore && !suggestedLoading && suggestedCursor) {
-          loadSuggestions(suggestedCursor)
         }
       },
       { rootMargin: '200px' }
     )
     observer.observe(sentinel)
     return () => observer.disconnect()
-  }, [
-    searchQuery,
-    searchHasMore,
-    searchLoading,
-    searchCursor,
-    suggestedHasMore,
-    suggestedLoading,
-    suggestedCursor,
-    loadSearchResults,
-    loadSuggestions,
-  ])
+  }, [searchQuery, searchHasMore, searchLoading, searchCursor, loadSearchResults])
 
   const handleFollowToggle = useCallback(async (user: SearchUser, isFollowing: boolean) => {
     if (updatingIds.has(user.id)) return
