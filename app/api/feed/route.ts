@@ -6,10 +6,13 @@ import type { FeedResponse, RawPostResult } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
 
+/** Most recent posts returned per feed request (no date window; no pagination). */
+const FEED_POST_LIMIT = 30
+
 /**
  * GET /api/feed
- * Returns paginated feed of posts
- * Query params: cursor (optional), limit (optional, default 20, max 50), mode (optional: "community" | "following")
+ * Returns the most recent posts (up to FEED_POST_LIMIT).
+ * Query param: mode (optional: "community" | "following")
  */
 export async function GET(request: NextRequest) {
   try {
@@ -21,17 +24,8 @@ export async function GET(request: NextRequest) {
 
     const supabase = createAdminClient()
 
-    // Parse query parameters
     const searchParams = request.nextUrl.searchParams
-    const cursor = searchParams.get('cursor')
-    const limitParam = searchParams.get('limit')
     const mode = searchParams.get('mode')?.toLowerCase()
-    const limit = Math.min(
-      limitParam ? parseInt(limitParam, 10) : 20,
-      50
-    )
-
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
 
     let query = supabase
       .from('posts')
@@ -61,10 +55,9 @@ export async function GET(request: NextRequest) {
           created_at
         )
       `)
-      .gte('created_at', sevenDaysAgo)
       .order('created_at', { ascending: false })
       .order('id', { ascending: false })
-      .limit(limit + 1)
+      .limit(FEED_POST_LIMIT)
 
     if (mode === 'following') {
       const { data: followRows, error: followError } = await supabase
@@ -90,15 +83,6 @@ export async function GET(request: NextRequest) {
       query = query.in('user_id', Array.from(userIds))
     }
 
-    if (cursor) {
-      const [createdAt, id] = cursor.split(',')
-      if (createdAt && id) {
-        query = query.or(
-          `created_at.lt.${createdAt},and(created_at.eq.${createdAt},id.lt.${id})`
-        )
-      }
-    }
-
     const { data: posts, error } = await query
 
     if (error) {
@@ -113,8 +97,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json<FeedResponse>({ items: [] })
     }
 
-    const hasNextPage = posts.length > limit
-    const items = hasNextPage ? posts.slice(0, limit) : posts
+    const items = posts
 
     const postIds = items.map((post: RawPostResult) => post.id)
     const smiledPostIds = new Set<string>()
@@ -166,15 +149,8 @@ export async function GET(request: NextRequest) {
       )
     )
 
-    let nextCursor: string | undefined
-    if (hasNextPage && items.length > 0) {
-      const lastItem = items[items.length - 1]
-      nextCursor = `${lastItem.created_at},${lastItem.id}`
-    }
-
     const response: FeedResponse = {
       items: transformedItems,
-      ...(nextCursor && { nextCursor }),
     }
 
     return NextResponse.json(response)

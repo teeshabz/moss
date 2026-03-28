@@ -28,14 +28,6 @@ function FeedPageContent() {
     community: PostWithRelations[]
     following: PostWithRelations[]
   }>({ community: [], following: [] })
-  const [nextCursorByTab, setNextCursorByTab] = useState<{
-    community?: string
-    following?: string
-  }>({})
-  const [hasMoreByTab, setHasMoreByTab] = useState<{
-    community: boolean
-    following: boolean
-  }>({ community: false, following: false })
   const [hasLoadedByTab, setHasLoadedByTab] = useState<{
     community: boolean
     following: boolean
@@ -53,7 +45,6 @@ function FeedPageContent() {
   const [searchResults, setSearchResults] = useState<SearchUser[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const backgroundFeedLoadedRef = useRef({ community: false, following: false })
   const [activeTab, setActiveTab] = useState<'community' | 'following'>('following')
   const [aboutOpen, setAboutOpen] = useState(false)
   const [notesDrawerPost, setNotesDrawerPost] = useState<PostWithRelations | null>(null)
@@ -76,19 +67,10 @@ function FeedPageContent() {
     }
   }, [searchParams])
 
-  const loadFeed = useCallback(async (
-    mode: 'community' | 'following',
-    cursor?: string
-  ) => {
-    if (!cursor) {
-      backgroundFeedLoadedRef.current[mode] = false
-    }
+  const loadFeed = useCallback(async (mode: 'community' | 'following') => {
     try {
-      const modeParam = mode === 'following' ? '&mode=following' : ''
-      const url = cursor
-        ? `/api/feed?cursor=${encodeURIComponent(cursor)}${modeParam}`
-        : `/api/feed?limit=10${modeParam}`
-      const response = await fetch(url)
+      const modeParam = mode === 'following' ? '?mode=following' : ''
+      const response = await fetch(`/api/feed${modeParam}`)
 
       if (!response.ok) {
         if (response.status === 401) {
@@ -100,49 +82,16 @@ function FeedPageContent() {
 
       const data: FeedResponse = await response.json()
 
-      if (cursor) {
-        // Append to existing posts (pagination), dedupe by id to avoid duplicate keys
-        setPostsByTab((prev) => {
-          const existingIds = new Set(prev[mode].map((p) => p.id))
-          const newItems = data.items.filter((p) => !existingIds.has(p.id))
-          return { ...prev, [mode]: [...prev[mode], ...newItems] }
-        })
-      } else {
-        // Replace posts (initial load)
-        setPostsByTab((prev) => ({ ...prev, [mode]: data.items }))
-      }
-
-      setNextCursorByTab((prev) => ({ ...prev, [mode]: data.nextCursor }))
-      setHasMoreByTab((prev) => ({ ...prev, [mode]: !!data.nextCursor }))
+      setPostsByTab((prev) => ({ ...prev, [mode]: data.items }))
       setError(null) // Clear any previous errors on success
-      // Load next page in background once so more content appears quickly (initial load only)
-      if (
-        !cursor &&
-        data.nextCursor &&
-        data.items.length > 0 &&
-        !backgroundFeedLoadedRef.current[mode]
-      ) {
-        backgroundFeedLoadedRef.current[mode] = true
-        loadFeed(mode, data.nextCursor)
-      }
     } catch (error) {
       console.error('Error loading feed:', error)
       setError('Failed to load feed. Please try again.')
     } finally {
       setLoading(false)
-      if (!cursor) {
-        setHasLoadedByTab((prev) => ({ ...prev, [mode]: true }))
-      }
+      setHasLoadedByTab((prev) => ({ ...prev, [mode]: true }))
     }
   }, [router])
-
-  const handleLoadMore = () => {
-    const cursor = nextCursorByTab[activeTab]
-    if (cursor && !loading) {
-      setLoading(true)
-      loadFeed(activeTab, cursor)
-    }
-  }
 
   const loadNotes = useCallback(async (postId: string) => {
     try {
@@ -436,8 +385,6 @@ function FeedPageContent() {
   }
 
   const posts = postsByTab[activeTab]
-  const nextCursor = nextCursorByTab[activeTab]
-  const hasMore = hasMoreByTab[activeTab]
   const onlyOwnPosts =
     activeTab === 'following' &&
     posts.length > 0 &&
@@ -824,32 +771,19 @@ function FeedPageContent() {
                   ))}
                 </div>
 
-                {/* Load More Button / End-of-week message */}
-                {hasMore ? (
+                {!loading && (
                   <div className="text-center py-8">
-                    <button
-                      onClick={handleLoadMore}
-                      disabled={loading}
-                      className="text-[#7a9b6f] hover:text-[#8fb084] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {loading ? 'thinking...' : 'see more...'}
-                    </button>
+                    {posts.length > 0 && (
+                      <div className="mb-6 flex justify-center">
+                        <div className="h-px bg-stone-800 w-1/2" />
+                      </div>
+                    )}
+                    <p className="text-stone-500 text-sm">
+                      that&apos;s the latest.
+                      <br />
+                      to see more, visit a friend&apos;s profile.
+                    </p>
                   </div>
-                ) : (
-                  !loading && (
-                    <div className="text-center py-8">
-                      {posts.length > 0 && (
-                        <div className="mb-6 flex justify-center">
-                          <div className="h-px bg-stone-800 w-1/2" />
-                        </div>
-                      )}
-                      <p className="text-stone-500 text-sm">
-                        that&apos;s everything from the past week.
-                        <br />
-                        to see more, visit a friend&apos;s profile.
-                      </p>
-                    </div>
-                  )
                 )}
               </>
             )}
