@@ -2,7 +2,8 @@ import { requireUserId } from '@/lib/auth'
 import { mapRawPostToPostWithRelations } from '@/lib/api/posts'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
-import type { FeedResponse, RawPostResult } from '@/lib/types'
+import { isValidFeedMediaType } from '@/lib/share-media-config'
+import type { FeedResponse, MediaType, RawPostResult } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,7 +13,7 @@ const FEED_POST_LIMIT = 41
 /**
  * GET /api/feed
  * Returns the most recent posts (up to FEED_POST_LIMIT).
- * Query param: mode (optional: "community" | "following")
+ * Query: mode (optional: "following"); type (optional: MediaType enum, e.g. BOOK).
  */
 export async function GET(request: NextRequest) {
   try {
@@ -26,10 +27,46 @@ export async function GET(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams
     const mode = searchParams.get('mode')?.toLowerCase()
+    const typeRaw = searchParams.get('type')?.trim().toUpperCase() ?? ''
+    if (searchParams.has('type') && typeRaw && !isValidFeedMediaType(typeRaw)) {
+      return NextResponse.json(
+        { error: 'Invalid type. Use BOOK, ARTICLE, SONG, ALBUM, PODCAST, MOVIE, or LIVE.' },
+        { status: 400 }
+      )
+    }
+    const mediaTypeFilter: MediaType | null =
+      typeRaw && isValidFeedMediaType(typeRaw) ? typeRaw : null
+
+    const mediaJoin = mediaTypeFilter
+      ? `media_item:media_items!posts_media_item_id_fkey!inner (
+          id,
+          media_type,
+          title,
+          creator,
+          external_url,
+          cover_url,
+          source,
+          source_id,
+          metadata,
+          created_at
+        )`
+      : `media_item:media_items!posts_media_item_id_fkey (
+          id,
+          media_type,
+          title,
+          creator,
+          external_url,
+          cover_url,
+          source,
+          source_id,
+          metadata,
+          created_at
+        )`
 
     let query = supabase
       .from('posts')
-      .select(`
+      .select(
+        `
         id,
         user_id,
         media_item_id,
@@ -42,22 +79,16 @@ export async function GET(request: NextRequest) {
           avatar_color,
           created_at
         ),
-        media_item:media_items!posts_media_item_id_fkey (
-          id,
-          media_type,
-          title,
-          creator,
-          external_url,
-          cover_url,
-          source,
-          source_id,
-          metadata,
-          created_at
-        )
-      `)
+        ${mediaJoin}
+      `
+      )
       .order('created_at', { ascending: false })
       .order('id', { ascending: false })
       .limit(FEED_POST_LIMIT)
+
+    if (mediaTypeFilter) {
+      query = query.eq('media_item.media_type', mediaTypeFilter)
+    }
 
     if (mode === 'following') {
       const { data: followRows, error: followError } = await supabase

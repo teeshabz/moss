@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo, Suspense } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import type {
   FeedResponse,
+  MediaType,
   NoteWithAuthor,
   NotesResponse,
   PostWithRelations,
@@ -14,6 +15,7 @@ import type {
   UserMeResponse,
   UserSearchResponse,
 } from '@/lib/types'
+import { SHARE_MEDIA_ROW, parseFeedTypeParam } from '@/lib/share-media-config'
 import { MossIcon } from '@/lib/components/MossIcon'
 import {
   formatTimeAgo,
@@ -24,16 +26,11 @@ import {
 import { MAX_POST_TEXT_LENGTH } from '@/lib/post-text-limit'
 
 function FeedPageContent() {
-  const [postsByTab, setPostsByTab] = useState<{
-    community: PostWithRelations[]
-    following: PostWithRelations[]
-  }>({ community: [], following: [] })
-  const [hasLoadedByTab, setHasLoadedByTab] = useState<{
-    community: boolean
-    following: boolean
-  }>({ community: false, following: false })
+  const [postsCache, setPostsCache] = useState<Record<string, PostWithRelations[]>>(
+    {}
+  )
+  const [hasLoadedCache, setHasLoadedCache] = useState<Record<string, boolean>>({})
   const [loading, setLoading] = useState(true)
-  const [shareHovered, setShareHovered] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [currentUser, setCurrentUser] = useState<UserMeResponse | null>(null)
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
@@ -75,31 +72,70 @@ function FeedPageContent() {
     }
   }, [searchParams])
 
-  const loadFeed = useCallback(async (mode: 'community' | 'following') => {
-    try {
-      const modeParam = mode === 'following' ? '?mode=following' : ''
-      const response = await fetch(`/api/feed${modeParam}`)
+  const mediaFilter = useMemo(
+    () => parseFeedTypeParam(searchParams.get('type')),
+    [searchParams]
+  )
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          router.push('/onboarding')
-          return
-        }
-        throw new Error('Failed to load feed')
-      }
+  const feedCacheKey = `${activeTab}:${mediaFilter ?? 'all'}`
 
-      const data: FeedResponse = await response.json()
-
-      setPostsByTab((prev) => ({ ...prev, [mode]: data.items }))
-      setError(null) // Clear any previous errors on success
-    } catch (error) {
-      console.error('Error loading feed:', error)
-      setError('Failed to load feed. Please try again.')
-    } finally {
-      setLoading(false)
-      setHasLoadedByTab((prev) => ({ ...prev, [mode]: true }))
+  useEffect(() => {
+    const raw = searchParams.get('type')
+    if (raw !== null && raw !== '' && parseFeedTypeParam(raw) === null) {
+      const p = new URLSearchParams(searchParams.toString())
+      p.delete('type')
+      const q = p.toString()
+      router.replace(q ? `/feed?${q}` : '/feed', { scroll: false })
     }
-  }, [router])
+  }, [searchParams, router])
+
+  const loadFeed = useCallback(
+    async (mode: 'community' | 'following') => {
+      const mf = parseFeedTypeParam(searchParams.get('type'))
+      const cacheKey = `${mode}:${mf ?? 'all'}`
+      try {
+        const params = new URLSearchParams()
+        if (mode === 'following') params.set('mode', 'following')
+        if (mf) params.set('type', mf)
+        const qs = params.toString()
+        const response = await fetch(`/api/feed${qs ? `?${qs}` : ''}`)
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            router.push('/onboarding')
+            return
+          }
+          throw new Error('Failed to load feed')
+        }
+
+        const data: FeedResponse = await response.json()
+
+        setPostsCache((prev) => ({ ...prev, [cacheKey]: data.items }))
+        setHasLoadedCache((prev) => ({ ...prev, [cacheKey]: true }))
+        setError(null)
+      } catch (error) {
+        console.error('Error loading feed:', error)
+        setError('Failed to load feed. Please try again.')
+      } finally {
+        setLoading(false)
+      }
+    },
+    [router, searchParams]
+  )
+
+  const replaceFeedQuery = useCallback(
+    (updates: { type: MediaType | null }) => {
+      const p = new URLSearchParams(searchParams.toString())
+      if (updates.type === null) {
+        p.delete('type')
+      } else {
+        p.set('type', updates.type)
+      }
+      const q = p.toString()
+      router.replace(q ? `/feed?${q}` : '/feed', { scroll: false })
+    },
+    [router, searchParams]
+  )
 
   const loadNotes = useCallback(async (postId: string) => {
     try {
@@ -223,14 +259,14 @@ function FeedPageContent() {
     && noteInput.trim().length <= MAX_POST_TEXT_LENGTH
 
   useEffect(() => {
-    if (!hasLoadedByTab[activeTab]) {
-      setError(null)
-      setLoading(true)
-      loadFeed(activeTab)
-    } else {
+    if (hasLoadedCache[feedCacheKey]) {
       setLoading(false)
+      return
     }
-  }, [activeTab, hasLoadedByTab, loadFeed])
+    setError(null)
+    setLoading(true)
+    loadFeed(activeTab)
+  }, [activeTab, feedCacheKey, hasLoadedCache, loadFeed])
 
   useEffect(() => {
     const ac = new AbortController()
@@ -393,14 +429,15 @@ function FeedPageContent() {
   }
 
   const updateSmileInLists = (postId: string, smiledByCurrentUser: boolean) => {
-    setPostsByTab((prev) => ({
-      community: prev.community.map((post) =>
-        post.id === postId ? { ...post, smiledByCurrentUser } : post
-      ),
-      following: prev.following.map((post) =>
-        post.id === postId ? { ...post, smiledByCurrentUser } : post
-      ),
-    }))
+    setPostsCache((prev) => {
+      const next = { ...prev }
+      for (const key of Object.keys(next)) {
+        next[key] = next[key].map((post) =>
+          post.id === postId ? { ...post, smiledByCurrentUser } : post
+        )
+      }
+      return next
+    })
   }
 
   const handleSmileToggle = async (
@@ -435,16 +472,25 @@ function FeedPageContent() {
     }
   }
 
-  const posts = postsByTab[activeTab]
+  const posts = postsCache[feedCacheKey] ?? []
   const onlyOwnPosts =
     activeTab === 'following' &&
     posts.length > 0 &&
     !!currentUser?.user?.id &&
     posts.every((post) => post.user.id === currentUser.user.id)
+  const showFilteredEmpty =
+    Boolean(mediaFilter) && !loading && posts.length === 0
   const showFollowingEmptyState =
-    activeTab === 'following' && !loading && (posts.length === 0 || onlyOwnPosts)
+    !mediaFilter &&
+    activeTab === 'following' &&
+    !loading &&
+    (posts.length === 0 || onlyOwnPosts)
   const showEmptyState =
-    !loading && (activeTab === 'following' ? showFollowingEmptyState : posts.length === 0)
+    !loading &&
+    (showFilteredEmpty ||
+      (activeTab === 'following'
+        ? showFollowingEmptyState
+        : posts.length === 0))
 
   if (loading && posts.length === 0) {
     return (
@@ -455,13 +501,17 @@ function FeedPageContent() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white pb-24">
+    <div className="min-h-screen bg-black text-white pb-32">
       {/* Header with tabs - sticky together */}
       <div className="sticky top-0 bg-black/90 backdrop-blur-sm z-10">
         <div className="max-w-2xl mx-auto px-6 md:px-8">
-          {/* Moss logo - top middle */}
-          <div className="pt-5 pb-1.5 flex justify-center">
-            <Link href="/feed" className="flex items-center gap-2 flex-shrink-0" aria-label="moss">
+          {/* Moss logo (left) + avatar (right), top-aligned */}
+          <div className="pt-5 pb-3 flex items-start justify-between gap-4">
+            <Link
+              href="/feed"
+              className="flex items-center gap-2 flex-shrink-0 min-w-0"
+              aria-label="moss"
+            >
               <MossIcon color="#2d5016" size={26} />
               <span
                 className="text-2xl font-bold lowercase"
@@ -475,23 +525,11 @@ function FeedPageContent() {
                 moss
               </span>
             </Link>
-          </div>
-
-          {/* Share (left) and Profile (right) - same level */}
-          <div className="mt-4 pb-3 flex items-center justify-between">
-            <Link
-              href="/share"
-              className="px-3 py-1.5 text-sm font-bold lowercase tracking-wider transition-colors rounded-md bg-[#2d5016] text-white hover:bg-[#3a6b1e]"
-              onMouseEnter={() => setShareHovered(true)}
-              onMouseLeave={() => setShareHovered(false)}
-            >
-              share
-            </Link>
-            <div className="flex items-center flex-shrink-0">
+            <div className="flex shrink-0">
               {currentUser?.user?.username ? (
                 <Link
                   href={`/profile/${encodeURIComponent(currentUser.user.username)}`}
-                  className="flex items-center hover:opacity-90 transition-opacity"
+                  className="flex items-start hover:opacity-90 transition-opacity"
                   aria-label={`profile: ${currentUser.user.username}`}
                 >
                   <div
@@ -535,8 +573,45 @@ function FeedPageContent() {
             </div>
           </div>
 
+          {/* Media type filter — click again on selected type to clear */}
+          <div className="py-4 mb-2 flex items-center justify-center min-w-0">
+            <div className="flex items-center justify-center gap-2.5 sm:gap-3 overflow-x-auto max-w-full">
+              {SHARE_MEDIA_ROW.map((row) => {
+                const selected = mediaFilter === row.mediaType
+                const iconSize = 16
+                return (
+                  <button
+                    key={row.mediaType}
+                    type="button"
+                    onClick={() =>
+                      replaceFeedQuery({
+                        type: selected ? null : row.mediaType,
+                      })
+                    }
+                    className={`flex-shrink-0 p-0.5 rounded-md transition-opacity hover:opacity-90 ${
+                      selected ? '' : 'opacity-45 hover:opacity-70'
+                    }`}
+                    aria-label={
+                      selected
+                        ? `Show all posts (clear ${getMediaTypeLabel(row.mediaType)} filter)`
+                        : `Filter by ${getMediaTypeLabel(row.mediaType)}`
+                    }
+                    aria-pressed={selected}
+                  >
+                    <MediaTypeFilledIcon
+                      mediaType={row.mediaType}
+                      size={iconSize}
+                      color={selected ? row.color : undefined}
+                      className={selected ? '' : 'text-stone-500'}
+                    />
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
           {showFriendsFeedHint && (
-            <div className="relative mt-3 mb-1 rounded-lg border border-stone-700/90 bg-stone-950/80 px-3 py-2.5 pr-9">
+            <div className="relative mt-4 mb-2 rounded-lg border border-stone-700/90 bg-stone-950/80 px-3 py-2.5 pr-9">
               <p className="text-xs md:text-sm text-stone-400 leading-relaxed m-0">
                 you&apos;re seeing posts from everyone,
                 <br />
@@ -565,13 +640,19 @@ function FeedPageContent() {
       </div>
 
       {/* Feed Content */}
-      <div className="max-w-2xl mx-auto px-6 md:px-8 mt-6">
+      <div className="max-w-2xl mx-auto px-6 md:px-8 mt-8">
         {error && (
           <div className="mb-6 p-4 bg-red-900/20 border border-red-800 rounded text-red-400 text-sm">
             <p>{error}</p>
             <button
               onClick={() => {
                 setError(null)
+                setHasLoadedCache((prev) => {
+                  const next = { ...prev }
+                  delete next[feedCacheKey]
+                  return next
+                })
+                setLoading(true)
                 loadFeed(activeTab)
               }}
               className="mt-2 text-red-300 hover:text-red-200 underline"
@@ -584,7 +665,11 @@ function FeedPageContent() {
         <>
             {showEmptyState ? (
               <div className="text-center py-16">
-                {activeTab === 'following' ? (
+                {showFilteredEmpty && mediaFilter ? (
+                  <p className="text-stone-500 text-lg mb-4 lowercase">
+                    no {getMediaTypeLabel(mediaFilter)} shared recently
+                  </p>
+                ) : activeTab === 'following' ? (
                   <>
                     <p className="text-stone-500 text-lg mb-4">
                       you&apos;re not following anyone yet
@@ -870,7 +955,7 @@ function FeedPageContent() {
 
         {searchExpanded ? (
           /* Partial-width search mode with about visible */
-          <div className="flex items-end w-full px-6 md:px-8 py-4 gap-6">
+          <div className="relative flex items-end w-full px-6 md:px-8 py-6 gap-6">
             <button
               onClick={() => setAboutOpen(true)}
               type="button"
@@ -878,6 +963,17 @@ function FeedPageContent() {
             >
               about
             </button>
+
+            <Link
+              href="/share"
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-[#2d5016] text-black shadow-md transition-colors hover:bg-[#3a6b1e] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7a9b6f] focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+              aria-label="Share something new"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                <rect x="9.5" y="2" width="5" height="20" />
+                <rect x="2" y="9.5" width="20" height="5" />
+              </svg>
+            </Link>
 
             <div className="relative w-full max-w-[33%] min-w-[240px] ml-auto">
               {/* Search results - floating above input */}
@@ -975,8 +1071,8 @@ function FeedPageContent() {
             </div>
           </div>
         ) : (
-          /* Collapsed mode - about left, search right */
-          <div className="max-w-2xl mx-auto px-6 md:px-8 py-3 flex items-center justify-between">
+          /* Collapsed mode - about left, share center, search right */
+          <div className="relative max-w-2xl mx-auto px-6 md:px-8 py-6 flex items-center justify-between">
             <button
               onClick={() => setAboutOpen(true)}
               type="button"
@@ -984,6 +1080,16 @@ function FeedPageContent() {
             >
               about
             </button>
+            <Link
+              href="/share"
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-[#2d5016] text-black shadow-md transition-colors hover:bg-[#3a6b1e] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7a9b6f] focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+              aria-label="Share something new"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                <rect x="9.5" y="2" width="5" height="20" />
+                <rect x="2" y="9.5" width="20" height="5" />
+              </svg>
+            </Link>
             <button
               onClick={() => setSearchExpanded(true)}
               className="text-stone-400 hover:text-stone-300 transition-colors"

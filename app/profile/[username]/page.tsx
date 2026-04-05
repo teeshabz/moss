@@ -732,24 +732,52 @@ export default function ProfilePage() {
 
   const { user, items, nextCursor } = profile
 
+  const followingListOwner =
+    searchParams.get('from') === 'following'
+      ? searchParams.get('listOwner')?.trim() || null
+      : null
+  const yourPeopleTab =
+    searchParams.get('from') === 'your-people' &&
+    (searchParams.get('peopleTab') === 'following' ||
+      searchParams.get('peopleTab') === 'followers')
+      ? (searchParams.get('peopleTab') as 'following' | 'followers')
+      : null
+
+  const headerBackLink =
+    searchParams.get('from') === 'pings' &&
+    currentUser?.user?.username &&
+    !isOwnProfile
+      ? {
+          href: `/profile/${encodeURIComponent(currentUser.user.username)}?tab=pings`,
+          label: 'Back to pings',
+        }
+      : followingListOwner
+        ? {
+            href: `/profile/${encodeURIComponent(followingListOwner)}/following`,
+            label: 'Back to following list',
+          }
+        : yourPeopleTab
+          ? {
+              href: `/your-people?tab=${yourPeopleTab}`,
+              label: 'Back to your people',
+            }
+          : null
+
   return (
     <div className="min-h-screen bg-black text-white pb-24">
-      {/* Header: back + logo + profile header + tabs */}
+      {/* Header: optional ← (pings / following list / your people); moss → feed */}
       <div className="sticky top-0 bg-black/90 backdrop-blur-sm z-10">
         <div className="max-w-4xl mx-auto px-4 md:px-8 pt-6 pb-4 flex items-center justify-between">
-          {searchParams.get('from') === 'pings' &&
-          currentUser?.user?.username &&
-          !isOwnProfile ? (
+          {headerBackLink ? (
             <Link
-              href={`/profile/${encodeURIComponent(currentUser.user.username)}?tab=pings`}
-              className="text-white text-2xl hover:text-gray-300"
+              href={headerBackLink.href}
+              className="text-white text-2xl hover:text-gray-300 flex-shrink-0 w-8 flex justify-start"
+              aria-label={headerBackLink.label}
             >
               ←
             </Link>
           ) : (
-            <Link href="/feed" className="text-white text-2xl hover:text-gray-300">
-              ←
-            </Link>
+            <div className="w-8 flex-shrink-0" aria-hidden />
           )}
           <Link href="/feed" className="flex items-center gap-2">
             <MossIcon color="#2d5016" size={26} />

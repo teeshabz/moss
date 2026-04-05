@@ -4,7 +4,7 @@ import { useState, FormEvent, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
-import type { CreatePostRequest, MediaType } from '@/lib/types'
+import type { CreatePostRequest, MediaType, UserMeResponse } from '@/lib/types'
 import {
   BookIcon,
   NewspaperIcon,
@@ -268,6 +268,8 @@ export default function ShareTypePage() {
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [noteLimitReached, setNoteLimitReached] = useState(false)
   const [buttonClicked, setButtonClicked] = useState(false)
+  const [me, setMe] = useState<UserMeResponse | null>(null)
+  const [aboutOpen, setAboutOpen] = useState(false)
 
   // Book search (only used when type === 'book')
   type BookResult = { id: string; title: string; authors: string; thumbnail?: string; infoLink?: string }
@@ -301,6 +303,20 @@ export default function ShareTypePage() {
       router.push('/share')
     }
   }, [isValidType, router])
+
+  useEffect(() => {
+    async function loadUser() {
+      try {
+        const response = await fetch('/api/users/me?summary=1')
+        if (!response.ok) return
+        const data: UserMeResponse = await response.json()
+        setMe(data)
+      } catch {
+        /* ignore */
+      }
+    }
+    loadUser()
+  }, [])
 
   // Debounced book search when type === 'book'
   useEffect(() => {
@@ -585,11 +601,51 @@ export default function ShareTypePage() {
   // If no config, show placeholder
   if (!config) {
     return (
-      <div className="min-h-screen bg-black text-white flex flex-col">
-        <div className="absolute top-8 left-8 md:top-16 md:left-16">
+      <div className="min-h-screen bg-black text-white flex flex-col pb-32">
+        <div className="sticky top-0 bg-black/90 backdrop-blur-sm z-10">
+          <div className="max-w-2xl mx-auto px-6 md:px-8">
+            <div className="pt-5 pb-3 flex items-start justify-between gap-4">
+              <Link
+                href="/feed"
+                className="flex items-center gap-2 flex-shrink-0 min-w-0"
+                aria-label="moss"
+              >
+                <MossIcon color="#2d5016" size={26} />
+                <span
+                  className="text-2xl font-bold lowercase"
+                  style={{
+                    color: '#2d5016',
+                    fontFamily: 'monospace',
+                    letterSpacing: '0.1em',
+                    textRendering: 'geometricPrecision',
+                  }}
+                >
+                  moss
+                </span>
+              </Link>
+              <div className="flex shrink-0">
+                {me?.user?.username ? (
+                  <Link
+                    href={`/profile/${encodeURIComponent(me.user.username)}`}
+                    className="flex items-start hover:opacity-90 transition-opacity"
+                    aria-label={`profile: ${me.user.username}`}
+                  >
+                    <div
+                      className="w-8 h-8 rounded-full flex-shrink-0 ring-2 ring-stone-400 relative"
+                      style={{ backgroundColor: me.user.avatar_color }}
+                    />
+                  </Link>
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-stone-800 flex-shrink-0 ring-2 ring-stone-400" />
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="max-w-2xl mx-auto px-6 md:px-8 w-full pt-4">
           <Link
             href="/share"
-            className="text-white text-2xl hover:text-gray-300 transition-colors"
+            className="text-white text-2xl hover:text-gray-300 transition-colors inline-block"
             aria-label="Back to share"
           >
             ←
@@ -601,23 +657,115 @@ export default function ShareTypePage() {
           </h1>
           <p className="text-gray-400 text-lg">Coming soon...</p>
         </div>
+        <div className="fixed bottom-0 left-0 right-0 bg-black z-20">
+          <div className="h-px bg-stone-800 flex-shrink-0" />
+          <div className="max-w-2xl mx-auto px-6 md:px-8 py-6 flex items-center justify-start">
+            <button
+              onClick={() => setAboutOpen(true)}
+              type="button"
+              className="text-stone-500 text-xs font-medium hover:text-stone-400 transition-colors lowercase"
+            >
+              about
+            </button>
+          </div>
+        </div>
+        {aboutOpen && (
+          <div
+            className="fixed inset-0 z-30 flex items-center justify-center bg-black/80 p-4"
+            onClick={() => setAboutOpen(false)}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="share-type-about-title"
+          >
+            <div
+              className="bg-black border border-stone-800 rounded-lg max-w-[420px] w-full p-8 flex flex-col items-center text-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-2 mb-6" id="share-type-about-title">
+                <MossIcon color="#2d5016" size={26} />
+                <span
+                  className="text-2xl font-bold lowercase"
+                  style={{
+                    color: '#2d5016',
+                    fontFamily: 'monospace',
+                    letterSpacing: '0.1em',
+                    textRendering: 'geometricPrecision',
+                  }}
+                >
+                  moss
+                </span>
+              </div>
+              <p className="text-stone-400 text-sm leading-relaxed lowercase">
+                moss is a place to connect through the media that moves you. to encourage sharing the things that really resonate, you can share up to 3 things per week.
+              </p>
+              <button
+                onClick={() => setAboutOpen(false)}
+                type="button"
+                className="mt-6 text-white text-xs font-medium hover:text-stone-300 transition-colors lowercase"
+              >
+                close
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col">
-      {/* Header */}
-      <div className="absolute top-8 left-8 md:top-16 md:left-16">
+    <div className="min-h-screen bg-black text-white flex flex-col pb-32">
+      {/* Header - moss left, avatar right (same as home) */}
+      <div className="sticky top-0 bg-black/90 backdrop-blur-sm z-10">
+        <div className="max-w-2xl mx-auto px-6 md:px-8">
+          <div className="pt-5 pb-3 flex items-start justify-between gap-4">
+            <Link
+              href="/feed"
+              className="flex items-center gap-2 flex-shrink-0 min-w-0"
+              aria-label="moss"
+            >
+              <MossIcon color="#2d5016" size={26} />
+              <span
+                className="text-2xl font-bold lowercase"
+                style={{
+                  color: '#2d5016',
+                  fontFamily: 'monospace',
+                  letterSpacing: '0.1em',
+                  textRendering: 'geometricPrecision',
+                }}
+              >
+                moss
+              </span>
+            </Link>
+            <div className="flex shrink-0">
+              {me?.user?.username ? (
+                <Link
+                  href={`/profile/${encodeURIComponent(me.user.username)}`}
+                  className="flex items-start hover:opacity-90 transition-opacity"
+                  aria-label={`profile: ${me.user.username}`}
+                >
+                  <div
+                    className="w-8 h-8 rounded-full flex-shrink-0 ring-2 ring-stone-400 relative"
+                    style={{ backgroundColor: me.user.avatar_color }}
+                  />
+                </Link>
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-stone-800 flex-shrink-0 ring-2 ring-stone-400" />
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Back + media type title */}
+      <div className="max-w-2xl mx-auto px-6 md:px-8 w-full pt-2 pb-6">
         <Link
           href="/share"
-          className="text-white text-2xl hover:text-gray-300 transition-colors mb-4 block"
+          className="text-white text-2xl hover:text-gray-300 transition-colors inline-block"
           aria-label="Back to share"
         >
           ←
         </Link>
-        {/* Media type title with icon */}
-        <div className="flex flex-col">
+        <div className="flex flex-col mt-4">
           <div className="flex items-baseline gap-3">
             <div className="shrink-0">
               <MediaIcon type={type} color={config.color} />
@@ -637,19 +785,8 @@ export default function ShareTypePage() {
         </div>
       </div>
 
-      {/* Moss icon - top right (feed) */}
-      <div className="absolute top-8 right-8 md:top-16 md:right-16">
-        <Link
-          href="/feed"
-          className="inline-flex items-center justify-center"
-          aria-label="moss"
-        >
-          <MossIcon color="#2d5016" size={26} />
-        </Link>
-      </div>
-
       {/* Form */}
-      <div className="flex-1 flex flex-col items-start justify-center px-8 md:px-16 py-24 mt-12 md:mt-16">
+      <div className="flex-1 flex flex-col items-start justify-center px-6 md:px-8 pb-8 mx-auto w-full max-w-2xl">
         <form onSubmit={handleSubmit} className="w-full max-w-2xl space-y-8">
           {type === 'book' && (
             <div className="w-full space-y-2">
@@ -1037,6 +1174,59 @@ export default function ShareTypePage() {
           </button>
         </form>
       </div>
+
+      <div className="fixed bottom-0 left-0 right-0 bg-black z-20">
+        <div className="h-px bg-stone-800 flex-shrink-0" />
+        <div className="max-w-2xl mx-auto px-6 md:px-8 py-6 flex items-center justify-start">
+          <button
+            onClick={() => setAboutOpen(true)}
+            type="button"
+            className="text-stone-500 text-xs font-medium hover:text-stone-400 transition-colors lowercase"
+          >
+            about
+          </button>
+        </div>
+      </div>
+
+      {aboutOpen && (
+        <div
+          className="fixed inset-0 z-30 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setAboutOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="share-form-about-title"
+        >
+          <div
+            className="bg-black border border-stone-800 rounded-lg max-w-[420px] w-full p-8 flex flex-col items-center text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2 mb-6" id="share-form-about-title">
+              <MossIcon color="#2d5016" size={26} />
+              <span
+                className="text-2xl font-bold lowercase"
+                style={{
+                  color: '#2d5016',
+                  fontFamily: 'monospace',
+                  letterSpacing: '0.1em',
+                  textRendering: 'geometricPrecision',
+                }}
+              >
+                moss
+              </span>
+            </div>
+            <p className="text-stone-400 text-sm leading-relaxed lowercase">
+              moss is a place to connect through the media that moves you. to encourage sharing the things that really resonate, you can share up to 3 things per week.
+            </p>
+            <button
+              onClick={() => setAboutOpen(false)}
+              type="button"
+              className="mt-6 text-white text-xs font-medium hover:text-stone-300 transition-colors lowercase"
+            >
+              close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

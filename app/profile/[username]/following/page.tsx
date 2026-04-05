@@ -14,7 +14,6 @@ export default function ProfileFollowingPage() {
   const params = useParams()
   const router = useRouter()
   const username = params.username as string
-  const profileHref = `/profile/${encodeURIComponent(username)}`
 
   const [users, setUsers] = useState<FollowListUser[]>([])
   const [followingCount, setFollowingCount] = useState<number | null>(null)
@@ -87,9 +86,11 @@ export default function ProfileFollowingPage() {
 
   const handleViewProfile = useCallback(
     (u: string) => {
-      router.push(`/profile/${encodeURIComponent(u)}`)
+      router.push(
+        `/profile/${encodeURIComponent(u)}?from=following&listOwner=${encodeURIComponent(username)}`
+      )
     },
-    [router]
+    [router, username]
   )
 
   const handleUnfollow = useCallback(async (targetUsername: string) => {
@@ -149,13 +150,7 @@ export default function ProfileFollowingPage() {
     <div className="min-h-screen bg-black text-white pb-14">
       <div className="sticky top-0 bg-black/90 backdrop-blur-sm z-10 border-b border-stone-700">
         <div className="max-w-2xl mx-auto px-4 md:px-8 pt-6 pb-4 flex items-center justify-between">
-          <Link
-            href={profileHref}
-            className="text-white text-2xl hover:text-gray-300"
-            aria-label="Back to profile"
-          >
-            ←
-          </Link>
+          <div className="w-8 flex-shrink-0" aria-hidden />
           <Link href="/feed" className="flex items-center gap-2">
             <MossIcon color="#2d5016" size={26} />
             <span

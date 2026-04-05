@@ -168,7 +168,7 @@ All feed and post behavior goes through these REST endpoints. The web app calls 
 
 ### `GET /api/feed`
 
-- **Query**: `mode` (optional): omit for **everyone** (all authors); `following` for posts by the current user and users they follow only.
+- **Query**: `mode` (optional): omit for **everyone** (all authors); `following` for posts by the current user and users they follow only. `type` (optional): filter to one media type — **`BOOK`**, **`ARTICLE`**, **`SONG`**, **`ALBUM`**, **`PODCAST`**, **`MOVIE`**, or **`LIVE`** (case-insensitive; invalid value → **400**). When `type` is set, the join to `media_items` is restricted so the **41**-post limit applies to matching posts only (not “take 41 mixed then filter”).
 - **Logic**: Order `posts` by `created_at DESC, id DESC`. **No date filter.** Return at most **`FEED_POST_LIMIT` (41)** rows joined with `users` and `media_items`. Response: `{ items }` (same post + user + media_item shape as profile feed items; includes smile/save-related flags) — **no `nextCursor`**; not paginated.
 - **Auth**: Required (internal user id). Feed is logged-in only.
 

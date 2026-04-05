@@ -16,66 +16,15 @@ import {
   PodcastIcon,
   LiveIcon,
 } from '@/lib/components/SharePageMediaIcons'
+import { SHARE_MEDIA_ROW } from '@/lib/share-media-config'
 
-interface MediaType {
-  label: string
-  value: string
-  color: string
-  hoverColor: string
-  icon: string
-}
-
-const mediaTypes: MediaType[] = [
-  {
-    label: 'book',
-    value: 'book',
-    color: '#c17a6f',
-    hoverColor: '#c17a6f',
-    icon: 'book',
-  },
-  {
-    label: 'article',
-    value: 'article',
-    color: '#8b5a3c',
-    hoverColor: '#8b5a3c',
-    icon: 'article',
-  },
-  {
-    label: 'song',
-    value: 'song',
-    color: '#b88b9d',
-    hoverColor: '#b88b9d',
-    icon: 'song',
-  },
-  {
-    label: 'album',
-    value: 'album',
-    color: '#7d5a8f',
-    hoverColor: '#7d5a8f',
-    icon: 'album',
-  },
-  {
-    label: 'podcast',
-    value: 'podcast',
-    color: '#e07a5f',
-    hoverColor: '#e07a5f',
-    icon: 'podcast',
-  },
-  {
-    label: 'movie',
-    value: 'movie',
-    color: '#5a7a8c',
-    hoverColor: '#5a7a8c',
-    icon: 'movie',
-  },
-  {
-    label: 'live',
-    value: 'live',
-    color: '#6a9a8f',
-    hoverColor: '#6a9a8f',
-    icon: 'live',
-  },
-]
+const mediaTypes = SHARE_MEDIA_ROW.map((row) => ({
+  label: row.mediaType.toLowerCase(),
+  value: row.mediaType.toLowerCase(),
+  color: row.color,
+  hoverColor: row.color,
+  icon: row.mediaType.toLowerCase(),
+}))
 
 // Icon component wrapper - renders appropriate icon based on type
 function MediaIcon({ type, color }: { type: string; color: string }) {
@@ -107,7 +56,7 @@ function MediaIcon({ type, color }: { type: string; color: string }) {
 
 export default function SharePage() {
   const [user, setUser] = useState<UserMeResponse | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [aboutOpen, setAboutOpen] = useState(false)
   const [hoveredType, setHoveredType] = useState<string | null>(null)
   const router = useRouter()
 
@@ -128,8 +77,6 @@ export default function SharePage() {
         setUser(data)
       } catch (error) {
         console.error('Error loading user:', error)
-      } finally {
-        setLoading(false)
       }
     }
 
@@ -140,55 +87,74 @@ export default function SharePage() {
     router.push(`/share/${type}`)
   }
 
-  // Show shell immediately; stars and bottom bar use placeholders until user loads
+  // Stars use count from user when loaded; avatar placeholder until then
   const filledStars = user ? Math.min(user.weeklyPostCount, WEEKLY_POST_LIMIT) : 0
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col pb-24">
-      {/* Arrow - same position as share/[type] */}
-      <div className="absolute top-8 left-8 md:top-16 md:left-16">
-        <Link
-          href="/feed"
-          className="text-white text-2xl hover:text-gray-300 transition-colors block"
-          aria-label="Back to feed"
-        >
-          ←
-        </Link>
-      </div>
-
-      {/* Stars + label - centered in gap between header and media types */}
-      <div className="absolute left-1/2 -translate-x-1/2 top-20 md:top-28 flex flex-col items-center justify-center">
-        <div className="flex justify-center gap-1 mb-1.5 md:mb-2 items-center">
-          {Array.from({ length: WEEKLY_POST_LIMIT }, (_, i) => i).map((index) => (
-            <span key={index} className="inline-flex shrink-0" style={{ width: 28, height: 28 }}>
-              <StarIcon
-                color={index < filledStars ? '#8FA68E' : '#8FA68E4D'}
-                size={28}
-              />
-            </span>
-          ))}
+    <div className="min-h-screen bg-black text-white flex flex-col pb-32">
+      {/* Header - same row as home (feed): moss left, avatar right */}
+      <div className="sticky top-0 bg-black/90 backdrop-blur-sm z-10">
+        <div className="max-w-2xl mx-auto px-6 md:px-8">
+          <div className="pt-5 pb-3 flex items-start justify-between gap-4">
+            <Link
+              href="/feed"
+              className="flex items-center gap-2 flex-shrink-0 min-w-0"
+              aria-label="moss"
+            >
+              <MossIcon color="#2d5016" size={26} />
+              <span
+                className="text-2xl font-bold lowercase"
+                style={{
+                  color: '#2d5016',
+                  fontFamily: 'monospace',
+                  letterSpacing: '0.1em',
+                  textRendering: 'geometricPrecision',
+                }}
+              >
+                moss
+              </span>
+            </Link>
+            <div className="flex shrink-0">
+              {user?.user?.username ? (
+                <Link
+                  href={`/profile/${encodeURIComponent(user.user.username)}`}
+                  className="flex items-start hover:opacity-90 transition-opacity"
+                  aria-label={`profile: ${user.user.username}`}
+                >
+                  <div
+                    className="w-8 h-8 rounded-full flex-shrink-0 ring-2 ring-stone-400 relative"
+                    style={{ backgroundColor: user.user.avatar_color }}
+                  />
+                </Link>
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-stone-800 flex-shrink-0 ring-2 ring-stone-400" />
+              )}
+            </div>
+          </div>
         </div>
-        <p className="text-center text-base md:text-sm font-normal lowercase whitespace-nowrap text-stone-500">
-          what moved you this week?
-        </p>
       </div>
 
-      {/* Moss icon - top right (feed), icon only */}
-      <div className="absolute top-8 right-8 md:top-16 md:right-16">
-        <Link
-          href="/feed"
-          className="inline-flex items-center justify-center"
-          aria-label="moss"
-        >
-          <MossIcon color="#2d5016" size={26} />
-        </Link>
-      </div>
+      <div className="max-w-2xl mx-auto w-full px-6 md:px-8 flex flex-col flex-1 min-h-0">
+        {/* Stars + label */}
+        <div className="flex flex-col items-center justify-center pt-6 pb-8">
+          <div className="flex justify-center gap-1 mb-1.5 md:mb-2 items-center">
+            {Array.from({ length: WEEKLY_POST_LIMIT }, (_, i) => i).map((index) => (
+              <span key={index} className="inline-flex shrink-0" style={{ width: 28, height: 28 }}>
+                <StarIcon
+                  color={index < filledStars ? '#8FA68E' : '#8FA68E4D'}
+                  size={28}
+                />
+              </span>
+            ))}
+          </div>
+          <p className="text-center text-base md:text-sm font-normal lowercase whitespace-nowrap text-stone-500">
+            what moved you this week?
+          </p>
+        </div>
 
-      {/* Media Types List - Left aligned, tucked under stars/headline */}
-      <div
-        className="flex-1 flex flex-col justify-start px-6 pt-[10.5rem] sm:pt-44 md:pt-48 overflow-y-auto min-h-0 pb-24 max-w-2xl mx-auto w-full"
-      >
-        <div className="space-y-1.5 sm:space-y-2 md:space-y-2.5">
+        {/* Media types */}
+        <div className="flex-1 flex flex-col justify-start overflow-y-auto min-h-0 pb-4">
+          <div className="space-y-1.5 sm:space-y-2 md:space-y-2.5">
           {mediaTypes.map((type) => {
             const isHovered = hoveredType === type.value
             return (
@@ -225,32 +191,63 @@ export default function SharePage() {
               </button>
             )
           })}
-        </div>
-      </div>
-
-      {/* Bottom Bar - Fixed (same as feed) */}
-      <div className="fixed bottom-0 left-0 right-0 bg-black z-20">
-        <div className="h-px bg-stone-800 flex-shrink-0" />
-
-        <div className="max-w-2xl mx-auto px-6 md:px-8 py-3 flex items-center justify-between">
-          <div className="flex items-center flex-shrink-0">
-            {user?.user?.username ? (
-              <Link
-                href={`/profile/${encodeURIComponent(user.user.username)}`}
-                className="flex items-center hover:opacity-90 transition-opacity"
-                aria-label={`profile: ${user.user.username}`}
-              >
-                <div
-                  className="w-8 h-8 rounded-full flex-shrink-0 ring-2 ring-stone-400"
-                  style={{ backgroundColor: user.user.avatar_color }}
-                />
-              </Link>
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-stone-800 flex-shrink-0 ring-2 ring-stone-400" />
-            )}
           </div>
         </div>
       </div>
+
+      {/* Footer - about only, bottom left */}
+      <div className="fixed bottom-0 left-0 right-0 bg-black z-20">
+        <div className="h-px bg-stone-800 flex-shrink-0" />
+        <div className="max-w-2xl mx-auto px-6 md:px-8 py-6 flex items-center justify-start">
+          <button
+            onClick={() => setAboutOpen(true)}
+            type="button"
+            className="text-stone-500 text-xs font-medium hover:text-stone-400 transition-colors lowercase"
+          >
+            about
+          </button>
+        </div>
+      </div>
+
+      {aboutOpen && (
+        <div
+          className="fixed inset-0 z-30 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setAboutOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="share-about-title"
+        >
+          <div
+            className="bg-black border border-stone-800 rounded-lg max-w-[420px] w-full p-8 flex flex-col items-center text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2 mb-6" id="share-about-title">
+              <MossIcon color="#2d5016" size={26} />
+              <span
+                className="text-2xl font-bold lowercase"
+                style={{
+                  color: '#2d5016',
+                  fontFamily: 'monospace',
+                  letterSpacing: '0.1em',
+                  textRendering: 'geometricPrecision',
+                }}
+              >
+                moss
+              </span>
+            </div>
+            <p className="text-stone-400 text-sm leading-relaxed lowercase">
+              moss is a place to connect through the media that moves you. to encourage sharing the things that really resonate, you can share up to 3 things per week.
+            </p>
+            <button
+              onClick={() => setAboutOpen(false)}
+              type="button"
+              className="mt-6 text-white text-xs font-medium hover:text-stone-300 transition-colors lowercase"
+            >
+              close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

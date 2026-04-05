@@ -161,7 +161,8 @@ export default function WelcomePage() {
               what moved you this week?
             </h1>
             <p className="text-base md:text-lg text-stone-500 leading-relaxed lowercase">
-              you can share up to 3 a week
+              to encourage sharing the things that resonate, you can share up to 3
+              things per week
             </p>
           </div>
           <div className="flex justify-end pt-2">
