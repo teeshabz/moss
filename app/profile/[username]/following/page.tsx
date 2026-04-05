@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import type { FollowListResponse, FollowListUser } from '@/lib/types'
+import type {
+  FollowListResponse,
+  FollowListUser,
+  UserMeResponse,
+} from '@/lib/types'
 import { MossIcon } from '@/lib/components/MossIcon'
 
 export default function ProfileFollowingPage() {
@@ -19,6 +23,22 @@ export default function ProfileFollowingPage() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set())
+  const [viewerId, setViewerId] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function loadMe() {
+      try {
+        const res = await fetch('/api/users/me')
+        if (res.ok) {
+          const data: UserMeResponse = await res.json()
+          if (data.user?.id) setViewerId(data.user.id)
+        }
+      } catch {
+        // ignore; follow buttons still work for other rows
+      }
+    }
+    loadMe()
+  }, [])
 
   const load = useCallback(
     async (cursor?: string) => {
@@ -192,6 +212,7 @@ export default function ProfileFollowingPage() {
               {users.map((userRow) => {
                 const isUpdating = updatingIds.has(userRow.username)
                 const isFollowing = Boolean(userRow.isFollowing)
+                const isViewer = viewerId !== null && userRow.id === viewerId
 
                 return (
                   <div
@@ -212,22 +233,24 @@ export default function ProfileFollowingPage() {
                       </span>
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        isFollowing
-                          ? handleUnfollow(userRow.username)
-                          : handleFollow(userRow)
-                      }
-                      disabled={isUpdating}
-                      className={`rounded-full px-3 py-1 text-xs font-bold lowercase transition-colors ${
-                        isFollowing
-                          ? 'bg-stone-800 text-stone-400 hover:bg-stone-700'
-                          : 'bg-[#2d5016] text-white hover:bg-[#3d6a1e]'
-                      } ${isUpdating ? 'opacity-60 cursor-not-allowed' : ''}`}
-                    >
-                      {isFollowing ? 'following' : 'follow'}
-                    </button>
+                    {!isViewer && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          isFollowing
+                            ? handleUnfollow(userRow.username)
+                            : handleFollow(userRow)
+                        }
+                        disabled={isUpdating}
+                        className={`rounded-full px-3 py-1 text-xs font-bold lowercase transition-colors ${
+                          isFollowing
+                            ? 'bg-stone-800 text-stone-400 hover:bg-stone-700'
+                            : 'bg-[#2d5016] text-white hover:bg-[#3d6a1e]'
+                        } ${isUpdating ? 'opacity-60 cursor-not-allowed' : ''}`}
+                      >
+                        {isFollowing ? 'following' : 'follow'}
+                      </button>
+                    )}
                   </div>
                 )
               })}
