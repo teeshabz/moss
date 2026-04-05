@@ -26,6 +26,25 @@ import {
 } from '@/lib/components/PostHelpers'
 import { MAX_POST_TEXT_LENGTH } from '@/lib/post-text-limit'
 
+function YourPeopleIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden
+    >
+      <g opacity={0.6}>
+        <circle cx={16} cy={6.5} r={3} />
+        <path d="M11 21v-2a4 4 0 0 1 4-4h2a4 4 0 0 1 4 4v2H11z" />
+      </g>
+      <circle cx={9} cy={7.5} r={3.5} />
+      <path d="M2 22v-2.5a4.5 4.5 0 0 1 4.5-4.5h5a4.5 4.5 0 0 1 4.5 4.5V22H2z" />
+    </svg>
+  )
+}
+
 export default function ProfilePage() {
   const params = useParams()
   const router = useRouter()
@@ -48,9 +67,8 @@ export default function ProfilePage() {
   const [savedLoadingMore, setSavedLoadingMore] = useState(false)
   const [savedError, setSavedError] = useState<string | null>(null)
   const [savedLoaded, setSavedLoaded] = useState(false)
-  const [unsavingId, setUnsavingId] = useState<string | null>(null)
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
-  const [savingIds, setSavingIds] = useState<Set<string>>(new Set())
+  const saveInFlightRef = useRef<Set<string>>(new Set())
   const [smilingIds, setSmilingIds] = useState<Set<string>>(new Set())
   const [pings, setPings] = useState<PingItem[]>([])
   const [pingsLoading, setPingsLoading] = useState(false)
@@ -82,21 +100,23 @@ export default function ProfilePage() {
     currentUser?.user?.username?.toLowerCase() === username?.toLowerCase()
 
   useEffect(() => {
+    const ac = new AbortController()
     async function loadCurrentUser() {
       try {
-        const res = await fetch('/api/users/me')
-        if (res.ok) {
-          const data: UserMeResponse = await res.json()
-          setCurrentUser(data)
-          if (data.postIds?.length !== undefined) {
-            setSavedIds(new Set(data.postIds))
-          }
+        const res = await fetch('/api/users/me', { signal: ac.signal })
+        if (!res.ok) return
+        const data: UserMeResponse = await res.json()
+        if (ac.signal.aborted) return
+        setCurrentUser(data)
+        if (Array.isArray(data.postIds)) {
+          setSavedIds(new Set(data.postIds))
         }
       } catch {
-        // not required for viewing profile
+        if (ac.signal.aborted) return
       }
     }
     loadCurrentUser()
+    return () => ac.abort()
   }, [])
 
   useEffect(() => {
@@ -331,29 +351,40 @@ export default function ProfilePage() {
     }
   }
 
-  async function handleUnsave(postId: string) {
-    setUnsavingId(postId)
+  async function handleUnsave(postId: string, post: PostWithRelations) {
+    if (saveInFlightRef.current.has(postId)) return
+    saveInFlightRef.current.add(postId)
+
+    setSavedIds((prev) => {
+      const next = new Set(prev)
+      next.delete(postId)
+      return next
+    })
+    setSavedItems((prev) => prev.filter((item) => item.id !== postId))
+    setSavedError(null)
+
     try {
       const res = await fetch(`/api/posts/${postId}/save`, { method: 'DELETE' })
-      if (res.ok) {
-        setSavedItems((prev) => prev.filter((item) => item.id !== postId))
-      } else {
-        setSavedError('Failed to remove saved item')
+      if (!res.ok) {
+        throw new Error('Failed to remove saved item')
       }
     } catch {
+      setSavedIds((prev) => new Set(prev).add(postId))
+      setSavedItems((prev) => {
+        if (prev.some((item) => item.id === postId)) return prev
+        return [post, ...prev]
+      })
       setSavedError('Failed to remove saved item')
     } finally {
-      setUnsavingId(null)
+      saveInFlightRef.current.delete(postId)
     }
   }
 
   const toggleSave = async (postId: string, post?: PostWithRelations) => {
+    if (saveInFlightRef.current.has(postId)) return
+    saveInFlightRef.current.add(postId)
+
     const wasSaved = savedIds.has(postId)
-    setSavingIds((prev) => {
-      const next = new Set(prev)
-      next.add(postId)
-      return next
-    })
     setSavedIds((prev) => {
       const next = new Set(prev)
       if (wasSaved) next.delete(postId)
@@ -384,11 +415,7 @@ export default function ProfilePage() {
       })
       setError('Failed to update save. Please try again.')
     } finally {
-      setSavingIds((prev) => {
-        const next = new Set(prev)
-        next.delete(postId)
-        return next
-      })
+      saveInFlightRef.current.delete(postId)
     }
   }
 
@@ -742,92 +769,93 @@ export default function ProfilePage() {
         </div>
 
         <div className="max-w-2xl mx-auto px-4 md:px-8 pb-4">
-          {/* Profile header: avatar, username, settings */}
-          <div className="flex items-center gap-4 mb-2">
-          {isOwnProfile ? (
-            <Link
-              href="/edit-profile"
-              className="group relative w-12 h-12 md:w-16 md:h-16 rounded-full flex-shrink-0 block transition-opacity hover:opacity-80"
-              style={{ backgroundColor: user.avatar_color }}
-              aria-label="Edit profile"
-            >
-              <span
-                className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-stone-900 rounded-full border border-stone-700 flex items-center justify-center"
-                aria-hidden
-              >
-                <svg
-                  className="w-[10px] h-[10px] text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  strokeWidth={2.5}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+          {/* Left: avatar above username. Right: your people (own) or follow — same row as username */}
+          <div className="flex justify-between items-end gap-4 mb-2">
+            <div className="flex flex-col items-start gap-2 min-w-0">
+              {isOwnProfile ? (
+                <Link
+                  href="/edit-profile"
+                  className="group relative w-14 h-14 md:w-16 md:h-16 rounded-full flex-shrink-0 block transition-opacity hover:opacity-80"
+                  style={{ backgroundColor: user.avatar_color }}
+                  aria-label="Edit profile"
                 >
-                  <path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                </svg>
-              </span>
-            </Link>
-          ) : (
-            <div
-              className="w-12 h-12 md:w-16 md:h-16 rounded-full flex-shrink-0"
-              style={{ backgroundColor: user.avatar_color }}
-            />
-          )}
-          <div className="flex-1 min-w-0">
-            <h1
-              className={`font-bold lowercase truncate ${
-                isOwnProfile ? 'text-2xl' : 'text-lg'
-              }`}
-            >
-              {user.username}
-            </h1>
+                  <span
+                  className="absolute -bottom-0.5 -right-0.5 w-[18px] h-[18px] bg-stone-900 rounded-full border border-stone-700 flex items-center justify-center"
+                  aria-hidden
+                >
+                  <svg
+                    className="w-2 h-2 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      strokeWidth={2.5}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  </span>
+                </Link>
+              ) : (
+                <div
+                  className="w-14 h-14 md:w-16 md:h-16 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: user.avatar_color }}
+                />
+              )}
+              <h1 className="font-bold lowercase truncate w-full text-xl md:text-2xl">
+                {user.username}
+              </h1>
+            </div>
+            {isOwnProfile ? (
+              <Link
+                href="/your-people"
+                className="flex items-center justify-center flex-shrink-0 text-stone-500 hover:text-stone-300 active:text-white transition-colors relative z-10 pointer-events-auto p-1 -m-1 pb-0.5"
+                aria-label="Your people"
+              >
+                <YourPeopleIcon className="w-6 h-6 md:w-7 md:h-7 flex-shrink-0" />
+              </Link>
+            ) : (
+              <div className="flex items-end gap-3 flex-shrink-0">
+                <Link
+                  href={`/profile/${encodeURIComponent(user.username)}/following`}
+                  className="flex items-center justify-center text-stone-500 hover:text-stone-300 active:text-white transition-colors p-1 -m-1 pb-0.5 mb-0.5 relative z-10"
+                  aria-label={`Who ${user.username} follows`}
+                >
+                  <YourPeopleIcon className="w-6 h-6 md:w-7 md:h-7 flex-shrink-0" />
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleFollowToggle}
+                  disabled={followUpdating}
+                  className={`flex-shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold lowercase transition-colors mb-0.5 ${
+                    isFollowing
+                      ? 'bg-stone-800 text-stone-400 hover:bg-stone-700'
+                      : 'bg-[#2d5016] text-white hover:bg-[#3d6a1e]'
+                  } ${followUpdating ? 'opacity-60 cursor-not-allowed' : ''}`}
+                >
+                  {isFollowing ? 'following' : 'follow'}
+                </button>
+              </div>
+            )}
           </div>
-          {isOwnProfile ? (
-            <div className="w-14" />
-          ) : (
-            <button
-              type="button"
-              onClick={handleFollowToggle}
-              disabled={followUpdating}
-              className={`rounded-full px-5 py-2 text-sm font-bold lowercase transition-colors ${
-                isFollowing
-                  ? 'bg-stone-800 text-stone-400 hover:bg-stone-700'
-                  : 'bg-[#2d5016] text-white hover:bg-[#3d6a1e]'
-              } ${followUpdating ? 'opacity-60 cursor-not-allowed' : ''}`}
-            >
-              {isFollowing ? 'following' : 'follow'}
-            </button>
+
+          {!isOwnProfile && (
+            <div className="border-b border-stone-700 mt-4" aria-hidden />
           )}
-        </div>
 
           {isOwnProfile && (
-            <Link
-              href="/your-people"
-              className="inline-block mt-2 text-stone-500 text-xs font-medium lowercase hover:text-stone-300 transition-colors relative z-10 pointer-events-auto"
-            >
-              your people →
-            </Link>
-          )}
-
-          {/* Tabs */}
-          <div className={`border-b border-stone-700 ${isOwnProfile ? 'mt-4' : 'mt-2'}`}>
-            <div
-              className={`flex items-center gap-6 ${
-                isOwnProfile ? 'justify-center' : 'justify-start'
-              }`}
-            >
-              <button
-                onClick={() => setActiveTab('shared')}
-                className={`pb-2 text-sm font-bold lowercase tracking-wider border-b-2 transition-colors ${
-                  activeTab === 'shared'
-                    ? 'text-white border-[#7a9b6f]'
-                    : 'text-stone-500 border-transparent hover:text-stone-400'
-                }`}
-              >
-                shared
-              </button>
-              {isOwnProfile && (
+            <div className="border-b border-stone-700 mt-4">
+              <div className="flex items-center gap-6 justify-center">
+                <button
+                  onClick={() => setActiveTab('shared')}
+                  className={`pb-2 text-sm font-bold lowercase tracking-wider border-b-2 transition-colors ${
+                    activeTab === 'shared'
+                      ? 'text-white border-[#7a9b6f]'
+                      : 'text-stone-500 border-transparent hover:text-stone-400'
+                  }`}
+                >
+                  shared
+                </button>
                 <button
                   onClick={() => setActiveTab('saved')}
                   className={`pb-2 text-sm font-bold lowercase tracking-wider border-b-2 transition-colors ${
@@ -838,8 +866,6 @@ export default function ProfilePage() {
                 >
                   saved
                 </button>
-              )}
-              {isOwnProfile && (
                 <button
                   onClick={() => {
                     setActiveTab('pings')
@@ -849,22 +875,24 @@ export default function ProfilePage() {
                     activeTab === 'pings'
                       ? 'text-white border-[#7a9b6f]'
                       : 'text-stone-500 border-transparent hover:text-stone-400'
-                  } mr-2 relative`}
+                  } relative`}
                 >
                   pings
                   {hasUnreadPings && activeTab !== 'pings' && (
-                    <span className="absolute -top-1 -right-2.5 w-2.5 h-2.5 bg-[#2d5016] rounded-full" />
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[#2d5016] rounded-full" />
                   )}
                 </button>
-              )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 md:px-8 pt-2 pb-6">
+      <div
+        className="max-w-2xl mx-auto px-4 md:px-8 pt-2 pb-6"
+      >
 
-        {activeTab === 'shared' && (
+        {(activeTab === 'shared' || !isOwnProfile) && (
           <div className="relative">
             {error && (
               <div className="mb-4 p-3 bg-red-900/20 border border-red-800 rounded text-red-400 text-sm">
@@ -879,7 +907,9 @@ export default function ProfilePage() {
             )}
             {items.length === 0 && !loading ? (
               <div className="text-center py-12">
-                <p className="text-stone-500">no shared items yet</p>
+                <p className="text-stone-500">
+                  {isOwnProfile ? 'no shared items yet' : 'no posts yet'}
+                </p>
               </div>
             ) : (
               <div>
@@ -1058,14 +1088,13 @@ export default function ProfilePage() {
                         {currentUser?.user?.id && currentUser.user.id !== post.user.id && (
                           <button
                             onClick={() => toggleSave(post.id, post)}
-                            disabled={savingIds.has(post.id)}
                             aria-pressed={savedIds.has(post.id)}
                             aria-label={savedIds.has(post.id) ? 'Unsave post' : 'Save post'}
-                            className={`-mt-1 transition-colors duration-200 flex-shrink-0 ${
+                            className={`-mt-1 flex-shrink-0 transition-none ${
                               savedIds.has(post.id)
-                                ? 'text-[#7a9b6f]'
-                                : 'text-stone-600 hover:text-[#7a9b6f]'
-                            } ${savingIds.has(post.id) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                ? 'text-[#7a9b6f] hover:text-[#8fb084]'
+                                : 'text-stone-600 hover:text-stone-400'
+                            }`}
                           >
                             <PlusIcon saved={savedIds.has(post.id)} size={18} />
                           </button>
@@ -1200,13 +1229,8 @@ export default function ProfilePage() {
                           {formatTimeAgo(post.created_at)}
                         </span>
                         <button
-                          onClick={() => handleUnsave(post.id)}
-                          disabled={unsavingId === post.id}
-                          className={`ml-auto transition-colors ${
-                            unsavingId === post.id
-                              ? 'text-stone-500 opacity-60 cursor-not-allowed'
-                              : 'text-[#7a9b6f] hover:text-[#8fb084]'
-                          }`}
+                          onClick={() => handleUnsave(post.id, post)}
+                          className="ml-auto transition-colors duration-100 text-[#7a9b6f] hover:text-[#8fb084]"
                           aria-label="Unsave post"
                         >
                           <PlusIcon saved={true} size={18} />
@@ -1345,7 +1369,7 @@ export default function ProfilePage() {
                             handlePingFollowToggle(ping)
                           }}
                           disabled={pingsFollowUpdatingActorId === ping.actor_user_id}
-                          className={`rounded-full px-4 py-1.5 text-xs font-bold lowercase transition-colors flex-shrink-0 ${
+                          className={`rounded-full px-3 py-1 text-xs font-bold lowercase transition-colors flex-shrink-0 ${
                             pingsFollowByActorId[ping.actor_user_id] ?? ping.actorIsFollowing
                               ? 'bg-stone-800 text-stone-400 hover:bg-stone-700'
                               : 'bg-[#2d5016] text-white hover:bg-[#3d6a1e]'
@@ -1877,12 +1901,11 @@ export default function ProfilePage() {
                         </button>
                         <button
                           onClick={() => toggleSave(postSliderPost.id, postSliderPost)}
-                          disabled={savingIds.has(postSliderPost.id)}
                           aria-pressed={savedIds.has(postSliderPost.id)}
-                          className={`transition-colors ${
+                          className={`transition-none ${
                             savedIds.has(postSliderPost.id)
-                              ? 'text-[#7a9b6f]'
-                              : 'text-stone-600 hover:text-[#7a9b6f]'
+                              ? 'text-[#7a9b6f] hover:text-[#8fb084]'
+                              : 'text-stone-600 hover:text-stone-400'
                           }`}
                         >
                           <PlusIcon saved={savedIds.has(postSliderPost.id)} size={18} />

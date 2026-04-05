@@ -161,7 +161,7 @@ export default function WelcomePage() {
               what moved you this week?
             </h1>
             <p className="text-base md:text-lg text-stone-500 leading-relaxed lowercase">
-              share 3 things/week
+              you can share up to 3 a week
             </p>
           </div>
           <div className="flex justify-end pt-2">
@@ -169,16 +169,6 @@ export default function WelcomePage() {
               href="/feed"
               className="text-green-500 text-3xl md:text-4xl font-medium hover:text-green-400 transition-colors"
               aria-label="Go to feed"
-              onClick={() => {
-                try {
-                  sessionStorage.setItem(
-                    'moss_friends_feed_hint_from_welcome',
-                    '1'
-                  )
-                } catch {
-                  // ignore
-                }
-              }}
             >
               →
             </Link>

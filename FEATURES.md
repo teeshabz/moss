@@ -2,7 +2,7 @@
 
 ## High-Level Purpose
 
-**Moss** is a social app where users share what they're reading, watching, and listening to. The goal is to "share what moves you"—recommendations as simple posts: a media item (book, article, movie, song, album, podcast, or live) plus an optional short note. There are no passwords: sign-up and login use Clerk (email magic links, OAuth, etc.). Sharing is intentionally limited (3 posts per week) to keep the feed focused and thoughtful. The **home feed** shows a **fixed cap** of the newest posts (everyone or friends) so scrolling stays bounded; older items are visible on profiles. Users can save others' posts for later and view profiles (shared, saved, pings) with the same layout and divider style as the main feed.
+**Moss** is a social app where users share what they're reading, watching, and listening to. The goal is to "share what moves you"—recommendations as simple posts: a media item (book, article, movie, song, album, podcast, or live) plus an optional short note. There are no passwords: sign-up and login use Clerk (email magic links, OAuth, etc.). Sharing is intentionally limited (3 posts per week) to keep the feed focused and thoughtful. The **home feed** shows a **fixed cap of 41** of the newest posts (everyone or friends) so scrolling stays bounded; older items are visible on profiles. Users can save others' posts for later and view profiles (shared, saved, pings) with the same layout and divider style as the main feed.
 
 ---
 
@@ -41,6 +41,7 @@
 
 - User lands on `/onboarding` (from post–sign-up redirect or from feed 401). Client calls `GET /api/users/me`. If 404, the app may call `POST /api/auth/reconcile-migration` to link an existing row by email to the current Clerk user; if that succeeds, redirect to feed. If still no row, user is prompted for username; client calls `POST /api/users/create` with the username. That route uses `getClerkUserId()`, checks for an existing row by `clerk_id`, and if none, inserts a row with internal id (`crypto.randomUUID()`), `clerk_id`, email (from Clerk), username, and a random avatar color from the 100-color palette. The onboarding page then shows the user (avatar, username) and a link/button to the feed.
 - If the user already has a row in `public.users` (by `clerk_id`), the page loads their profile and "Go to feed". No duplicate create.
+- **Friends-tab hint (not on this page):** Onboarding does not mention **everyone** vs **friends** or **find friends**. After the user opens the **feed** (`/feed`), a separate one-time UI may appear there (see **Feed** below).
 
 **Key files:** `app/onboarding/page.tsx`, `app/api/users/create/route.ts`, `app/api/auth/reconcile-migration/route.ts`, `lib/utils.ts` (`generateAvatarColor`).
 
@@ -53,7 +54,8 @@
 **How it works today:**
 
 - **Page:** `app/feed/page.tsx`. Sticky header: **moss** logo centered (links to `/feed`); row below with **share** button (left, green pill, links to `/share`) and current user’s **profile** (avatar + username, right; ping unread dot on avatar when applicable). Tabs: **everyone** / **friends** (`community` vs `following`). Client fetches `GET /api/feed` or `GET /api/feed?mode=following` once per tab (no “load more”). Post rows: header (avatar, username, media type, relative time), content (title, creator, note, thumbnail), thin `h-px bg-stone-800` dividers between posts. After the list, a centered footer (with a short divider when there are posts): **“that’s the latest.”** / **“to see more, visit a friend’s profile.”** Bottom bar: **about** and friend search (debounced `GET /api/search/users`); empty **friends** tab links to **find friends**.
-- **API:** `GET /api/feed`. Requires auth (`getUserId()`; 401 → onboarding if no internal user). Returns up to **`FEED_POST_LIMIT` (30)** posts, `created_at DESC, id DESC`, **no date cutoff**. Optional query **`mode=following`**: restrict to posts whose `user_id` is the current user or someone they follow. Response shape `{ items: PostWithRelations[] }` — **no `nextCursor`** (home feed is not paginated). Reactions/smile state is included per item.
+- **Friends-tab hint (dismissible banner):** On **everyone**, a bordered note under the tabs can appear: *you’re seeing posts from everyone* / *try **friends** for a more personal feed* (the word **friends** switches to the friends tab). **×** dismisses it. It is suppressed after dismiss **or** after the user navigates away from `/feed` (same outcome: do not show again). Per-user persistence: `localStorage` key `moss_friends_feed_hint_{internalUserId}` set to `1`. It is **not** a modal and does **not** link to **`/find-friends`** (that link is only on the empty friends-tab state).
+- **API:** `GET /api/feed`. Requires auth (`getUserId()`; 401 → onboarding if no internal user). Returns up to **`FEED_POST_LIMIT` (41)** posts, `created_at DESC, id DESC`, **no date cutoff**. Optional query **`mode=following`**: restrict to posts whose `user_id` is the current user or someone they follow. Response shape `{ items: PostWithRelations[] }` — **no `nextCursor`** (home feed is not paginated). Reactions/smile state is included per item.
 - **Save state:** On load, feed also fetches `GET /api/users/me/saved-ids`. Toggling save calls `POST` / `DELETE` `/api/posts/[id]/save`. Save/plus only for posts not authored by the current user.
 
 **Key files:** `app/feed/page.tsx`, `app/api/feed/route.ts`, `app/api/users/me/saved-ids/route.ts`, `app/api/posts/[id]/save/route.ts`.
@@ -103,12 +105,14 @@
 
 **How it works today:**
 
-- **Page:** `app/profile/[username]/page.tsx`. Fetches `GET /api/users/[username]` for profile + paginated shared posts. If viewing own profile, **Saved** and **Pings** tabs; **Saved** uses `GET /api/users/me/saved` (paginated). **Own profile:** link **your people →** under the header to `/your-people`; avatar links to **edit profile**. Shared tab: header row (avatar, username, media type, time, delete if own) and content row (title, creator, note, thumbnail / media icon). Same thin divider between posts (`mt-6 mb-6 pl-9 md:pl-11`, `h-px bg-stone-800`). Saved tab: unsave via `DELETE /api/posts/[id]/save`. Bottom bar: friend search; own profile also **sign out** on the left.
+- **Page:** `app/profile/[username]/page.tsx`. Fetches `GET /api/users/[username]` for profile + paginated shared posts. If viewing own profile, **Saved** and **Pings** tabs; **Saved** uses `GET /api/users/me/saved` (paginated). **Own profile:** link **your people →** under the header to `/your-people`; the **people** icon in the follow row also opens **`/your-people`**. **Someone else’s profile:** the same **people** icon (left of follow / following) opens **`/profile/[username]/following`** so you can see who they follow. Avatar links to **edit profile** on own profile only. Shared tab: header row (avatar, username, media type, time, delete if own) and content row (title, creator, note, thumbnail / media icon). Same thin divider between posts (`mt-6 mb-6 pl-9 md:pl-11`, `h-px bg-stone-800`). Saved tab: unsave via `DELETE /api/posts/[id]/save`. Bottom bar: friend search; own profile also **sign out** on the left.
+- **Following list (another user):** `app/profile/[username]/following/page.tsx`. Sticky header: back (←) to that profile, **moss** (→ `/feed`); under that, title **`{username}'s people`** and subtitle **`following: {n}`** where **`n`** is the **total** follow count from the API (`followingCount`), not just the first page. Scrollable list: avatar, username (tap → profile), **follow** / **following** for the viewer. **Load more** when `nextCursor` is present. Bottom padding is modest (`pb-14`)—there is no fixed home-feed bottom bar on this screen.
 - **APIs:**
   - `GET /api/users/[username]`: Returns profile user (id, username, avatar_color) and post count; returns paginated posts (same shape as feed items) with `nextCursor`.
+  - `GET /api/users/[username]/following`: Auth required. Paginated accounts this user follows: query `cursor` (optional), `limit` (optional, default 20, max 50). Response `{ users: FollowListUser[], followingCount, nextCursor? }`. Each user includes `isFollowing` for the **current** viewer. **404** if username not found.
   - `GET /api/users/me/saved`: Returns paginated list of saved posts (full post + user + media_item) for the current user.
 
-**Key files:** `app/profile/[username]/page.tsx`, `app/api/users/[username]/route.ts`, `app/api/users/me/saved/route.ts`.
+**Key files:** `app/profile/[username]/page.tsx`, `app/profile/[username]/following/page.tsx`, `app/api/users/[username]/route.ts`, `app/api/users/[username]/following/route.ts`, `app/api/users/me/saved/route.ts`.
 
 ---
 

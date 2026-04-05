@@ -169,7 +169,7 @@ All feed and post behavior goes through these REST endpoints. The web app calls 
 ### `GET /api/feed`
 
 - **Query**: `mode` (optional): omit for **everyone** (all authors); `following` for posts by the current user and users they follow only.
-- **Logic**: Order `posts` by `created_at DESC, id DESC`. **No date filter.** Return at most **`FEED_POST_LIMIT` (30)** rows joined with `users` and `media_items`. Response: `{ items }` (same post + user + media_item shape as profile feed items; includes smile/save-related flags) — **no `nextCursor`**; not paginated.
+- **Logic**: Order `posts` by `created_at DESC, id DESC`. **No date filter.** Return at most **`FEED_POST_LIMIT` (41)** rows joined with `users` and `media_items`. Response: `{ items }` (same post + user + media_item shape as profile feed items; includes smile/save-related flags) — **no `nextCursor`**; not paginated.
 - **Auth**: Required (internal user id). Feed is logged-in only.
 
 ### `GET /api/search/users`
@@ -215,6 +215,13 @@ All feed and post behavior goes through these REST endpoints. The web app calls 
 - **Returns**: User profile (id, username, avatarColor, post count) and **cursor-paginated posts** (same shape as feed items). Use `cursor` + `limit` query params; `nextCursor` in response.
 - **Auth**: Required. Profiles are logged-in only.
 
+### `GET /api/users/[username]/following`
+
+- **Query**: `cursor` (optional, composite `created_at,following_id` for stable pagination), `limit` (optional, default **20**, max **50**).
+- **Returns**: `{ users, followingCount, nextCursor? }`. **`users`**: accounts the profile user follows (newest follow first), each with `id`, `username`, `avatar_color`, `created_at`, and **`isFollowing`** (whether the **current** user follows that account). **`followingCount`**: total follows for that profile user (all pages). Omit **`nextCursor`** when no more pages.
+- **Auth**: Required.
+- **Errors**: **404** if username not found.
+
 ### `GET /api/users/me`
 
 - **Returns**: Current user from `public.users` table
@@ -247,7 +254,7 @@ All feed and post behavior goes through these REST endpoints. The web app calls 
 
 ## Pagination: Composite Cursor
 
-Used by **profile timelines**, **saved posts**, **user search**, and similar list endpoints—not by the **home feed** (`GET /api/feed`), which returns a fixed cap of recent posts with no `nextCursor`.
+Used by **profile timelines**, **profile following lists** (`GET /api/users/[username]/following`), **saved posts**, **user search**, and similar list endpoints—not by the **home feed** (`GET /api/feed`), which returns a fixed cap of recent posts with no `nextCursor`.
 
 - **Strategy**: Composite cursor using `createdAt + id` (or username + id for search)
 - **Order by**: `createdAt DESC, id DESC` (newest first, then by ID for tie-breaking) where applicable
@@ -291,6 +298,7 @@ This ensures:
 │   │   └── callback/route.ts  # Magic link callback handler
 │   ├── onboarding/page.tsx     # Username setup (new users only)
 │   ├── profile/[username]/page.tsx   # fetch → /api/users/[username]
+│   ├── profile/[username]/following/page.tsx  # following list → /api/users/[username]/following
 │   ├── api/
 │   │   ├── feed/route.ts
 │   │   ├── posts/
@@ -423,7 +431,7 @@ This ensures:
 7. **User profile updates**: Can users update their `avatarColor` after onboarding, or is it set once?
 
 ### API Details
-8. **Home feed size**: The feed uses a **fixed cap** (`FEED_POST_LIMIT`, currently 30), not cursor pagination. Default `limit` for **other** list APIs (search, profile, saved) remains typically 20 unless overridden.
+8. **Home feed size**: The feed uses a **fixed cap** (`FEED_POST_LIMIT`, currently 41), not cursor pagination. Default `limit` for **other** list APIs (search, profile, saved) remains typically 20 unless overridden.
 
 9. **Empty states**: The doc mentions empty states in polish phase. Should we define what these look like now, or handle later?
 

@@ -136,6 +136,8 @@ export interface FollowListUser {
 export interface FollowListResponse {
   users: FollowListUser[]
   nextCursor?: string
+  /** Total people this user follows (all pages). */
+  followingCount?: number
 }
 
 export interface UserSearchResponse {

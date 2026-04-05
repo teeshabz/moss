@@ -7,7 +7,7 @@ import type { FeedResponse, RawPostResult } from '@/lib/types'
 export const dynamic = 'force-dynamic'
 
 /** Most recent posts returned per feed request (no date window; no pagination). */
-const FEED_POST_LIMIT = 30
+const FEED_POST_LIMIT = 41
 
 /**
  * GET /api/feed

@@ -30,6 +30,7 @@ This document describes how authentication and user identity work in Moss: Clerk
      - `clerk_id`: Clerk user ID
      - `email`, `username`, `avatar_color` (from Clerk + palette)
    - After success, user is sent to `/feed`.
+5. **First visit to the feed** (not part of onboarding UI): On `/feed`, the app may show a **dismissible banner** on the **everyone** tab suggesting they try the **friends** tab for a more personal feed. It is stored per user in `localStorage` (`moss_friends_feed_hint_{internalUserId}`) and does not reappear after dismiss or after leaving `/feed`. See `FEATURES.md` (Feed) for detail. Onboarding itself does not mention friends vs everyone or **find friends**.
 
 ---
 

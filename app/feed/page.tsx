@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import type {
@@ -37,7 +37,8 @@ function FeedPageContent() {
   const [error, setError] = useState<string | null>(null)
   const [currentUser, setCurrentUser] = useState<UserMeResponse | null>(null)
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
-  const [savingIds, setSavingIds] = useState<Set<string>>(new Set())
+  /** Sync guard so rapid double-clicks don’t fire parallel save requests */
+  const saveInFlightRef = useRef<Set<string>>(new Set())
   const [smilingIds, setSmilingIds] = useState<Set<string>>(new Set())
   const [hasUnreadPings, setHasUnreadPings] = useState(false)
   const [searchExpanded, setSearchExpanded] = useState(false)
@@ -50,8 +51,6 @@ function FeedPageContent() {
   const [friendsFeedHintDismissed, setFriendsFeedHintDismissed] = useState<
     boolean | null
   >(null)
-  /** One-shot: user tapped → on /welcome; can show hint even if they dismissed before */
-  const [friendsHintFromWelcome, setFriendsHintFromWelcome] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
   const [notesDrawerPost, setNotesDrawerPost] = useState<PostWithRelations | null>(null)
   const [notesByPostId, setNotesByPostId] = useState<Record<string, NoteWithAuthor[]>>({})
@@ -63,7 +62,10 @@ function FeedPageContent() {
   const [noteSendError, setNoteSendError] = useState<string | null>(null)
   const [noteDeletingIds, setNoteDeletingIds] = useState<Set<string>>(new Set())
   const router = useRouter()
+  const pathname = usePathname()
   const searchParams = useSearchParams()
+  const prevPathnameRef = useRef<string | null>(null)
+
   useEffect(() => {
     const tabParam = searchParams.get('tab')
     if (tabParam === 'following') {
@@ -231,32 +233,25 @@ function FeedPageContent() {
   }, [activeTab, hasLoadedByTab, loadFeed])
 
   useEffect(() => {
+    const ac = new AbortController()
     async function loadUser() {
       try {
-        const res = await fetch('/api/users/me')
-        if (res.ok) {
-          const data: UserMeResponse = await res.json()
-          setCurrentUser(data)
-          if (data.postIds?.length !== undefined) {
-            setSavedIds(new Set(data.postIds))
-          }
+        const res = await fetch('/api/users/me', { signal: ac.signal })
+        if (!res.ok) return
+        const data: UserMeResponse = await res.json()
+        if (ac.signal.aborted) return
+        setCurrentUser(data)
+        // Only apply server snapshot if this fetch is still current — stale
+        // responses (e.g. Strict Mode double mount) must not overwrite optimistic unsave.
+        if (Array.isArray(data.postIds)) {
+          setSavedIds(new Set(data.postIds))
         }
       } catch {
-        // ignore
+        if (ac.signal.aborted) return
       }
     }
     loadUser()
-  }, [])
-
-  useEffect(() => {
-    try {
-      if (sessionStorage.getItem('moss_friends_feed_hint_from_welcome') === '1') {
-        setFriendsHintFromWelcome(true)
-        sessionStorage.removeItem('moss_friends_feed_hint_from_welcome')
-      }
-    } catch {
-      // ignore
-    }
+    return () => ac.abort()
   }, [])
 
   useEffect(() => {
@@ -271,6 +266,22 @@ function FeedPageContent() {
     }
   }, [currentUser?.user?.id])
 
+  /** First visit to /feed only: once they navigate away (or dismiss), never show again. */
+  useEffect(() => {
+    const id = currentUser?.user?.id
+    if (!id) return
+    const prev = prevPathnameRef.current
+    prevPathnameRef.current = pathname
+    if (prev === '/feed' && pathname !== '/feed') {
+      try {
+        localStorage.setItem(`moss_friends_feed_hint_${id}`, '1')
+      } catch {
+        // ignore
+      }
+      setFriendsFeedHintDismissed(true)
+    }
+  }, [pathname, currentUser?.user?.id])
+
   const dismissFriendsFeedHint = useCallback(() => {
     const id = currentUser?.user?.id
     if (!id) return
@@ -280,14 +291,13 @@ function FeedPageContent() {
       // ignore
     }
     setFriendsFeedHintDismissed(true)
-    setFriendsHintFromWelcome(false)
   }, [currentUser?.user?.id])
 
-  /** Everyone tab + (never dismissed, or one-shot after /welcome → feed) */
+  /** Everyone tab + first visit to /feed (not dismissed, not left feed yet this “lifetime”) */
   const showFriendsFeedHint =
     activeTab === 'community' &&
     friendsFeedHintDismissed !== null &&
-    (!friendsFeedHintDismissed || friendsHintFromWelcome)
+    !friendsFeedHintDismissed
 
   useEffect(() => {
     if (!currentUser?.user?.id) return
@@ -349,12 +359,10 @@ function FeedPageContent() {
   }, [searchQuery])
 
   const toggleSave = async (postId: string, post?: PostWithRelations) => {
+    if (saveInFlightRef.current.has(postId)) return
+    saveInFlightRef.current.add(postId)
+
     const wasSaved = savedIds.has(postId)
-    setSavingIds((prev) => {
-      const next = new Set(prev)
-      next.add(postId)
-      return next
-    })
     setSavedIds((prev) => {
       const next = new Set(prev)
       if (wasSaved) next.delete(postId)
@@ -380,11 +388,7 @@ function FeedPageContent() {
       })
       setError('Failed to update save. Please try again.')
     } finally {
-      setSavingIds((prev) => {
-        const next = new Set(prev)
-        next.delete(postId)
-        return next
-      })
+      saveInFlightRef.current.delete(postId)
     }
   }
 
@@ -807,14 +811,13 @@ function FeedPageContent() {
                               </div>
                               <button
                                 onClick={() => toggleSave(post.id, post)}
-                                disabled={savingIds.has(post.id)}
                                 aria-pressed={savedIds.has(post.id)}
                                 aria-label={savedIds.has(post.id) ? 'Unsave post' : 'Save post'}
-                                className={`-mt-1 transition-colors duration-200 flex-shrink-0 ${
+                                className={`-mt-1 flex-shrink-0 transition-none ${
                                   savedIds.has(post.id)
-                                    ? 'text-[#7a9b6f]'
-                                    : 'text-stone-600 hover:text-[#7a9b6f]'
-                                } ${savingIds.has(post.id) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                    ? 'text-[#7a9b6f] hover:text-[#8fb084]'
+                                    : 'text-stone-600 hover:text-stone-400'
+                                }`}
                               >
                                 <PlusIcon saved={savedIds.has(post.id)} size={18} />
                               </button>

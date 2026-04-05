@@ -49,6 +49,21 @@ export async function GET(
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
+    const { count: totalFollowing, error: countError } = await supabase
+      .from('follows')
+      .select('*', { count: 'exact', head: true })
+      .eq('follower_id', profileUser.id)
+
+    if (countError) {
+      console.error('Error counting following:', countError)
+      return NextResponse.json(
+        { error: 'Failed to load following' },
+        { status: 500 }
+      )
+    }
+
+    const followingCount = totalFollowing ?? 0
+
     let query = supabase
       .from('follows')
       .select(
@@ -140,6 +155,7 @@ export async function GET(
 
     const response: FollowListResponse = {
       users,
+      followingCount,
       ...(nextCursor && { nextCursor }),
     }
 

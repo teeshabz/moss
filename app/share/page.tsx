@@ -168,10 +168,7 @@ export default function SharePage() {
             </span>
           ))}
         </div>
-        <p
-          className="text-center text-base sm:text-xl md:text-2xl font-medium lowercase whitespace-nowrap"
-          style={{ color: '#8FA68E' }}
-        >
+        <p className="text-center text-base md:text-sm font-normal lowercase whitespace-nowrap text-stone-500">
           what moved you this week?
         </p>
       </div>
