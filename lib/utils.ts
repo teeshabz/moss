@@ -1,3 +1,40 @@
+const NON_DIGITS = /\D/g
+
+/**
+ * Normalize onboarding/profile phone input to E.164, or null if invalid.
+ * US: 10-digit national or 11-digit starting with 1. International: leading + then 8–15 digits.
+ */
+export function normalizeProfilePhoneToE164(raw: string): string | null {
+  const t = raw.trim()
+  if (!t) return null
+  if (t.startsWith('+')) {
+    const digits = t.slice(1).replace(NON_DIGITS, '')
+    if (digits.length < 8 || digits.length > 15) return null
+    return `+${digits}`
+  }
+  const digits = t.replace(NON_DIGITS, '')
+  if (digits.length === 10) return `+1${digits}`
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`
+  return null
+}
+
+/**
+ * Formats phone input as the user types: US-style (XXX) XXX-XXXX, or + and digits for international.
+ */
+export function formatPhoneInputDisplay(raw: string): string {
+  if (raw.startsWith('+')) {
+    let rest = raw.slice(1).replace(NON_DIGITS, '')
+    if (rest.length > 15) rest = rest.slice(0, 15)
+    return `+${rest}`
+  }
+  const digits = raw.replace(NON_DIGITS, '')
+  if (digits.length === 0) return ''
+  const d = digits.slice(0, 10)
+  if (d.length <= 3) return `(${d}`
+  if (d.length <= 6) return `(${d.slice(0, 3)}) ${d.slice(3)}`
+  return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`
+}
+
 /**
  * Sanitize redirect/next path for auth callback and login.
  * Only allows relative paths (starts with /, no //) to prevent open redirects.

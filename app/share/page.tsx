@@ -158,7 +158,7 @@ export default function SharePage() {
 
       {/* Stars + label - centered in gap between header and media types */}
       <div className="absolute left-1/2 -translate-x-1/2 top-20 md:top-28 flex flex-col items-center justify-center">
-        <div className="flex justify-center gap-1 mb-2.5 items-center">
+        <div className="flex justify-center gap-1 mb-1.5 md:mb-2 items-center">
           {Array.from({ length: WEEKLY_POST_LIMIT }, (_, i) => i).map((index) => (
             <span key={index} className="inline-flex shrink-0" style={{ width: 28, height: 28 }}>
               <StarIcon
@@ -169,40 +169,29 @@ export default function SharePage() {
           ))}
         </div>
         <p
-          className="text-xs uppercase tracking-wider font-bold"
+          className="text-center text-base sm:text-xl md:text-2xl font-medium lowercase whitespace-nowrap"
           style={{ color: '#8FA68E' }}
         >
-          SHARED THIS WEEK
+          what moved you this week?
         </p>
       </div>
 
-      {/* Moss logo - same position as share/[type] */}
+      {/* Moss icon - top right (feed), icon only */}
       <div className="absolute top-8 right-8 md:top-16 md:right-16">
         <Link
           href="/feed"
-          className="flex items-center gap-2"
+          className="inline-flex items-center justify-center"
           aria-label="moss"
         >
           <MossIcon color="#2d5016" size={26} />
-          <span
-            className="text-2xl font-bold lowercase"
-            style={{
-              color: '#2d5016',
-              fontFamily: 'monospace',
-              letterSpacing: '0.1em',
-              textRendering: 'geometricPrecision',
-            }}
-          >
-            moss
-          </span>
         </Link>
       </div>
 
-      {/* Media Types List - Left aligned, lowered */}
+      {/* Media Types List - Left aligned, tucked under stars/headline */}
       <div
-        className="flex-1 flex flex-col justify-center px-6 pt-44 md:pt-52 overflow-y-auto min-h-0 pb-24 max-w-2xl mx-auto w-full"
+        className="flex-1 flex flex-col justify-start px-6 pt-[10.5rem] sm:pt-44 md:pt-48 overflow-y-auto min-h-0 pb-24 max-w-2xl mx-auto w-full"
       >
-        <div className="space-y-4">
+        <div className="space-y-1.5 sm:space-y-2 md:space-y-2.5">
           {mediaTypes.map((type) => {
             const isHovered = hoveredType === type.value
             return (
@@ -247,25 +236,20 @@ export default function SharePage() {
         <div className="h-px bg-stone-800 flex-shrink-0" />
 
         <div className="max-w-2xl mx-auto px-6 md:px-8 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2.5 flex-shrink-0 min-w-0">
+          <div className="flex items-center flex-shrink-0">
             {user?.user?.username ? (
               <Link
                 href={`/profile/${encodeURIComponent(user.user.username)}`}
-                className="flex items-center gap-2.5 hover:opacity-90 transition-opacity min-w-0"
+                className="flex items-center hover:opacity-90 transition-opacity"
+                aria-label={`profile: ${user.user.username}`}
               >
                 <div
                   className="w-8 h-8 rounded-full flex-shrink-0 ring-2 ring-stone-400"
                   style={{ backgroundColor: user.user.avatar_color }}
                 />
-                <span className="text-base font-bold lowercase text-stone-200 truncate">
-                  {user.user.username}
-                </span>
               </Link>
             ) : (
-              <>
-                <div className="w-8 h-8 rounded-full bg-stone-800 flex-shrink-0 ring-2 ring-stone-400" />
-                <span className="text-sm text-stone-500">...</span>
-              </>
+              <div className="w-8 h-8 rounded-full bg-stone-800 flex-shrink-0 ring-2 ring-stone-400" />
             )}
           </div>
         </div>

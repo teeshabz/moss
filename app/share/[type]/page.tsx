@@ -15,6 +15,7 @@ import {
   LiveIcon,
 } from '@/lib/components/SharePageMediaIcons'
 import { MossIcon } from '@/lib/components/MossIcon'
+import { MAX_POST_TEXT_LENGTH } from '@/lib/post-text-limit'
 
 const validTypes = ['book', 'article', 'movie', 'song', 'album', 'podcast', 'live']
 
@@ -409,10 +410,10 @@ export default function ShareTypePage() {
   ) => {
     const { name, value } = e.target
     
-    // Enforce 60 character limit for all fields except article URL
+    // Enforce max length for all fields except article URL
     const isArticleUrl = type === 'article' && name === 'url'
-    if (!isArticleUrl && value.length > 60) return
-    if (name === 'note') setNoteLimitReached(value.length === 60)
+    if (!isArticleUrl && value.length > MAX_POST_TEXT_LENGTH) return
+    if (name === 'note') setNoteLimitReached(value.length === MAX_POST_TEXT_LENGTH)
     
     // If user edits title or author while a book was selected, treat as manual entry
     if (type === 'book' && selectedBook && (name === 'title' || name === 'author')) {
@@ -636,21 +637,14 @@ export default function ShareTypePage() {
         </div>
       </div>
 
-      {/* Moss Logo - top right */}
+      {/* Moss icon - top right (feed) */}
       <div className="absolute top-8 right-8 md:top-16 md:right-16">
-        <Link href="/feed" className="flex items-center gap-2">
+        <Link
+          href="/feed"
+          className="inline-flex items-center justify-center"
+          aria-label="moss"
+        >
           <MossIcon color="#2d5016" size={26} />
-          <span
-            className="text-2xl font-bold lowercase"
-            style={{
-              color: '#2d5016',
-              fontFamily: 'monospace',
-              letterSpacing: '0.1em',
-              textRendering: 'geometricPrecision',
-            }}
-          >
-            moss
-          </span>
         </Link>
       </div>
 
@@ -958,7 +952,7 @@ export default function ShareTypePage() {
                     onChange={handleInputChange}
                     placeholder={field.placeholder}
                     required={field.required}
-                    maxLength={60}
+                    maxLength={MAX_POST_TEXT_LENGTH}
                     rows={4}
                     className={`w-full rounded-lg px-4 py-3 text-stone-200 placeholder-stone-500 focus:outline-none transition-all text-lg md:text-xl font-medium ${
                       type === 'book' || type === 'song' || type === 'album' || type === 'movie' ? 'border' : 'border-2'
@@ -989,7 +983,7 @@ export default function ShareTypePage() {
                     onChange={handleInputChange}
                     placeholder={field.placeholder}
                     required={field.required}
-                    {...(type === 'article' && field.name === 'url' ? {} : { maxLength: 60 })}
+                    {...(type === 'article' && field.name === 'url' ? {} : { maxLength: MAX_POST_TEXT_LENGTH })}
                     className={`w-full rounded-lg px-4 py-3 text-stone-200 placeholder-stone-500 focus:outline-none transition-all text-lg md:text-xl font-medium ${
                       type === 'book' || type === 'song' || type === 'album' || type === 'movie' ? 'border' : 'border-2'
                     } ${errors[field.name] ? 'border-red-500' : ''}`}

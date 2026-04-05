@@ -2,7 +2,7 @@ import { currentUser } from '@clerk/nextjs/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { requireClerkUserId } from '@/lib/auth'
 import { NextResponse } from 'next/server'
-import { generateAvatarColor } from '@/lib/utils'
+import { generateAvatarColor, normalizeProfilePhoneToE164 } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,10 +20,20 @@ export async function POST(request: Request) {
 
     const body = await request.json().catch(() => ({}))
     const username = body.username
+    const phoneRaw =
+      typeof body.phone_number === 'string' ? body.phone_number : ''
+    const phoneE164 = normalizeProfilePhoneToE164(phoneRaw)
 
     if (!username || typeof username !== 'string') {
       return NextResponse.json(
         { error: 'Username is required' },
+        { status: 400 }
+      )
+    }
+
+    if (!phoneE164) {
+      return NextResponse.json(
+        { error: 'A valid phone number is required' },
         { status: 400 }
       )
     }
@@ -60,6 +70,15 @@ export async function POST(request: Request) {
     const avatarColor = generateAvatarColor()
     const internalId = crypto.randomUUID()
 
+    const firstName =
+      typeof body.first_name === 'string' && body.first_name.trim()
+        ? body.first_name.trim()
+        : null
+    const lastName =
+      typeof body.last_name === 'string' && body.last_name.trim()
+        ? body.last_name.trim()
+        : null
+
     const { data: newUser, error: insertError } = await supabaseAdmin
       .from('users')
       .insert({
@@ -68,6 +87,9 @@ export async function POST(request: Request) {
         email,
         username: username.toLowerCase().trim(),
         avatar_color: avatarColor,
+        phone_number: phoneE164,
+        first_name: firstName,
+        last_name: lastName,
       })
       .select()
       .single()

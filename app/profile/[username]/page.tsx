@@ -24,9 +24,9 @@ import {
   MediaTypeFilledIcon,
   PlusIcon,
 } from '@/lib/components/PostHelpers'
+import { MAX_POST_TEXT_LENGTH } from '@/lib/post-text-limit'
 
 export default function ProfilePage() {
-  const NOTE_MAX_LENGTH = 60
   const params = useParams()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -513,7 +513,7 @@ export default function ProfilePage() {
   const handleSendNote = useCallback(async () => {
     if (!notesDrawerPost) return
     const trimmed = noteInput.trim()
-    if (trimmed.length < 1 || trimmed.length > NOTE_MAX_LENGTH) return
+    if (trimmed.length < 1 || trimmed.length > MAX_POST_TEXT_LENGTH) return
 
     try {
       setNoteSending(true)
@@ -547,7 +547,7 @@ export default function ProfilePage() {
     } finally {
       setNoteSending(false)
     }
-  }, [noteInput, notesDrawerPost, NOTE_MAX_LENGTH])
+  }, [noteInput, notesDrawerPost])
 
   const handleDeleteNote = useCallback(async (noteId: string) => {
     if (!notesDrawerPost || noteDeletingIds.has(noteId)) return
@@ -591,7 +591,7 @@ export default function ProfilePage() {
     ? notesHasNoted[notesDrawerPost.id] ?? false
     : false
   const noteIsValid = noteInput.trim().length >= 1
-    && noteInput.trim().length <= NOTE_MAX_LENGTH
+    && noteInput.trim().length <= MAX_POST_TEXT_LENGTH
 
   const isFollowing = Boolean(profile?.user.isFollowing)
 
@@ -1716,11 +1716,11 @@ export default function ProfilePage() {
                     type="text"
                     value={noteInput}
                     onChange={(e) => {
-                      if (e.target.value.length <= NOTE_MAX_LENGTH) {
+                      if (e.target.value.length <= MAX_POST_TEXT_LENGTH) {
                         setNoteInput(e.target.value)
                       }
                     }}
-                    maxLength={NOTE_MAX_LENGTH}
+                    maxLength={MAX_POST_TEXT_LENGTH}
                     placeholder="leave a note..."
                     className="flex-1 bg-stone-900 text-stone-200 placeholder-stone-500 px-4 py-2 rounded-full outline-none border border-stone-800 focus:border-stone-700 text-sm"
                   />

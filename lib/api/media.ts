@@ -1,3 +1,4 @@
+import { MAX_POST_TEXT_LENGTH } from '@/lib/post-text-limit'
 import type { MediaType } from '@/lib/types'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
@@ -21,6 +22,9 @@ export function validateMediaData(mediaType: MediaType, data: Partial<MediaData>
   if (!data.title || typeof data.title !== 'string' || data.title.trim().length === 0) {
     throw new Error('Title is required')
   }
+  if (data.title.trim().length > MAX_POST_TEXT_LENGTH) {
+    throw new Error(`Title must be at most ${MAX_POST_TEXT_LENGTH} characters`)
+  }
 
   switch (mediaType) {
     case 'BOOK':
@@ -33,12 +37,18 @@ export function validateMediaData(mediaType: MediaType, data: Partial<MediaData>
       if (!data.creator || typeof data.creator !== 'string' || data.creator.trim().length === 0) {
         throw new Error('Creator is required')
       }
+      if (data.creator.trim().length > MAX_POST_TEXT_LENGTH) {
+        throw new Error(`Creator must be at most ${MAX_POST_TEXT_LENGTH} characters`)
+      }
       break
 
     case 'ARTICLE':
       // Articles require title, creator, and externalUrl (must be HTTPS)
       if (!data.creator || typeof data.creator !== 'string' || data.creator.trim().length === 0) {
         throw new Error('Creator is required')
+      }
+      if (data.creator.trim().length > MAX_POST_TEXT_LENGTH) {
+        throw new Error(`Creator must be at most ${MAX_POST_TEXT_LENGTH} characters`)
       }
       if (!data.externalUrl || typeof data.externalUrl !== 'string') {
         throw new Error('External URL is required for articles')

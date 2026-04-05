@@ -1,17 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useUser } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { MossIcon } from '@/lib/components/MossIcon'
-
-interface User {
-  id: string
-  username: string
-  email: string
-  avatar_color: string
-}
+import { formatPhoneInputDisplay, normalizeProfilePhoneToE164 } from '@/lib/utils'
 
 const RESERVED_USERNAMES = ['moss', 'api', 'admin', 'support']
 
@@ -28,15 +22,37 @@ function validateUsername(username: string): string | null {
   return null
 }
 
+function validatePhoneInput(raw: string): string | null {
+  const t = raw.trim()
+  if (!t) return 'Phone number is required'
+  if (!normalizeProfilePhoneToE164(t)) {
+    return 'Enter a valid US number like (555) 555-5555, or international with +country code'
+  }
+  return null
+}
+
 export default function OnboardingPage() {
   const { user: clerkUser, isLoaded: clerkLoaded } = useUser()
-  const [dbUser, setDbUser] = useState<User | null>(null)
+  const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [username, setUsername] = useState('')
+  const [phoneNumber, setPhoneNumber] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const router = useRouter()
+  const clerkNamePrefilled = useRef(false)
+
+  useEffect(() => {
+    if (!clerkLoaded || !clerkUser || clerkNamePrefilled.current) return
+    clerkNamePrefilled.current = true
+    const fn = clerkUser.firstName?.trim()
+    const ln = clerkUser.lastName?.trim()
+    if (fn) setFirstName(fn)
+    if (ln) setLastName(ln)
+  }, [clerkLoaded, clerkUser])
 
   // Redirect if not signed in
   useEffect(() => {
@@ -77,7 +93,7 @@ export default function OnboardingPage() {
             return
           }
         }
-        setDbUser(null)
+        setShowForm(true)
       } catch (err) {
         setError('Something went wrong. Please try again.')
         console.error('Error loading user:', err)
@@ -97,12 +113,22 @@ export default function OnboardingPage() {
       setCreateError(err)
       return
     }
+    const phoneErr = validatePhoneInput(phoneNumber)
+    if (phoneErr) {
+      setCreateError(phoneErr)
+      return
+    }
     setCreating(true)
     try {
       const res = await fetch('/api/users/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: username.trim().toLowerCase() }),
+        body: JSON.stringify({
+          username: username.trim().toLowerCase(),
+          phone_number: phoneNumber.trim(),
+          first_name: firstName.trim() || null,
+          last_name: lastName.trim() || null,
+        }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -110,17 +136,13 @@ export default function OnboardingPage() {
         setCreating(false)
         return
       }
-      setDbUser(data.user)
+      router.push('/welcome')
     } catch (err) {
       setCreateError('Something went wrong. Please try again.')
       console.error('Error creating user:', err)
     } finally {
       setCreating(false)
     }
-  }
-
-  const handleGoToFeed = () => {
-    router.push('/feed')
   }
 
   if (!clerkLoaded || !clerkUser) {
@@ -150,8 +172,8 @@ export default function OnboardingPage() {
     )
   }
 
-  // No db user yet: show username form
-  if (!dbUser) {
+  // No profile yet: show setup form
+  if (showForm) {
     return (
       <div className="min-h-screen bg-black text-white flex flex-col">
         <div className="absolute top-8 left-8 md:top-16 md:left-16">
@@ -170,79 +192,96 @@ export default function OnboardingPage() {
             </h1>
           </div>
         </div>
-        <div className="flex-1 flex flex-col items-center justify-center px-8">
-          <h1 className="text-2xl md:text-3xl font-bold mb-8">pick a username</h1>
-          <form onSubmit={handleCreateUser} className="w-full max-w-sm">
-            <div className="mb-6">
-              <label htmlFor="username" className="block text-gray-400 text-sm mb-2">
-                username
-              </label>
-              <input
-                id="username"
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-                className="w-full bg-transparent border-0 border-b border-gray-600 focus:border-green-500 focus:outline-none text-white text-lg pb-2 transition-colors"
-                placeholder=""
-                disabled={creating}
-                pattern="[a-zA-Z0-9_]+"
-                minLength={3}
-                maxLength={20}
-              />
-            </div>
-            {createError && (
-              <div className="mb-4 text-red-400 text-sm">{createError}</div>
-            )}
-            <button
-              type="submit"
-              disabled={creating}
-              className="text-green-500 text-lg font-medium hover:text-green-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {creating ? 'creating...' : 'continue →'}
-            </button>
+        <div className="flex-1 flex flex-col items-center justify-center px-8 py-24">
+          <h1 className="text-lg md:text-xl font-bold mb-8 text-center">
+            hey, welcome
+          </h1>
+          <form onSubmit={handleCreateUser} className="w-full max-w-md space-y-6">
+              <div>
+                <label htmlFor="username" className="block text-gray-400 text-sm mb-2">
+                  username <span className="text-gray-300" aria-hidden>*</span>
+                </label>
+                <input
+                  id="username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  required
+                  className="w-full bg-transparent border-0 border-b border-gray-600 focus:border-green-500 focus:outline-none text-white text-lg pb-2 transition-colors"
+                  placeholder=""
+                  disabled={creating}
+                  pattern="[a-zA-Z0-9_]+"
+                  minLength={3}
+                  maxLength={20}
+                  autoComplete="username"
+                />
+              </div>
+              <div>
+                <label htmlFor="phone_number" className="block text-gray-400 text-sm mb-2">
+                  phone number <span className="text-gray-300" aria-hidden>*</span>
+                </label>
+                <input
+                  id="phone_number"
+                  type="tel"
+                  inputMode="numeric"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(formatPhoneInputDisplay(e.target.value))}
+                  required
+                  className="w-full bg-transparent border-0 border-b border-gray-600 focus:border-green-500 focus:outline-none text-white text-lg pb-2 transition-colors placeholder:text-sm placeholder:text-gray-600"
+                  placeholder="(555) 555-5555"
+                  maxLength={20}
+                  disabled={creating}
+                  autoComplete="tel-national"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                <label htmlFor="first_name" className="text-gray-400 text-sm">
+                  first name
+                </label>
+                <label htmlFor="last_name" className="text-gray-400 text-sm">
+                  last name
+                </label>
+                <input
+                  id="first_name"
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  className="w-full min-w-0 bg-transparent border-0 border-b border-gray-600 focus:border-green-500 focus:outline-none text-white text-lg pb-2 transition-colors"
+                  disabled={creating}
+                  autoComplete="given-name"
+                />
+                <input
+                  id="last_name"
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className="w-full min-w-0 bg-transparent border-0 border-b border-gray-600 focus:border-green-500 focus:outline-none text-white text-lg pb-2 transition-colors"
+                  disabled={creating}
+                  autoComplete="family-name"
+                />
+              </div>
+              {createError && (
+                <div className="text-red-400 text-sm">{createError}</div>
+              )}
+              <div className="flex justify-end pt-1">
+                <button
+                  type="submit"
+                  disabled={creating}
+                  className="text-green-500 text-3xl md:text-4xl font-medium hover:text-green-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  aria-label={creating ? 'Creating account' : 'Continue'}
+                >
+                  →
+                </button>
+              </div>
           </form>
         </div>
       </div>
     )
   }
 
-  // Have db user: show welcome screen
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col">
-      <div className="absolute top-8 left-8 md:top-16 md:left-16">
-        <div className="flex items-center gap-2">
-          <MossIcon color="#2d5016" size={24} />
-          <h1
-            className="text-2xl font-bold lowercase"
-            style={{
-              color: '#2d5016',
-              fontFamily: 'monospace',
-              letterSpacing: '0.1em',
-              textRendering: 'geometricPrecision',
-            }}
-          >
-            moss
-          </h1>
-        </div>
-      </div>
-      <div className="flex-1 flex flex-col items-center justify-center px-8">
-        <div
-          className="w-24 h-24 md:w-32 md:h-32 rounded-full mb-6"
-          style={{ backgroundColor: dbUser.avatar_color }}
-        />
-        <h2 className="text-2xl md:text-3xl font-bold mb-2">{dbUser.username}</h2>
-        <p className="text-gray-400 text-sm md:text-base mb-12">{dbUser.email}</p>
-        <h1 className="text-4xl md:text-5xl font-bold mb-4">welcome!</h1>
-        <p className="text-gray-400 text-lg md:text-xl mb-16">what moved you this week?</p>
-        <button
-          onClick={handleGoToFeed}
-          className="text-green-500 text-3xl md:text-4xl font-medium hover:text-green-400 transition-colors cursor-pointer"
-          aria-label="Go to feed"
-        >
-          →
-        </button>
-      </div>
+    <div className="min-h-screen bg-black text-white flex items-center justify-center">
+      <div className="text-gray-400">thinking...</div>
     </div>
   )
 }

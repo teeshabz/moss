@@ -21,9 +21,9 @@ import {
   MediaTypeFilledIcon,
   PlusIcon,
 } from '@/lib/components/PostHelpers'
+import { MAX_POST_TEXT_LENGTH } from '@/lib/post-text-limit'
 
 function FeedPageContent() {
-  const NOTE_MAX_LENGTH = 60
   const [postsByTab, setPostsByTab] = useState<{
     community: PostWithRelations[]
     following: PostWithRelations[]
@@ -45,7 +45,13 @@ function FeedPageContent() {
   const [searchResults, setSearchResults] = useState<SearchUser[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [activeTab, setActiveTab] = useState<'community' | 'following'>('following')
+  const [activeTab, setActiveTab] = useState<'community' | 'following'>('community')
+  /** null = not read yet; avoid hint flash before localStorage */
+  const [friendsFeedHintDismissed, setFriendsFeedHintDismissed] = useState<
+    boolean | null
+  >(null)
+  /** One-shot: user tapped → on /welcome; can show hint even if they dismissed before */
+  const [friendsHintFromWelcome, setFriendsHintFromWelcome] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
   const [notesDrawerPost, setNotesDrawerPost] = useState<PostWithRelations | null>(null)
   const [notesByPostId, setNotesByPostId] = useState<Record<string, NoteWithAuthor[]>>({})
@@ -134,7 +140,7 @@ function FeedPageContent() {
   const handleSendNote = useCallback(async () => {
     if (!notesDrawerPost) return
     const trimmed = noteInput.trim()
-    if (trimmed.length < 1 || trimmed.length > NOTE_MAX_LENGTH) return
+    if (trimmed.length < 1 || trimmed.length > MAX_POST_TEXT_LENGTH) return
 
     try {
       setNoteSending(true)
@@ -168,7 +174,7 @@ function FeedPageContent() {
     } finally {
       setNoteSending(false)
     }
-  }, [noteInput, notesDrawerPost, NOTE_MAX_LENGTH])
+  }, [noteInput, notesDrawerPost])
 
   const handleDeleteNote = useCallback(async (noteId: string) => {
     if (!notesDrawerPost || noteDeletingIds.has(noteId)) return
@@ -212,7 +218,7 @@ function FeedPageContent() {
     ? notesHasNoted[notesDrawerPost.id] ?? false
     : false
   const noteIsValid = noteInput.trim().length >= 1
-    && noteInput.trim().length <= NOTE_MAX_LENGTH
+    && noteInput.trim().length <= MAX_POST_TEXT_LENGTH
 
   useEffect(() => {
     if (!hasLoadedByTab[activeTab]) {
@@ -241,6 +247,47 @@ function FeedPageContent() {
     }
     loadUser()
   }, [])
+
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem('moss_friends_feed_hint_from_welcome') === '1') {
+        setFriendsHintFromWelcome(true)
+        sessionStorage.removeItem('moss_friends_feed_hint_from_welcome')
+      }
+    } catch {
+      // ignore
+    }
+  }, [])
+
+  useEffect(() => {
+    const id = currentUser?.user?.id
+    if (!id) return
+    try {
+      setFriendsFeedHintDismissed(
+        localStorage.getItem(`moss_friends_feed_hint_${id}`) === '1'
+      )
+    } catch {
+      setFriendsFeedHintDismissed(false)
+    }
+  }, [currentUser?.user?.id])
+
+  const dismissFriendsFeedHint = useCallback(() => {
+    const id = currentUser?.user?.id
+    if (!id) return
+    try {
+      localStorage.setItem(`moss_friends_feed_hint_${id}`, '1')
+    } catch {
+      // ignore
+    }
+    setFriendsFeedHintDismissed(true)
+    setFriendsHintFromWelcome(false)
+  }, [currentUser?.user?.id])
+
+  /** Everyone tab + (never dismissed, or one-shot after /welcome → feed) */
+  const showFriendsFeedHint =
+    activeTab === 'community' &&
+    friendsFeedHintDismissed !== null &&
+    (!friendsFeedHintDismissed || friendsHintFromWelcome)
 
   useEffect(() => {
     if (!currentUser?.user?.id) return
@@ -436,11 +483,12 @@ function FeedPageContent() {
             >
               share
             </Link>
-            <div className="flex items-center gap-2.5 flex-shrink-0 min-w-0">
+            <div className="flex items-center flex-shrink-0">
               {currentUser?.user?.username ? (
                 <Link
                   href={`/profile/${encodeURIComponent(currentUser.user.username)}`}
-                  className="flex items-center gap-2 hover:opacity-90 transition-opacity min-w-0"
+                  className="flex items-center hover:opacity-90 transition-opacity"
+                  aria-label={`profile: ${currentUser.user.username}`}
                 >
                   <div
                     className="w-8 h-8 rounded-full flex-shrink-0 ring-2 ring-stone-400 relative"
@@ -450,15 +498,9 @@ function FeedPageContent() {
                       <span className="absolute -top-0.5 -left-0.5 w-2.5 h-2.5 bg-[#2d5016] ring-2 ring-black rounded-full" />
                     )}
                   </div>
-                  <span className="text-base font-bold lowercase text-stone-200 truncate ml-0.5">
-                    {currentUser.user.username}
-                  </span>
                 </Link>
               ) : (
-                <>
-                  <div className="w-8 h-8 rounded-full bg-stone-800 flex-shrink-0 ring-2 ring-stone-400" />
-                  <span className="text-sm text-stone-500">...</span>
-                </>
+                <div className="w-8 h-8 rounded-full bg-stone-800 flex-shrink-0 ring-2 ring-stone-400" />
               )}
             </div>
           </div>
@@ -488,6 +530,33 @@ function FeedPageContent() {
               </button>
             </div>
           </div>
+
+          {showFriendsFeedHint && (
+            <div className="relative mt-3 mb-1 rounded-lg border border-stone-700/90 bg-stone-950/80 px-3 py-2.5 pr-9">
+              <p className="text-xs md:text-sm text-stone-400 leading-relaxed m-0">
+                you&apos;re seeing posts from everyone,
+                <br />
+                try{' '}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('following')}
+                  className="font-semibold text-[#7a9b6f] hover:text-[#8fb084] transition-colors lowercase"
+                >
+                  friends
+                </button>
+                {' '}
+                for a more personal feed.
+              </p>
+              <button
+                type="button"
+                onClick={dismissFriendsFeedHint}
+                className="absolute right-2 top-2.5 p-1 text-stone-500 hover:text-stone-300 transition-colors"
+                aria-label="Dismiss"
+              >
+                ×
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1126,11 +1195,11 @@ function FeedPageContent() {
                     type="text"
                     value={noteInput}
                     onChange={(e) => {
-                      if (e.target.value.length <= NOTE_MAX_LENGTH) {
+                      if (e.target.value.length <= MAX_POST_TEXT_LENGTH) {
                         setNoteInput(e.target.value)
                       }
                     }}
-                    maxLength={NOTE_MAX_LENGTH}
+                    maxLength={MAX_POST_TEXT_LENGTH}
                     placeholder="leave a note..."
                     className="flex-1 bg-stone-900 text-stone-200 placeholder-stone-500 px-4 py-2 rounded-full outline-none border border-stone-800 focus:border-stone-700 text-sm"
                   />

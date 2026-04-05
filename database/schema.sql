@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS post_notes (
   
   -- Constraints
   CONSTRAINT post_notes_unique_per_user UNIQUE (post_id, user_id),
-  CONSTRAINT post_notes_text_length CHECK (char_length(text) >= 1 AND char_length(text) <= 60)
+  CONSTRAINT post_notes_text_length CHECK (char_length(text) >= 1 AND char_length(text) <= 80)
 );
 
 -- Create indexes for better query performance

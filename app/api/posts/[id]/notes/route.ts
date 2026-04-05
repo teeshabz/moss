@@ -1,11 +1,12 @@
 import { requireUserId } from '@/lib/auth'
+import { MAX_POST_TEXT_LENGTH } from '@/lib/post-text-limit'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 import type { NoteWithAuthor, NotesResponse } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
 
-const MAX_NOTE_LENGTH = 60
+const MAX_NOTE_LENGTH = MAX_POST_TEXT_LENGTH
 
 function normalizeNoteText(text: string): string {
   return text.trim()
@@ -123,7 +124,7 @@ export async function POST(
 
     if (text.length < 1 || text.length > MAX_NOTE_LENGTH) {
       return NextResponse.json(
-        { error: 'Note must be between 1 and 60 characters' },
+        { error: `Note must be between 1 and ${MAX_NOTE_LENGTH} characters` },
         { status: 400 }
       )
     }

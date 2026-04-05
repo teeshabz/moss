@@ -1,8 +1,9 @@
 import { requireUserId } from '@/lib/auth'
+import { countWeeklyPosts, WEEKLY_POST_LIMIT } from '@/lib/api/weekly-limit'
+import { findOrCreateMediaItem, validateMediaData } from '@/lib/api/media'
+import { MAX_POST_TEXT_LENGTH } from '@/lib/post-text-limit'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
-import { countWeeklyPosts, WEEKLY_POST_LIMIT } from '@/lib/api/weekly-limit'
-import { validateMediaData, findOrCreateMediaItem } from '@/lib/api/media'
 import type { CreatePostRequest } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
@@ -43,6 +44,18 @@ export async function POST(request: Request) {
       )
     }
 
+    const noteTrimmed =
+      typeof body.note === 'string' ? body.note.trim() : ''
+    if (noteTrimmed.length > MAX_POST_TEXT_LENGTH) {
+      return NextResponse.json(
+        {
+          error: `Note must be at most ${MAX_POST_TEXT_LENGTH} characters`,
+          code: 'validation_error',
+        },
+        { status: 400 }
+      )
+    }
+
     const supabaseAdmin = createAdminClient()
 
     // Check weekly limit
@@ -75,7 +88,7 @@ export async function POST(request: Request) {
       .insert({
         user_id: userId,
         media_item_id: mediaItemId,
-        note: body.note?.trim() || null,
+        note: noteTrimmed || null,
       })
       .select()
       .single()
