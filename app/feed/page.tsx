@@ -573,9 +573,10 @@ function FeedPageContent() {
             </div>
           </div>
 
-          {/* Media type filter — click again on selected type to clear */}
-          <div className="py-4 mb-2 flex items-center justify-center min-w-0">
-            <div className="flex items-center justify-center gap-2.5 sm:gap-3 overflow-x-auto max-w-full">
+          {/* Media type filter — 1fr | icons | 1fr keeps icons centered; × sits at left of right column (next to icons) */}
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center py-3 mb-1 min-w-0">
+            <div className="min-w-0" aria-hidden />
+            <div className="flex items-center justify-center gap-2.5 sm:gap-3 overflow-x-auto min-w-0 max-w-full">
               {SHARE_MEDIA_ROW.map((row) => {
                 const selected = mediaFilter === row.mediaType
                 const iconSize = 16
@@ -607,6 +608,18 @@ function FeedPageContent() {
                   </button>
                 )
               })}
+            </div>
+            <div className="flex items-center justify-start pl-3 min-w-0 self-center">
+              {mediaFilter !== null && (
+                <button
+                  type="button"
+                  onClick={() => replaceFeedQuery({ type: null })}
+                  className="w-6 h-6 flex items-center justify-center rounded text-stone-500 hover:text-stone-300 text-sm leading-none transition-colors shrink-0"
+                  aria-label="Clear filter, show all posts"
+                >
+                  ×
+                </button>
+              )}
             </div>
           </div>
 
@@ -640,7 +653,7 @@ function FeedPageContent() {
       </div>
 
       {/* Feed Content */}
-      <div className="max-w-2xl mx-auto px-6 md:px-8 mt-8">
+      <div className="max-w-2xl mx-auto px-6 md:px-8 mt-5">
         {error && (
           <div className="mb-6 p-4 bg-red-900/20 border border-red-800 rounded text-red-400 text-sm">
             <p>{error}</p>

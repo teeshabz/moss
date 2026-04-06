@@ -7,8 +7,19 @@ import { ErrorBoundaryWrapper } from "@/lib/components/ErrorBoundaryWrapper";
 import { mossClerkAppearance } from "@/lib/clerk-appearance";
 
 export const metadata: Metadata = {
-  title: "Moss",
+  title: "moss",
   description: `Share what you're reading, watching, and listening to`,
+  icons: {
+    icon: [{ url: "/icon.png", sizes: "192x192", type: "image/png" }],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
+  appleWebApp: {
+    capable: true,
+    title: "moss",
+    statusBarStyle: "default",
+  },
 };
 
 export default function RootLayout({

@@ -1,7 +1,14 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
+import { auth } from '@clerk/nextjs/server'
 import { MossIcon } from '@/lib/components/MossIcon'
 
-export default function Home() {
+export default async function Home() {
+  const { userId } = await auth()
+  if (userId) {
+    redirect('/feed')
+  }
+
   return (
     <main className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-8">
       <div className="flex flex-col items-center justify-center flex-1 w-full max-w-lg text-center">

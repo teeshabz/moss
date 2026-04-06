@@ -764,7 +764,7 @@ export default function ProfilePage() {
           : null
 
   return (
-    <div className="min-h-screen bg-black text-white pb-24">
+    <div className="min-h-screen bg-black text-white pb-32">
       {/* Header: optional ← (pings / following list / your people); moss → feed */}
       <div className="sticky top-0 bg-black/90 backdrop-blur-sm z-10">
         <div className="max-w-4xl mx-auto px-4 md:px-8 pt-6 pb-4 flex items-center justify-between">
@@ -1457,26 +1457,37 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {/* Bottom bar - search for friends */}
+      {/* Bottom bar — same layout as feed; sign out replaces about */}
       <div className="fixed bottom-0 left-0 right-0 bg-black z-20">
         <div className="h-px bg-stone-800 flex-shrink-0" />
 
         {searchExpanded ? (
-          <div className="flex items-end w-full max-w-4xl mx-auto px-4 md:px-8 py-4 gap-6">
-            <div className="flex items-center gap-2.5 flex-shrink-0">
+          <div className="relative flex items-end w-full px-6 md:px-8 py-6 gap-6">
+            <div className="flex-shrink-0">
               {isOwnProfile ? (
                 <SignOutButton>
                   <button
                     type="button"
-                    className="text-white text-xs font-medium hover:text-stone-300 transition-colors lowercase"
+                    className="text-stone-500 text-xs font-medium hover:text-stone-400 transition-colors lowercase"
                   >
                     sign out
                   </button>
                 </SignOutButton>
               ) : (
-                <div className="w-10" />
+                <span className="inline-block w-[4.5rem] flex-shrink-0" aria-hidden />
               )}
             </div>
+
+            <Link
+              href="/share"
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-[#2d5016] text-black shadow-md transition-colors hover:bg-[#3a6b1e] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7a9b6f] focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+              aria-label="Share something new"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                <rect x="9.5" y="2" width="5" height="20" />
+                <rect x="2" y="9.5" width="20" height="5" />
+              </svg>
+            </Link>
 
             <div className="relative w-full max-w-[33%] min-w-[240px] ml-auto">
               {searchQuery.trim() && (
@@ -1573,22 +1584,29 @@ export default function ProfilePage() {
             </div>
           </div>
         ) : (
-          <div className="max-w-4xl mx-auto px-4 md:px-8 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-2.5 flex-shrink-0">
-              {isOwnProfile ? (
-                <SignOutButton>
-                  <button
-                    type="button"
-                    className="text-white text-xs font-medium hover:text-stone-300 transition-colors lowercase"
-                  >
-                    sign out
-                  </button>
-                </SignOutButton>
-              ) : (
-                <div className="w-10" />
-              )}
-            </div>
-
+          <div className="relative max-w-2xl mx-auto px-6 md:px-8 py-6 flex items-center justify-between">
+            {isOwnProfile ? (
+              <SignOutButton>
+                <button
+                  type="button"
+                  className="text-stone-500 text-xs font-medium hover:text-stone-400 transition-colors lowercase"
+                >
+                  sign out
+                </button>
+              </SignOutButton>
+            ) : (
+              <span className="inline-block w-[4.5rem] flex-shrink-0" aria-hidden />
+            )}
+            <Link
+              href="/share"
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-[#2d5016] text-black shadow-md transition-colors hover:bg-[#3a6b1e] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7a9b6f] focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+              aria-label="Share something new"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                <rect x="9.5" y="2" width="5" height="20" />
+                <rect x="2" y="9.5" width="20" height="5" />
+              </svg>
+            </Link>
             <button
               onClick={() => setSearchExpanded(true)}
               className="text-stone-400 hover:text-stone-300 transition-colors"
