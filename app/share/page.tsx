@@ -66,6 +66,10 @@ export default function SharePage() {
         // summary=1 skips saved post IDs for faster response on share page
         const response = await fetch('/api/users/me?summary=1')
         if (!response.ok) {
+          if (response.status === 404) {
+            router.push('/onboarding')
+            return
+          }
           if (response.status === 401) {
             router.push('/login')
             return

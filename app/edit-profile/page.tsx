@@ -38,12 +38,17 @@ export default function EditProfilePage() {
   const [phoneNumber, setPhoneNumber] = useState('')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
+  const [smsOptIn, setSmsOptIn] = useState(true)
 
   useEffect(() => {
     async function loadUser() {
       try {
         const res = await fetch('/api/users/me')
-        if (res.status === 401 || res.status === 404) {
+        if (res.status === 404) {
+          router.push('/onboarding')
+          return
+        }
+        if (res.status === 401) {
           router.push('/login')
           return
         }
@@ -58,6 +63,7 @@ export default function EditProfilePage() {
         setPhoneNumber(u.phone_number ?? '')
         setFirstName(u.first_name ?? '')
         setLastName(u.last_name ?? '')
+        setSmsOptIn(u.sms_opt_in ?? true)
       } catch {
         setError('Failed to load profile')
       } finally {
@@ -78,6 +84,7 @@ export default function EditProfilePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           phone_number: phoneNumber.trim() || null,
+          sms_opt_in: smsOptIn,
           first_name: firstName.trim() || null,
           last_name: lastName.trim() || null,
         }),
@@ -301,14 +308,30 @@ export default function EditProfilePage() {
             <div className="text-red-400 text-sm">{error}</div>
           )}
 
-          <button
-            type="submit"
-            disabled={saving}
-            className="rounded-full text-white font-medium px-5 py-1.5 text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
-            style={{ backgroundColor: '#2d5016' }}
-          >
-            {saving ? 'saving...' : 'save'}
-          </button>
+          <div className="flex items-center justify-between gap-4">
+            <button
+              type="submit"
+              disabled={saving}
+              className="rounded-full text-white font-medium px-5 py-1.5 text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
+              style={{ backgroundColor: '#2d5016' }}
+            >
+              {saving ? 'saving...' : 'save'}
+            </button>
+            <label
+              htmlFor="sms_opt_in"
+              className="inline-flex items-center gap-3 text-sm text-gray-400 leading-5 select-none"
+            >
+              <input
+                id="sms_opt_in"
+                type="checkbox"
+                checked={smsOptIn}
+                onChange={(e) => setSmsOptIn(e.target.checked)}
+                disabled={saving}
+                className="h-4 w-4 rounded border-gray-600 bg-transparent accent-green-500 focus:ring-green-500"
+              />
+              send me moss text updates
+            </label>
+          </div>
 
           <div className="mt-8">
             <SignOutButton>

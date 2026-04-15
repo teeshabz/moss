@@ -43,7 +43,7 @@ export default function FindFriendsPage() {
         if (res.ok) {
           const data: UserMeResponse = await res.json()
           setCurrentUser(data)
-        } else if (res.status === 401) {
+        } else if (res.status === 404 || res.status === 401) {
           router.push('/onboarding')
         }
       } catch {

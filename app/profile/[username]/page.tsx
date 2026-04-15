@@ -167,6 +167,9 @@ export default function ProfilePage() {
         if (res.status === 404) {
           setNotFound(true)
           setProfile(null)
+        } else if (res.status === 401) {
+          router.push('/onboarding')
+          return
         } else {
           setError('Failed to load profile')
         }
@@ -192,7 +195,7 @@ export default function ProfilePage() {
       setLoading(false)
       setLoadingMore(false)
     }
-  }, [username])
+  }, [username, router])
 
   const loadSaved = useCallback(async (cursor?: string) => {
     if (!isOwnProfile) return
@@ -206,7 +209,8 @@ export default function ProfilePage() {
       const res = await fetch(url)
       if (!res.ok) {
         if (res.status === 401) {
-          setSavedError('Please log in to view saved items')
+          router.push('/onboarding')
+          return
         } else {
           setSavedError('Failed to load saved items')
         }
@@ -227,7 +231,7 @@ export default function ProfilePage() {
       setSavedLoading(false)
       setSavedLoadingMore(false)
     }
-  }, [isOwnProfile])
+  }, [isOwnProfile, router])
 
   const loadPings = useCallback(async () => {
     if (!isOwnProfile) return
@@ -237,7 +241,8 @@ export default function ProfilePage() {
       const res = await fetch('/api/users/me/pings')
       if (!res.ok) {
         if (res.status === 401) {
-          setPingsError('Please log in to view pings')
+          router.push('/onboarding')
+          return
         } else {
           setPingsError('Failed to load pings')
         }
@@ -252,7 +257,7 @@ export default function ProfilePage() {
     } finally {
       setPingsLoading(false)
     }
-  }, [isOwnProfile])
+  }, [isOwnProfile, router])
 
   useEffect(() => {
     if (!isOwnProfile) return
@@ -765,41 +770,38 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-black text-white pb-32">
-      {/* Header: optional ← (pings / following list / your people); moss → feed */}
+      {/* Header: feed-style top bar with profile summary/actions on the right */}
       <div className="sticky top-0 bg-black/90 backdrop-blur-sm z-10">
-        <div className="max-w-4xl mx-auto px-4 md:px-8 pt-6 pb-4 flex items-center justify-between">
-          {headerBackLink ? (
-            <Link
-              href={headerBackLink.href}
-              className="text-white text-2xl hover:text-gray-300 flex-shrink-0 w-8 flex justify-start"
-              aria-label={headerBackLink.label}
-            >
-              ←
-            </Link>
-          ) : (
-            <div className="w-8 flex-shrink-0" aria-hidden />
-          )}
-          <Link href="/feed" className="flex items-center gap-2">
-            <MossIcon color="#2d5016" size={26} />
-            <span
-              className="text-2xl font-bold lowercase"
-              style={{
-                color: '#2d5016',
-                fontFamily: 'monospace',
-                letterSpacing: '0.1em',
-                textRendering: 'geometricPrecision',
-              }}
-            >
-              moss
-            </span>
-          </Link>
-          <div className="w-8" />
-        </div>
+        <div className="max-w-2xl mx-auto px-6 md:px-8">
+          <div className="pt-5 pb-3 flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              {headerBackLink && (
+                <Link
+                  href={headerBackLink.href}
+                  className="text-white text-xl hover:text-gray-300 flex-shrink-0 leading-none"
+                  aria-label={headerBackLink.label}
+                >
+                  ←
+                </Link>
+              )}
+              <Link href="/feed" className="flex items-center gap-2 flex-shrink-0 min-w-0">
+                <MossIcon color="#2d5016" size={26} />
+              </Link>
+            </div>
 
-        <div className="max-w-2xl mx-auto px-4 md:px-8 pb-4">
-          {/* Left: avatar above username. Right: your people (own) or follow — same row as username */}
-          <div className="flex justify-between items-end gap-4 mb-2">
-            <div className="flex flex-col items-start gap-2 min-w-0">
+            <div className="flex items-start gap-3 min-w-0 shrink-0 mt-2">
+              <div className="flex flex-col items-end gap-1.5 min-w-0 pt-2">
+                <h1 className="font-bold lowercase truncate max-w-[10rem] text-base md:text-lg leading-tight text-right">
+                  {user.username}
+                </h1>
+                <Link
+                  href={`/profile/${encodeURIComponent(user.username)}/following`}
+                  className="flex items-center justify-center text-stone-500 hover:text-stone-300 active:text-white transition-colors p-1 -m-1 relative z-10"
+                  aria-label={`Who ${user.username} follows`}
+                >
+                  <YourPeopleIcon className="w-6 h-6 md:w-7 md:h-7 flex-shrink-0" />
+                </Link>
+              </div>
               {isOwnProfile ? (
                 <Link
                   href="/edit-profile"
@@ -808,11 +810,11 @@ export default function ProfilePage() {
                   aria-label="Edit profile"
                 >
                   <span
-                  className="absolute -bottom-0.5 -right-0.5 w-[18px] h-[18px] bg-stone-900 rounded-full border border-stone-700 flex items-center justify-center"
-                  aria-hidden
-                >
-                  <svg
-                    className="w-2 h-2 text-white"
+                    className="absolute -bottom-0.5 -right-0.5 w-[18px] h-[18px] bg-stone-900 rounded-full border border-stone-700 flex items-center justify-center"
+                    aria-hidden
+                  >
+                    <svg
+                      className="w-2 h-2 text-white"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -830,49 +832,32 @@ export default function ProfilePage() {
                   style={{ backgroundColor: user.avatar_color }}
                 />
               )}
-              <h1 className="font-bold lowercase truncate w-full text-xl md:text-2xl">
-                {user.username}
-              </h1>
             </div>
-            {isOwnProfile ? (
-              <Link
-                href="/your-people"
-                className="flex items-center justify-center flex-shrink-0 text-stone-500 hover:text-stone-300 active:text-white transition-colors relative z-10 pointer-events-auto p-1 -m-1 pb-0.5"
-                aria-label="Your people"
+          </div>
+
+          <div className="flex items-center justify-start gap-3 pb-2">
+            {!isOwnProfile && (
+              <button
+                type="button"
+                onClick={handleFollowToggle}
+                disabled={followUpdating}
+                className={`-mt-9 flex-shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold lowercase transition-colors ${
+                  isFollowing
+                    ? 'bg-stone-800 text-stone-400 hover:bg-stone-700'
+                    : 'bg-[#2d5016] text-white hover:bg-[#3d6a1e]'
+                } ${followUpdating ? 'opacity-60 cursor-not-allowed' : ''}`}
               >
-                <YourPeopleIcon className="w-6 h-6 md:w-7 md:h-7 flex-shrink-0" />
-              </Link>
-            ) : (
-              <div className="flex items-end gap-3 flex-shrink-0">
-                <Link
-                  href={`/profile/${encodeURIComponent(user.username)}/following`}
-                  className="flex items-center justify-center text-stone-500 hover:text-stone-300 active:text-white transition-colors p-1 -m-1 pb-0.5 mb-0.5 relative z-10"
-                  aria-label={`Who ${user.username} follows`}
-                >
-                  <YourPeopleIcon className="w-6 h-6 md:w-7 md:h-7 flex-shrink-0" />
-                </Link>
-                <button
-                  type="button"
-                  onClick={handleFollowToggle}
-                  disabled={followUpdating}
-                  className={`flex-shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold lowercase transition-colors mb-0.5 ${
-                    isFollowing
-                      ? 'bg-stone-800 text-stone-400 hover:bg-stone-700'
-                      : 'bg-[#2d5016] text-white hover:bg-[#3d6a1e]'
-                  } ${followUpdating ? 'opacity-60 cursor-not-allowed' : ''}`}
-                >
-                  {isFollowing ? 'following' : 'follow'}
-                </button>
-              </div>
+                {isFollowing ? 'following' : 'follow'}
+              </button>
             )}
           </div>
 
           {!isOwnProfile && (
-            <div className="border-b border-stone-700 mt-4" aria-hidden />
+            <div className="border-b border-stone-700" aria-hidden />
           )}
 
           {isOwnProfile && (
-            <div className="border-b border-stone-700 mt-4">
+            <div className="border-b border-stone-700">
               <div className="flex items-center gap-6 justify-center">
                 <button
                   onClick={() => setActiveTab('shared')}

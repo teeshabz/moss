@@ -57,7 +57,7 @@ export default function ProfileFollowingPage() {
           if (res.status === 404) {
             setError('User not found')
           } else if (res.status === 401) {
-            router.push('/login')
+            router.push('/onboarding')
             return
           } else {
             throw new Error('Failed to load')

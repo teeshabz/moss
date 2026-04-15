@@ -10,6 +10,9 @@ export interface User {
   username: string
   avatar_color: string
   phone_number?: string | null
+  sms_opt_in?: boolean
+  last_weekly_sms_ping_at?: string | null
+  sms_timezone?: string | null
   first_name?: string | null
   last_name?: string | null
   created_at: string

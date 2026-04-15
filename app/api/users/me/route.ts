@@ -35,6 +35,9 @@ export async function GET(request: Request) {
           username: dbUser.username,
           avatar_color: dbUser.avatar_color ?? '',
           phone_number: dbUser.phone_number ?? null,
+          sms_opt_in: !!dbUser.sms_opt_in,
+          last_weekly_sms_ping_at: dbUser.last_weekly_sms_ping_at ?? null,
+          sms_timezone: dbUser.sms_timezone ?? null,
           first_name: dbUser.first_name ?? null,
           last_name: dbUser.last_name ?? null,
           created_at: dbUser.created_at,
@@ -58,6 +61,9 @@ export async function GET(request: Request) {
         username: dbUser.username,
         avatar_color: dbUser.avatar_color ?? '',
         phone_number: dbUser.phone_number ?? null,
+        sms_opt_in: !!dbUser.sms_opt_in,
+        last_weekly_sms_ping_at: dbUser.last_weekly_sms_ping_at ?? null,
+        sms_timezone: dbUser.sms_timezone ?? null,
         first_name: dbUser.first_name ?? null,
         last_name: dbUser.last_name ?? null,
         created_at: dbUser.created_at,
@@ -92,6 +98,8 @@ export async function PATCH(request: Request) {
     const updates: {
       avatar_color?: string
       phone_number?: string | null
+      sms_opt_in?: boolean
+      sms_timezone?: string
       first_name?: string | null
       last_name?: string | null
     } = {}
@@ -103,6 +111,13 @@ export async function PATCH(request: Request) {
     if (body.phone_number !== undefined) {
       const v = typeof body.phone_number === 'string' ? body.phone_number.trim() : null
       updates.phone_number = v === '' ? null : v
+    }
+    if (body.sms_opt_in !== undefined && typeof body.sms_opt_in === 'boolean') {
+      updates.sms_opt_in = body.sms_opt_in
+    }
+    if (body.sms_timezone !== undefined && typeof body.sms_timezone === 'string') {
+      const v = body.sms_timezone.trim()
+      if (v) updates.sms_timezone = v
     }
     if (body.first_name !== undefined) {
       const v = typeof body.first_name === 'string' ? body.first_name.trim() : null
@@ -119,7 +134,7 @@ export async function PATCH(request: Request) {
       .from('users')
       .update(updates)
       .eq('id', userId)
-      .select('id, email, username, avatar_color, phone_number, first_name, last_name, created_at')
+      .select('id, email, username, avatar_color, phone_number, sms_opt_in, last_weekly_sms_ping_at, sms_timezone, first_name, last_name, created_at')
       .single()
 
     if (updateError) {

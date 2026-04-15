@@ -22,6 +22,8 @@ export async function POST(request: Request) {
     const username = body.username
     const phoneRaw =
       typeof body.phone_number === 'string' ? body.phone_number : ''
+    const smsOptIn =
+      typeof body.sms_opt_in === 'boolean' ? body.sms_opt_in : true
     const phoneE164 = normalizeProfilePhoneToE164(phoneRaw)
 
     if (!username || typeof username !== 'string') {
@@ -88,6 +90,7 @@ export async function POST(request: Request) {
         username: username.toLowerCase().trim(),
         avatar_color: avatarColor,
         phone_number: phoneE164,
+        sms_opt_in: smsOptIn,
         first_name: firstName,
         last_name: lastName,
       })

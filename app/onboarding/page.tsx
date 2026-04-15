@@ -40,6 +40,7 @@ export default function OnboardingPage() {
   const [phoneNumber, setPhoneNumber] = useState('')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
+  const [smsOptIn, setSmsOptIn] = useState(true)
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const router = useRouter()
@@ -126,6 +127,7 @@ export default function OnboardingPage() {
         body: JSON.stringify({
           username: username.trim().toLowerCase(),
           phone_number: phoneNumber.trim(),
+          sms_opt_in: smsOptIn,
           first_name: firstName.trim() || null,
           last_name: lastName.trim() || null,
         }),
@@ -259,6 +261,19 @@ export default function OnboardingPage() {
                   disabled={creating}
                   autoComplete="family-name"
                 />
+              </div>
+              <div className="flex items-start gap-3 pt-1">
+                <input
+                  id="sms_opt_in"
+                  type="checkbox"
+                  checked={smsOptIn}
+                  onChange={(e) => setSmsOptIn(e.target.checked)}
+                  disabled={creating}
+                  className="mt-0.5 h-4 w-4 rounded border-gray-600 bg-transparent accent-green-500 focus:ring-green-500"
+                />
+                <label htmlFor="sms_opt_in" className="text-sm text-gray-400 leading-5 select-none">
+                  send me moss text updates
+                </label>
               </div>
               {createError && (
                 <div className="text-red-400 text-sm">{createError}</div>
