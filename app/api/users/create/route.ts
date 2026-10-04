@@ -3,7 +3,6 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { requireClerkUserId } from '@/lib/auth'
 import { NextResponse } from 'next/server'
 import { generateAvatarColor, normalizeProfilePhoneToE164 } from '@/lib/utils'
-
 export const dynamic = 'force-dynamic'
 
 /**
@@ -22,8 +21,7 @@ export async function POST(request: Request) {
     const username = body.username
     const phoneRaw =
       typeof body.phone_number === 'string' ? body.phone_number : ''
-    const smsOptIn =
-      typeof body.sms_opt_in === 'boolean' ? body.sms_opt_in : true
+    const smsOptIn = body.sms_opt_in === true
     const phoneE164 = normalizeProfilePhoneToE164(phoneRaw)
 
     if (!username || typeof username !== 'string') {

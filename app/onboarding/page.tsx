@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { MossIcon } from '@/lib/components/MossIcon'
 import { formatPhoneInputDisplay, normalizeProfilePhoneToE164 } from '@/lib/utils'
+import { SMS_CONSENT_DISCLOSURE, SMS_CONSENT_LABEL } from '@/lib/sms-consent'
 
 const RESERVED_USERNAMES = ['moss', 'api', 'admin', 'support']
 
@@ -40,7 +41,7 @@ export default function OnboardingPage() {
   const [phoneNumber, setPhoneNumber] = useState('')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
-  const [smsOptIn, setSmsOptIn] = useState(true)
+  const [smsOptIn, setSmsOptIn] = useState(false)
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const router = useRouter()
@@ -269,11 +270,24 @@ export default function OnboardingPage() {
                   checked={smsOptIn}
                   onChange={(e) => setSmsOptIn(e.target.checked)}
                   disabled={creating}
-                  className="mt-0.5 h-4 w-4 rounded border-gray-600 bg-transparent accent-green-500 focus:ring-green-500"
+                  aria-describedby="sms_opt_in_disclosure"
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-600 bg-transparent accent-green-500 focus:ring-green-500"
                 />
-                <label htmlFor="sms_opt_in" className="text-sm text-gray-400 leading-5 select-none">
-                  send me moss text updates
-                </label>
+                <div className="space-y-1.5">
+                  <label htmlFor="sms_opt_in" className="block text-sm text-gray-400 leading-5 select-none">
+                    {SMS_CONSENT_LABEL}
+                  </label>
+                  <p id="sms_opt_in_disclosure" className="text-xs text-gray-500 leading-relaxed">
+                    {SMS_CONSENT_DISCLOSURE}{' '}
+                    <Link href="/terms" target="_blank" className="underline hover:text-gray-300">
+                      Terms
+                    </Link>
+                    {' · '}
+                    <Link href="/privacy" target="_blank" className="underline hover:text-gray-300">
+                      Privacy Policy
+                    </Link>
+                  </p>
+                </div>
               </div>
               {createError && (
                 <div className="text-red-400 text-sm">{createError}</div>

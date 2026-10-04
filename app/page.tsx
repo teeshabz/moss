@@ -43,13 +43,21 @@ export default async function Home() {
       </div>
 
       {/* Footer */}
-      <footer className="text-gray-400 text-sm mt-auto pb-8">
+      <footer className="text-gray-400 text-sm mt-auto pb-8 flex flex-col items-center gap-2">
         <a
           href="mailto:hello.moss.app@gmail.com"
           className="hover:text-gray-300 transition-colors"
         >
           contact: hello.moss.app@gmail.com
         </a>
+        <div className="flex gap-4 text-xs text-gray-500">
+          <Link href="/terms" className="hover:text-gray-300 transition-colors">
+            terms
+          </Link>
+          <Link href="/privacy" className="hover:text-gray-300 transition-colors">
+            privacy
+          </Link>
+        </div>
       </footer>
     </main>
   )
