@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { requireClerkUserId } from '@/lib/auth'
 import { NextResponse } from 'next/server'
 import { generateAvatarColor, normalizeProfilePhoneToE164 } from '@/lib/utils'
+import { recordSmsConsent } from '@/lib/sms-consent-record'
 export const dynamic = 'force-dynamic'
 
 /**
@@ -101,6 +102,10 @@ export async function POST(request: Request) {
         { error: insertError.message },
         { status: 500 }
       )
+    }
+
+    if (smsOptIn) {
+      newUser.sms_opt_in = await recordSmsConsent(supabaseAdmin, internalId, phoneE164, 'onboarding')
     }
 
     return NextResponse.json(

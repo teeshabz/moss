@@ -2,6 +2,7 @@ import { getCurrentUser, requireUserId } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { countWeeklyPosts } from '@/lib/api/weekly-limit'
+import { recordSmsConsent } from '@/lib/sms-consent-record'
 import type { UserMeResponse } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
@@ -130,6 +131,16 @@ export async function PATCH(request: Request) {
 
     const supabaseAdmin = createAdminClient()
 
+    let wasOptedIn = false
+    if (updates.sms_opt_in === true) {
+      const { data: before } = await supabaseAdmin
+        .from('users')
+        .select('sms_opt_in')
+        .eq('id', userId)
+        .single()
+      wasOptedIn = !!before?.sms_opt_in
+    }
+
     const { data: dbUser, error: updateError } = await supabaseAdmin
       .from('users')
       .update(updates)
@@ -150,6 +161,15 @@ export async function PATCH(request: Request) {
         { error: 'User not found' },
         { status: 404 }
       )
+    }
+
+    if (updates.sms_opt_in === true && !wasOptedIn) {
+      if (dbUser.phone_number) {
+        dbUser.sms_opt_in = await recordSmsConsent(supabaseAdmin, userId, dbUser.phone_number, 'profile')
+      } else {
+        await supabaseAdmin.from('users').update({ sms_opt_in: false }).eq('id', userId)
+        dbUser.sms_opt_in = false
+      }
     }
 
     return NextResponse.json({ user: dbUser })

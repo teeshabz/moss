@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { SignOutButton } from '@clerk/nextjs'
 import { MossIcon } from '@/lib/components/MossIcon'
 import { generateAvatarColor } from '@/lib/utils'
+import { SMS_CONSENT_DISCLOSURE, SMS_CONSENT_LABEL } from '@/lib/sms-consent'
 import type { User } from '@/lib/types'
 
 function LockIcon() {
@@ -38,7 +39,7 @@ export default function EditProfilePage() {
   const [phoneNumber, setPhoneNumber] = useState('')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
-  const [smsOptIn, setSmsOptIn] = useState(true)
+  const [smsOptIn, setSmsOptIn] = useState(false)
 
   useEffect(() => {
     async function loadUser() {
@@ -63,7 +64,7 @@ export default function EditProfilePage() {
         setPhoneNumber(u.phone_number ?? '')
         setFirstName(u.first_name ?? '')
         setLastName(u.last_name ?? '')
-        setSmsOptIn(u.sms_opt_in ?? true)
+        setSmsOptIn(u.sms_opt_in ?? false)
       } catch {
         setError('Failed to load profile')
       } finally {
@@ -304,6 +305,33 @@ export default function EditProfilePage() {
             )
           })()}
 
+          <div className="flex items-start gap-3">
+            <input
+              id="sms_opt_in"
+              type="checkbox"
+              checked={smsOptIn}
+              onChange={(e) => setSmsOptIn(e.target.checked)}
+              disabled={saving}
+              aria-describedby="sms_opt_in_disclosure"
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-600 bg-transparent accent-green-500 focus:ring-green-500"
+            />
+            <div className="space-y-1.5">
+              <label htmlFor="sms_opt_in" className="block text-sm text-gray-400 leading-5 select-none">
+                {SMS_CONSENT_LABEL}
+              </label>
+              <p id="sms_opt_in_disclosure" className="text-xs text-gray-500 leading-relaxed">
+                {SMS_CONSENT_DISCLOSURE}{' '}
+                <Link href="/terms" target="_blank" className="underline hover:text-gray-300">
+                  Terms
+                </Link>
+                {' · '}
+                <Link href="/privacy" target="_blank" className="underline hover:text-gray-300">
+                  Privacy Policy
+                </Link>
+              </p>
+            </div>
+          </div>
+
           {error && (
             <div className="text-red-400 text-sm">{error}</div>
           )}
@@ -317,20 +345,6 @@ export default function EditProfilePage() {
             >
               {saving ? 'saving...' : 'save'}
             </button>
-            <label
-              htmlFor="sms_opt_in"
-              className="inline-flex items-center gap-3 text-sm text-gray-400 leading-5 select-none"
-            >
-              <input
-                id="sms_opt_in"
-                type="checkbox"
-                checked={smsOptIn}
-                onChange={(e) => setSmsOptIn(e.target.checked)}
-                disabled={saving}
-                className="h-4 w-4 rounded border-gray-600 bg-transparent accent-green-500 focus:ring-green-500"
-              />
-              send me moss text updates
-            </label>
           </div>
 
           <div className="mt-8">
