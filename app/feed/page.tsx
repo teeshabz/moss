@@ -17,6 +17,7 @@ import type {
 } from '@/lib/types'
 import { SHARE_MEDIA_ROW, parseFeedTypeParam } from '@/lib/share-media-config'
 import { MossIcon } from '@/lib/components/MossIcon'
+import { AboutText } from '@/lib/components/AboutDialog'
 import {
   formatTimeAgo,
   getMediaTypeLabel,
@@ -1153,9 +1154,7 @@ function FeedPageContent() {
                 moss
               </span>
             </div>
-            <p className="text-stone-400 text-sm leading-relaxed lowercase">
-              moss is a place to connect through the media that moves you. to encourage sharing the things that really resonate, you can share up to 3 things per week.
-            </p>
+            <AboutText />
             <button
               onClick={() => setAboutOpen(false)}
               type="button"

@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { auth } from '@clerk/nextjs/server'
 import { MossIcon } from '@/lib/components/MossIcon'
+import { HowItWorksLink } from '@/lib/components/AboutDialog'
 
 export default async function Home() {
   const { userId } = await auth()
@@ -29,17 +30,26 @@ export default async function Home() {
         </div>
 
         {/* Tagline */}
-        <p className="text-gray-400 text-lg mb-10">
+        <p className="text-gray-400 text-base mb-10">
           connect through media that moves you
         </p>
 
-        {/* Enter → login */}
-        <Link
-          href="/login"
-          className="px-8 py-3 rounded-full bg-[#2d5016] text-white font-medium hover:bg-[#3a6b1e] transition-colors"
-        >
-          enter
-        </Link>
+        <div className="flex flex-col items-center gap-3 mb-6">
+          <Link
+            href="/signup"
+            className="w-36 text-center px-6 py-2.5 text-[15px] rounded-full bg-[#2d5016] text-white font-medium hover:bg-[#3a6b1e] transition-colors"
+          >
+            sign up
+          </Link>
+          <Link
+            href="/login"
+            className="w-36 text-center px-6 py-2.5 text-[15px] rounded-full border border-[#2d5016] text-gray-300 font-medium hover:border-[#3a6b1e] hover:text-white transition-colors"
+          >
+            log in
+          </Link>
+        </div>
+
+        <HowItWorksLink />
       </div>
 
       {/* Footer */}

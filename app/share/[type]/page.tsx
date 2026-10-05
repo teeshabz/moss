@@ -15,6 +15,7 @@ import {
   LiveIcon,
 } from '@/lib/components/SharePageMediaIcons'
 import { MossIcon } from '@/lib/components/MossIcon'
+import { AboutText } from '@/lib/components/AboutDialog'
 import { MAX_POST_TEXT_LENGTH } from '@/lib/post-text-limit'
 
 const validTypes = ['book', 'article', 'movie', 'song', 'album', 'podcast', 'live']
@@ -297,6 +298,20 @@ export default function ShareTypePage() {
   const [movieSearchError, setMovieSearchError] = useState<string | null>(null)
   const [selectedMovie, setSelectedMovie] = useState<MovieResult | null>(null)
   const movieSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Hide search results once the user moves on to other fields, so the list doesn't push the share button off screen
+  const [searchResultsHidden, setSearchResultsHidden] = useState(false)
+
+  const handleFormFocus = (e: React.FocusEvent<HTMLFormElement>) => {
+    const target = e.target as HTMLElement
+    const isTextField = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA'
+    if (!isTextField) return
+    setSearchResultsHidden(!target.closest('[data-search-area]'))
+  }
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    setSearchResultsHidden(e.key === 'Escape')
+  }
 
   useEffect(() => {
     if (!isValidType) {
@@ -695,9 +710,7 @@ export default function ShareTypePage() {
                   moss
                 </span>
               </div>
-              <p className="text-stone-400 text-sm leading-relaxed lowercase">
-                moss is a place to connect through the media that moves you. to encourage sharing the things that really resonate, you can share up to 3 things per week.
-              </p>
+              <AboutText />
               <button
                 onClick={() => setAboutOpen(false)}
                 type="button"
@@ -787,9 +800,9 @@ export default function ShareTypePage() {
 
       {/* Form */}
       <div className="flex-1 flex flex-col items-start justify-center px-6 md:px-8 pb-8 mx-auto w-full max-w-2xl">
-        <form onSubmit={handleSubmit} className="w-full max-w-2xl space-y-8">
+        <form onSubmit={handleSubmit} onFocus={handleFormFocus} className="w-full max-w-2xl space-y-8">
           {type === 'book' && (
-            <div className="w-full space-y-2">
+            <div className="w-full space-y-2" data-search-area>
               <label
                 htmlFor="book-search"
                 className="text-sm uppercase tracking-wider font-bold block mb-2"
@@ -809,6 +822,7 @@ export default function ShareTypePage() {
                   type="text"
                   value={bookSearchQuery}
                   onChange={(e) => setBookSearchQuery(e.target.value)}
+                  onKeyDown={handleSearchKeyDown}
                   placeholder="title or author..."
                   className="w-full border-2 rounded-3xl pl-12 pr-4 py-3 text-stone-200 placeholder-stone-500 focus:outline-none transition-all text-lg md:text-xl font-medium"
                   style={{
@@ -836,8 +850,8 @@ export default function ShareTypePage() {
                 <>
                   {bookSearchLoading && <p className="text-stone-500 text-sm mt-1">searching...</p>}
                   {bookSearchError && <p className="text-red-400 text-sm mt-1">{bookSearchError}</p>}
-                  {bookSearchResults.length > 0 && !bookSearchLoading && (
-                    <ul className="mt-2 border rounded-lg overflow-hidden" style={{ borderColor: config.color }}>
+                  {bookSearchResults.length > 0 && !bookSearchLoading && !searchResultsHidden && (
+                    <ul className="mt-2 border rounded-lg overflow-y-auto max-h-64" style={{ borderColor: config.color }}>
                       {bookSearchResults.map((book) => (
                         <li key={book.id}>
                           <button
@@ -881,7 +895,7 @@ export default function ShareTypePage() {
             </div>
           )}
           {type === 'movie' && (
-            <div className="w-full space-y-2">
+            <div className="w-full space-y-2" data-search-area>
               <label
                 htmlFor="movie-search"
                 className="text-sm uppercase tracking-wider font-bold block mb-2"
@@ -901,6 +915,7 @@ export default function ShareTypePage() {
                   type="text"
                   value={movieSearchQuery}
                   onChange={(e) => setMovieSearchQuery(e.target.value)}
+                  onKeyDown={handleSearchKeyDown}
                   placeholder="title or director..."
                   className="w-full border-2 rounded-3xl pl-12 pr-4 py-3 text-stone-200 placeholder-stone-500 focus:outline-none transition-all text-lg md:text-xl font-medium"
                   style={{
@@ -928,8 +943,8 @@ export default function ShareTypePage() {
                 <>
                   {movieSearchLoading && <p className="text-stone-500 text-sm mt-1">searching...</p>}
                   {movieSearchError && <p className="text-red-400 text-sm mt-1">{movieSearchError}</p>}
-                  {movieSearchResults.length > 0 && !movieSearchLoading && (
-                    <ul className="mt-2 border rounded-lg overflow-hidden" style={{ borderColor: config.color }}>
+                  {movieSearchResults.length > 0 && !movieSearchLoading && !searchResultsHidden && (
+                    <ul className="mt-2 border rounded-lg overflow-y-auto max-h-64" style={{ borderColor: config.color }}>
                       {movieSearchResults.map((movie) => (
                         <li key={movie.id}>
                           <button
@@ -973,7 +988,7 @@ export default function ShareTypePage() {
             </div>
           )}
           {(type === 'song' || type === 'album') && (
-            <div className="w-full space-y-2">
+            <div className="w-full space-y-2" data-search-area>
               <label
                 htmlFor="music-search"
                 className="text-sm uppercase tracking-wider font-bold block mb-2"
@@ -993,6 +1008,7 @@ export default function ShareTypePage() {
                   type="text"
                   value={musicSearchQuery}
                   onChange={(e) => setMusicSearchQuery(e.target.value)}
+                  onKeyDown={handleSearchKeyDown}
                   placeholder="title or artist..."
                   className="w-full border-2 rounded-3xl pl-12 pr-4 py-3 text-stone-200 placeholder-stone-500 focus:outline-none transition-all text-lg md:text-xl font-medium"
                   style={{
@@ -1020,8 +1036,8 @@ export default function ShareTypePage() {
                 <>
                   {musicSearchLoading && <p className="text-stone-500 text-sm mt-1">searching...</p>}
                   {musicSearchError && <p className="text-red-400 text-sm mt-1">{musicSearchError}</p>}
-                  {musicSearchResults.length > 0 && !musicSearchLoading && (
-                    <ul className="mt-2 border rounded-lg overflow-hidden" style={{ borderColor: config.color }}>
+                  {musicSearchResults.length > 0 && !musicSearchLoading && !searchResultsHidden && (
+                    <ul className="mt-2 border rounded-lg overflow-y-auto max-h-64" style={{ borderColor: config.color }}>
                       {musicSearchResults.map((item) => (
                         <li key={item.id}>
                           <button
@@ -1214,9 +1230,7 @@ export default function ShareTypePage() {
                 moss
               </span>
             </div>
-            <p className="text-stone-400 text-sm leading-relaxed lowercase">
-              moss is a place to connect through the media that moves you. to encourage sharing the things that really resonate, you can share up to 3 things per week.
-            </p>
+            <AboutText />
             <button
               onClick={() => setAboutOpen(false)}
               type="button"

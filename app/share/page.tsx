@@ -6,6 +6,7 @@ import Link from 'next/link'
 import type { UserMeResponse } from '@/lib/types'
 import { WEEKLY_POST_LIMIT } from '@/lib/api/weekly-limit'
 import { MossIcon } from '@/lib/components/MossIcon'
+import { AboutText } from '@/lib/components/AboutDialog'
 import { StarIcon } from '@/lib/components/PostHelpers'
 import {
   BookIcon,
@@ -239,9 +240,7 @@ export default function SharePage() {
                 moss
               </span>
             </div>
-            <p className="text-stone-400 text-sm leading-relaxed lowercase">
-              moss is a place to connect through the media that moves you. to encourage sharing the things that really resonate, you can share up to 3 things per week.
-            </p>
+            <AboutText />
             <button
               onClick={() => setAboutOpen(false)}
               type="button"
