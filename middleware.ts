@@ -8,6 +8,7 @@ const isPublicRoute = createRouteMatcher([
   '/auth/callback(.*)',
   '/privacy',
   '/terms',
+  '/sms',
   '/api(.*)',
 ])
 

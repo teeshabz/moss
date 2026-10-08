@@ -131,8 +131,11 @@ export function LegalPage() {
 
         <H2 id="sms">Text messages (Moss weekly nudge)</H2>
         <p>
-          If you check &quot;{SMS_CONSENT_LABEL}&quot; during signup or in your profile settings,
-          you agree to receive recurring texts from Moss: a weekly reminder to share what moved you,
+          If you check &quot;{SMS_CONSENT_LABEL}&quot; during signup, in your profile settings, or at{' '}
+          <a href="https://moss-app.co/sms" className="underline hover:text-stone-200">
+            moss-app.co/sms
+          </a>
+          , you agree to receive recurring texts from Moss: a weekly reminder to share what moved you,
           plus occasional account updates.
         </p>
         <ul className="list-disc pl-5 space-y-1">

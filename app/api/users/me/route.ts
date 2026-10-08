@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { countWeeklyPosts } from '@/lib/api/weekly-limit'
 import { recordSmsConsent } from '@/lib/sms-consent-record'
+import type { SmsConsentSource } from '@/lib/sms-consent'
 import type { UserMeResponse } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
@@ -131,14 +132,19 @@ export async function PATCH(request: Request) {
 
     const supabaseAdmin = createAdminClient()
 
+    const consentSource: SmsConsentSource =
+      body.sms_consent_source === 'sms_page' ? 'sms_page' : 'profile'
+
     let wasOptedIn = false
+    let previousPhone: string | null = null
     if (updates.sms_opt_in === true) {
       const { data: before } = await supabaseAdmin
         .from('users')
-        .select('sms_opt_in')
+        .select('sms_opt_in, phone_number')
         .eq('id', userId)
         .single()
       wasOptedIn = !!before?.sms_opt_in
+      previousPhone = before?.phone_number ?? null
     }
 
     const { data: dbUser, error: updateError } = await supabaseAdmin
@@ -163,9 +169,10 @@ export async function PATCH(request: Request) {
       )
     }
 
-    if (updates.sms_opt_in === true && !wasOptedIn) {
+    const phoneChanged = dbUser.phone_number !== previousPhone
+    if (updates.sms_opt_in === true && (!wasOptedIn || phoneChanged)) {
       if (dbUser.phone_number) {
-        dbUser.sms_opt_in = await recordSmsConsent(supabaseAdmin, userId, dbUser.phone_number, 'profile')
+        dbUser.sms_opt_in = await recordSmsConsent(supabaseAdmin, userId, dbUser.phone_number, consentSource)
       } else {
         await supabaseAdmin.from('users').update({ sms_opt_in: false }).eq('id', userId)
         dbUser.sms_opt_in = false
