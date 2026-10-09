@@ -135,8 +135,7 @@ export function LegalPage() {
           <a href="https://moss-app.co/sms" className="underline hover:text-stone-200">
             moss-app.co/sms
           </a>
-          , you agree to receive recurring texts from Moss: a weekly reminder to share what moved you,
-          plus occasional account updates.
+          , you agree to receive recurring texts from Moss: a weekly reminder to share what moved you.
         </p>
         <ul className="list-disc pl-5 space-y-1">
           <li><strong className="text-stone-200">Frequency:</strong> approx. 1 message per week</li>
